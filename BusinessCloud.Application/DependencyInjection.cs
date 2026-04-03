@@ -1,6 +1,4 @@
 ﻿using System.Reflection;
-using BusinessCloud.Application.Payments.Interfaces;
-using BusinessCloud.Application.Payments.Services;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -14,9 +12,6 @@ public static class DependencyInjection
         // Esta línea busca todas las clases que heredan de AbstractValidator en este proyecto
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
-        // 2. Registro de tus servicios de Negocio
-        services.AddScoped<ISaleService, SaleService>();
-        services.AddScoped<IPaymentService, PaymentService>();
 
         return services;
     }

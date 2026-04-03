@@ -1,6 +1,7 @@
-﻿using BusinessCloud.Application.Payments.Dtos;
-using BusinessCloud.Application.Payments.Interfaces;
+﻿using BusinessCloud.Application.Payments.Commands.RegisterPayment;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using BusinessCloud.Application.Payments.Dtos;
 
 namespace BusinessCloud.Api.Controllers.Payments;
 
@@ -8,17 +9,17 @@ namespace BusinessCloud.Api.Controllers.Payments;
 [Route("api/[controller]")]
 public class PaymentsController : ControllerBase
 {
-    private readonly IPaymentService _paymentService;
+    private readonly IMediator _mediator;
 
-    public PaymentsController(IPaymentService paymentService)
+    public PaymentsController(IMediator mediator)
     {
-        _paymentService = paymentService;
+        _mediator = mediator;
     }
 
     [HttpPost]
-    public async Task<ActionResult<PaymentResponse>> Register(RegisterPaymentRequest request)
+    public async Task<ActionResult<PaymentReceiptDto>> Register(RegisterPaymentCommand command)
     {
-        var result = await _paymentService.RegisterPaymentAsync(request);
-        return Ok(result);
+        var result = await _mediator.Send(command);
+        return Ok(result); // El Front-end recibe el JSON con saldo y movimientos
     }
 }

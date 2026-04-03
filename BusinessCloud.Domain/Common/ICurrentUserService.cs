@@ -7,5 +7,6 @@ namespace BusinessCloud.Domain.Common
         string? UserId { get; }
         string? Username { get; }
         string? Role { get; }
+        int TenantId { get; }
     }
 }

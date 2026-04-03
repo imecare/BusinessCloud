@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BusinessCloud.Application.Payments.Queries.GetCustomerHistory;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,4 +19,5 @@ namespace BusinessCloud.Application.Payments.Dtos
         public int PaymentId { get; set; }
         public decimal NewBalance { get; set; }
     }
+
 }
