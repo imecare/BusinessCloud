@@ -1,23 +1,33 @@
-// Asegúrate de que este sea el único using de Common
-using BusinessCloud.Domain.Common;
-using BusinessCloud.Infrastructure.Data;
 using BusinessCloud.Api.Middleware;
-using BusinessCloud.Application.Auth.Interfaces;
-using Microsoft.EntityFrameworkCore;
+using BusinessCloud.Application;
+using BusinessCloud.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Serilog; // Solo uno
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// --- CONFIGURACIÓN DE SERILOG (Debe ir antes de builder.Build) ---
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File("logs/BusinessCloud-.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+
+builder.Host.UseSerilog();
+
 // --- 1. Servicios (DI) ---
-builder.Services.AddControllers();
+
 builder.Services.AddEndpointsApiExplorer();
+
+// REGISTRO DE SWAGGER (SOLO UNA VEZ)
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "BusinessCloud API", Version = "v1" });
 
-    // Configurar la definición de seguridad para JWT
     c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
         Description = "JWT Authorization header usando el esquema Bearer. Ejemplo: 'Bearer 12345abcdef'",
@@ -43,14 +53,18 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// Bases de Datos
 builder.Services.AddDbContext<CommissionsDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("CommissionsConnection")));
 
-// SOLUCIÓN AL ERROR DE CONVERSIÓN Y AMBIGÜEDAD:
-// Registramos la interfaz de Domain y la clase de Infrastructure
+builder.Services.AddDbContext<PaymentsDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("AbonosConnection")));
+
+// Usuario actual y Capa de Aplicación
 builder.Services.AddScoped<BusinessCloud.Domain.Common.ICurrentUserService, BusinessCloud.Infrastructure.Data.DummyCurrentUserService>();
 
-builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.AddApplication();
+builder.Services.AddControllers();
 
 // --- CONFIGURACIÓN JWT ---
 var jwtSection = builder.Configuration.GetSection("Jwt");

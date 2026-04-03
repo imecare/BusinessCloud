@@ -30,9 +30,9 @@ namespace BusinessCloud.Api.Middleware
             {
                 await HandleExceptionAsync(context, ex.Message, HttpStatusCode.Unauthorized);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                await HandleExceptionAsync(context, "Internal server error", HttpStatusCode.InternalServerError);
+                await HandleExceptionAsync(context, "Internal server error" + ex.Message, HttpStatusCode.InternalServerError);
             }
         }
 
