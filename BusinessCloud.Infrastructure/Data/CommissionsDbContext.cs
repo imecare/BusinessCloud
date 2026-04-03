@@ -21,11 +21,7 @@ namespace BusinessCloud.Infrastructure.Data
         // --- Tablas de Commissions ---
         public DbSet<InfluenceCenter> InfluenceCenters => Set<InfluenceCenter>();
 
-        // --- Tablas de Payments (Abonos) ---
-        public DbSet<Customer> Customers => Set<Customer>();
-        public DbSet<Sale> Sales => Set<Sale>();
-        public DbSet<Payment> Payments => Set<Payment>();
-
+       
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -66,44 +62,6 @@ namespace BusinessCloud.Infrastructure.Data
 
             ic.HasIndex(x => x.RFC).IsUnique();
             ic.HasIndex(x => x.Username).IsUnique(false);
-
-            // Configuración de Customer
-            modelBuilder.Entity<Customer>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
-                entity.Property(e => e.RFC).HasMaxLength(20).IsRequired();
-                entity.Property(e => e.Phone).HasMaxLength(20).IsRequired();
-                entity.HasIndex(e => new { e.RFC, e.Phone }); // Índice para búsquedas rápidas
-            });
-
-            // Configuración de Sale
-            modelBuilder.Entity<Sale>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                // Configuración Senior: Siempre definir precisión para decimales
-                entity.Property(e => e.TotalAmount).HasPrecision(18, 2);
-                entity.Property(e => e.ProductCost).HasPrecision(18, 2);
-                entity.Property(e => e.CommissionAmount).HasPrecision(18, 2);
-
-                entity.HasOne(d => d.Customer)
-                    .WithMany(p => p.Sales)
-                    .HasForeignKey(d => d.CustomerId)
-                    .OnDelete(DeleteBehavior.Restrict); // Evita borrado en cascada accidental
-            });
-
-            // Configuración de Payment
-            modelBuilder.Entity<Payment>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Amount).HasPrecision(18, 2);
-
-                entity.HasOne(d => d.Sale)
-                    .WithMany(p => p.Payments)
-                    .HasForeignKey(d => d.SaleId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            });
-
             
         }
 
