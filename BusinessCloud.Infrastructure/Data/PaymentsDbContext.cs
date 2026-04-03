@@ -7,14 +7,16 @@ namespace BusinessCloud.Infrastructure.Data;
 
 public class PaymentsDbContext : DbContext
 {
-    private readonly ICurrentUserService _currentUser;
+    private readonly int _currentTenantId;
+    private readonly string _currentUserId;
 
     public PaymentsDbContext(
         DbContextOptions<PaymentsDbContext> options,
-        ICurrentUserService currentUser)
-        : base(options)
+        ICurrentUserService userService) : base(options)
     {
-        _currentUser = currentUser;
+      // Obtenemos los datos del usuario logueado (vía JWT) [cite: 43]
+        _currentTenantId = userService.TenantId;
+        _currentUserId = userService.UserId ?? "System";
     }
 
     public DbSet<Customer> Customers => Set<Customer>();
@@ -34,20 +36,15 @@ public class PaymentsDbContext : DbContext
             entity.HasIndex(e => new { e.RFC, e.Phone }); // Índice para búsquedas rápidas
         });
 
-        // Configuración de Sale
-        modelBuilder.Entity<Sale>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            // Configuración Senior: Siempre definir precisión para decimales
-            entity.Property(e => e.TotalAmount).HasPrecision(18, 2);
-            entity.Property(e => e.ProductCost).HasPrecision(18, 2);
-            entity.Property(e => e.CommissionAmount).HasPrecision(18, 2);
 
-            entity.HasOne(d => d.Customer)
-                .WithMany(p => p.Sales)
-                .HasForeignKey(d => d.CustomerId)
-                .OnDelete(DeleteBehavior.Restrict); // Evita borrado en cascada accidental
-        });
+       // 1. FILTRO GLOBAL SAAS: Ninguna empresa verá datos de otra 
+        modelBuilder.Entity<Sale>().HasQueryFilter(s => s.TenantId == _currentTenantId);
+        // Repetir para Customer y Payment...
+
+        // 2. Configuración de decimales
+        modelBuilder.Entity<Sale>().Property(s => s.TotalAmount).HasPrecision(18, 2);
+        modelBuilder.Entity<Sale>().Property(s => s.CostPrice).HasPrecision(18, 2);
+        modelBuilder.Entity<Sale>().Property(s => s.CommissionAmount).HasPrecision(18, 2);
 
         // Configuración de Payment
         modelBuilder.Entity<Payment>(entity =>
@@ -62,25 +59,24 @@ public class PaymentsDbContext : DbContext
         });
     }
 
-    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        var entries = ChangeTracker.Entries<IAuditableEntity>();
-
-        foreach (var entry in entries)
+        // 3. AUDITORÍA AUTOMÁTICA [cite: 16, 53]
+        foreach (var entry in ChangeTracker.Entries<BaseAuditableEntity>())
         {
             if (entry.State == EntityState.Added)
             {
+                entry.Entity.TenantId = _currentTenantId;
                 entry.Entity.CreatedAt = DateTime.UtcNow;
-                entry.Entity.CreatedBy = _currentUser.Username ?? "SYSTEM";
+                entry.Entity.CreatedBy = _currentUserId;
             }
             else if (entry.State == EntityState.Modified)
             {
                 entry.Entity.UpdatedAt = DateTime.UtcNow;
-                entry.Entity.UpdatedBy = _currentUser.Username ?? "SYSTEM";
+                entry.Entity.UpdatedBy = _currentUserId;
             }
         }
-
-        return await base.SaveChangesAsync(cancellationToken);
+        return base.SaveChangesAsync(cancellationToken);
     }
 }
 

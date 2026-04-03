@@ -2,29 +2,25 @@
 
 namespace BusinessCloud.Domain.Payments.Entities
 {
-    public class Sale : IAuditableEntity
+    public class Sale : BaseAuditableEntity
     {
         public int Id { get; set; }
         public int CustomerId { get; set; }
-        public int SellerId { get; set; }
+        public int? SellerId { get; set; }
 
         public decimal TotalAmount { get; set; }
-        public decimal ProductCost { get; set; } // Propósito: Saber ganancia real 
-        public decimal CommissionAmount { get; set; } // Monto para el ayudante 
+        public decimal CostPrice { get; set; } // Lo que te costó a ti [cite: 8, 26]
+        public decimal CommissionAmount { get; set; } // Comisión del ayudante [cite: 8, 27]
 
         public bool IsCommissionPaid { get; set; } // ¿Dueño ya pagó comisión? 
         public bool IsPaid { get; set; } // ¿Venta liquidada por el cliente?
 
-        public DateTime SaleDate { get; set; }
+        public DateTime Date { get; set; }
 
-        // Propiedades de auditoría
-        public DateTime CreatedAt { get; set; }
-        public string? CreatedBy { get; set; }
-        public DateTime? UpdatedAt { get; set; }
-        public string? UpdatedBy { get; set; }
-
-        // Relaciones
+        // Agrega esta línea para que EF sepa que una venta pertenece a un cliente
         public virtual Customer Customer { get; set; } = null!;
+
+        // Relación con los abonos individuales
         public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
     }
 }

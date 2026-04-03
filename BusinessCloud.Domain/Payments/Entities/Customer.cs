@@ -2,7 +2,7 @@
 
 namespace BusinessCloud.Domain.Payments.Entities
 {
-    public class Customer : IAuditableEntity
+    public class Customer : BaseAuditableEntity
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
@@ -12,12 +12,7 @@ namespace BusinessCloud.Domain.Payments.Entities
         // Relación con el vendedor (ayudante) que atiende al cliente
         public int SellerId { get; set; }
 
-        // Propiedades de auditoría (IAuditableEntity)
-        public DateTime CreatedAt { get; set; }
-        public string? CreatedBy { get; set; }
-        public DateTime? UpdatedAt { get; set; }
-        public string? UpdatedBy { get; set; }
-
+      
         // Relación de navegación
         public virtual ICollection<Sale> Sales { get; set; } = new List<Sale>();
     }

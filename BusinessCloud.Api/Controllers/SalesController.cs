@@ -1,6 +1,6 @@
-﻿using BusinessCloud.Application.Commissions.Interfaces;
-using BusinessCloud.Application.Payments.Dtos;
-using BusinessCloud.Application.Payments.Interfaces;
+﻿using BusinessCloud.Application.Payments.Commands.CreateSale;
+using BusinessCloud.Application.Payments.Queries.GetCustomerHistory;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BusinessCloud.Api.Controllers.Payments;
@@ -9,24 +9,28 @@ namespace BusinessCloud.Api.Controllers.Payments;
 [Route("api/[controller]")]
 public class SalesController : ControllerBase
 {
-    private readonly ISaleService _saleService;
+    private readonly IMediator _mediator;
 
-    public SalesController(ISaleService saleService)
+    // Inyectamos únicamente IMediator
+    public SalesController(IMediator mediator)
     {
-        _saleService = saleService;
+        _mediator = mediator;
     }
 
     [HttpPost]
-    public async Task<ActionResult<SaleResponse>> Create(CreateSaleRequest request)
+    public async Task<ActionResult<int>> Create(CreateSaleCommand command)
     {
-        var result = await _saleService.CreateSaleAsync(request);
+        // El controlador ya no conoce la lógica, solo envía el comando
+        var result = await _mediator.Send(command);
         return Ok(result);
     }
 
     [HttpGet("history")]
-    public async Task<ActionResult<IEnumerable<SaleResponse>>> GetHistory(string rfc, string phone)
+    public async Task<ActionResult<IEnumerable<CustomerHistoryDto>>> GetHistory([FromQuery] string phone, [FromQuery] string? rfc)
     {
-        var result = await _saleService.GetCustomerHistoryAsync(rfc, phone);
+        // Disparamos la consulta optimizada de MongoDB/Redis
+        var query = new GetCustomerHistoryQuery(phone, rfc);
+        var result = await _mediator.Send(query);
         return Ok(result);
     }
 }

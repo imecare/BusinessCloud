@@ -102,10 +102,5 @@ namespace BusinessCloud.Infrastructure.Data
         }
     }
 
-    public class DummyCurrentUserService : ICurrentUserService
-    {
-        public string? UserId => "SYSTEM";
-        public string? Username => "SYSTEM";
-        public string? Role => "SYSTEM";
-    }
+   
 }
