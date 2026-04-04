@@ -1,171 +1,172 @@
 ﻿using BusinessCloud.Application.Commissions.Dtos;
+
 using BusinessCloud.Application.Commissions.Interfaces;
 using BusinessCloud.Domain.Commissions.Entities;
-using BusinessCloud.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
-namespace BusinessCloud.Application.Commissions.Services
-{
-    public class InfluenceCenterService : IInfluenceCenterService
-    {
-        private readonly CommissionsDbContext _db;
-        private readonly PasswordHasher<InfluenceCenter> _hasher = new();
 
-        public InfluenceCenterService(CommissionsDbContext db)
-        {
-            _db = db;
-        }
+//namespace BusinessCloud.Application.Commissions.Services
+//{
+//    public class InfluenceCenterService : IInfluenceCenterService
+//    {
+//        private readonly ICOMISS _db;
+//        private readonly PasswordHasher<InfluenceCenter> _hasher = new();
 
-        public async Task<InfluenceCenterResponse> CreateAsync(InfluenceCenterCreateRequest req)
-        {
-            req.RFC = req.RFC?.Trim().ToUpperInvariant() ?? "";
-            req.Email = req.Email?.Trim() ?? "";
-            req.Username = req.Username?.Trim();
+//        public InfluenceCenterService(ICommissionsDbContext db)
+//        {
+//            _db = db;
+//        }
 
-            if (string.IsNullOrWhiteSpace(req.Name))
-                throw new ArgumentException("Name es requerido.");
+//        public async Task<InfluenceCenterResponse> CreateAsync(InfluenceCenterCreateRequest req)
+//        {
+//            req.RFC = req.RFC?.Trim().ToUpperInvariant() ?? "";
+//            req.Email = req.Email?.Trim() ?? "";
+//            req.Username = req.Username?.Trim();
 
-            if (string.IsNullOrWhiteSpace(req.RFC))
-                throw new ArgumentException("RFC es requerido.");
+//            if (string.IsNullOrWhiteSpace(req.Name))
+//                throw new ArgumentException("Name es requerido.");
 
-            if (string.IsNullOrWhiteSpace(req.Email))
-                throw new ArgumentException("Email es requerido.");
+//            if (string.IsNullOrWhiteSpace(req.RFC))
+//                throw new ArgumentException("RFC es requerido.");
 
-            var existsRfc = await _db.InfluenceCenters.AnyAsync(x => x.RFC == req.RFC);
-            if (existsRfc)
-                throw new InvalidOperationException("Ya existe un Centro de Influencia con ese RFC.");
+//            if (string.IsNullOrWhiteSpace(req.Email))
+//                throw new ArgumentException("Email es requerido.");
 
-            if (!string.IsNullOrWhiteSpace(req.Username))
-            {
-                var existsUser = await _db.InfluenceCenters.AnyAsync(x => x.Username == req.Username);
-                if (existsUser)
-                    throw new InvalidOperationException("Ese Username ya está en uso.");
-            }
+//            var existsRfc = await _db.InfluenceCenters.AnyAsync(x => x.RFC == req.RFC);
+//            if (existsRfc)
+//                throw new InvalidOperationException("Ya existe un Centro de Influencia con ese RFC.");
 
-            var entity = new InfluenceCenter
-            {
-                Name = req.Name.Trim(),
-                RFC = req.RFC,
-                Email = req.Email,
-                Username = string.IsNullOrWhiteSpace(req.Username) ? null : req.Username,
-                IsActive = true,
-                Role = "InfluenceCenter"
-            };
+//            if (!string.IsNullOrWhiteSpace(req.Username))
+//            {
+//                var existsUser = await _db.InfluenceCenters.AnyAsync(x => x.Username == req.Username);
+//                if (existsUser)
+//                    throw new InvalidOperationException("Ese Username ya está en uso.");
+//            }
 
-            if (!string.IsNullOrWhiteSpace(req.Password))
-            {
-                entity.PasswordHash = _hasher.HashPassword(entity, req.Password);
-            }
+//            var entity = new InfluenceCenter
+//            {
+//                Name = req.Name.Trim(),
+//                RFC = req.RFC,
+//                Email = req.Email,
+//                Username = string.IsNullOrWhiteSpace(req.Username) ? null : req.Username,
+//                IsActive = true,
+//                Role = "InfluenceCenter"
+//            };
 
-            _db.InfluenceCenters.Add(entity);
-            await _db.SaveChangesAsync();
+//            if (!string.IsNullOrWhiteSpace(req.Password))
+//            {
+//                entity.PasswordHash = _hasher.HashPassword(entity, req.Password);
+//            }
 
-            return Map(entity);
-        }
+//            _db.InfluenceCenters.Add(entity);
+//            await _db.SaveChangesAsync();
 
-        public async Task<List<InfluenceCenterResponse>> GetAllAsync(bool includeInactive = false)
-        {
-            var query = _db.InfluenceCenters.AsNoTracking();
+//            return Map(entity);
+//        }
 
-            if (!includeInactive)
-                query = query.Where(x => x.IsActive);
+//        public async Task<List<InfluenceCenterResponse>> GetAllAsync(bool includeInactive = false)
+//        {
+//            var query = _db.InfluenceCenters.AsNoTracking();
 
-            var list = await query.OrderBy(x => x.Name).ToListAsync();
+//            if (!includeInactive)
+//                query = query.Where(x => x.IsActive);
 
-            return list.Select(Map).ToList();
-        }
+//            var list = await query.OrderBy(x => x.Name).ToListAsync();
 
-        public async Task<InfluenceCenterResponse?> GetByIdAsync(int id)
-        {
-            var entity = await _db.InfluenceCenters
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == id);
+//            return list.Select(Map).ToList();
+//        }
 
-            return entity == null ? null : Map(entity);
-        }
+//        public async Task<InfluenceCenterResponse?> GetByIdAsync(int id)
+//        {
+//            var entity = await _db.InfluenceCenters
+//                .AsNoTracking()
+//                .FirstOrDefaultAsync(x => x.Id == id);
 
-        public async Task<InfluenceCenterResponse> UpdateAsync(int id, InfluenceCenterUpdateRequest req)
-        {
-            var entity = await _db.InfluenceCenters.FirstOrDefaultAsync(x => x.Id == id);
+//            return entity == null ? null : Map(entity);
+//        }
 
-            if (entity == null)
-                throw new KeyNotFoundException("Centro de Influencia no encontrado.");
+//        public async Task<InfluenceCenterResponse> UpdateAsync(int id, InfluenceCenterUpdateRequest req)
+//        {
+//            var entity = await _db.InfluenceCenters.FirstOrDefaultAsync(x => x.Id == id);
 
-            if (string.IsNullOrWhiteSpace(req.Name))
-                throw new ArgumentException("Name es requerido.");
+//            if (entity == null)
+//                throw new KeyNotFoundException("Centro de Influencia no encontrado.");
 
-            if (string.IsNullOrWhiteSpace(req.Email))
-                throw new ArgumentException("Email es requerido.");
+//            if (string.IsNullOrWhiteSpace(req.Name))
+//                throw new ArgumentException("Name es requerido.");
 
-            entity.Name = req.Name.Trim();
-            entity.Email = req.Email.Trim();
+//            if (string.IsNullOrWhiteSpace(req.Email))
+//                throw new ArgumentException("Email es requerido.");
 
-            await _db.SaveChangesAsync();
+//            entity.Name = req.Name.Trim();
+//            entity.Email = req.Email.Trim();
 
-            return Map(entity);
-        }
+//            await _db.SaveChangesAsync();
 
-        public async Task DeactivateAsync(int id)
-        {
-            var entity = await _db.InfluenceCenters.FirstOrDefaultAsync(x => x.Id == id);
+//            return Map(entity);
+//        }
 
-            if (entity == null)
-                throw new KeyNotFoundException("Centro de Influencia no encontrado.");
+//        public async Task DeactivateAsync(int id)
+//        {
+//            var entity = await _db.InfluenceCenters.FirstOrDefaultAsync(x => x.Id == id);
 
-            entity.IsActive = false;
+//            if (entity == null)
+//                throw new KeyNotFoundException("Centro de Influencia no encontrado.");
 
-            await _db.SaveChangesAsync();
-        }
+//            entity.IsActive = false;
 
-        public async Task ActivateAsync(int id)
-        {
-            var entity = await _db.InfluenceCenters.FirstOrDefaultAsync(x => x.Id == id);
+//            await _db.SaveChangesAsync();
+//        }
 
-            if (entity == null)
-                throw new KeyNotFoundException("Centro de Influencia no encontrado.");
+//        public async Task ActivateAsync(int id)
+//        {
+//            var entity = await _db.InfluenceCenters.FirstOrDefaultAsync(x => x.Id == id);
 
-            entity.IsActive = true;
+//            if (entity == null)
+//                throw new KeyNotFoundException("Centro de Influencia no encontrado.");
 
-            await _db.SaveChangesAsync();
-        }
+//            entity.IsActive = true;
 
-        public async Task SetCredentialsAsync(int id, InfluenceCenterSetCredentialsRequest req)
-        {
-            var entity = await _db.InfluenceCenters.FirstOrDefaultAsync(x => x.Id == id);
+//            await _db.SaveChangesAsync();
+//        }
 
-            if (entity == null)
-                throw new KeyNotFoundException("Centro de Influencia no encontrado.");
+//        public async Task SetCredentialsAsync(int id, InfluenceCenterSetCredentialsRequest req)
+//        {
+//            var entity = await _db.InfluenceCenters.FirstOrDefaultAsync(x => x.Id == id);
 
-            req.Username = req.Username?.Trim() ?? "";
+//            if (entity == null)
+//                throw new KeyNotFoundException("Centro de Influencia no encontrado.");
 
-            if (string.IsNullOrWhiteSpace(req.Username))
-                throw new ArgumentException("Username es requerido.");
+//            req.Username = req.Username?.Trim() ?? "";
 
-            if (string.IsNullOrWhiteSpace(req.Password))
-                throw new ArgumentException("Password es requerido.");
+//            if (string.IsNullOrWhiteSpace(req.Username))
+//                throw new ArgumentException("Username es requerido.");
 
-            var existsUser = await _db.InfluenceCenters
-                .AnyAsync(x => x.Username == req.Username && x.Id != id);
+//            if (string.IsNullOrWhiteSpace(req.Password))
+//                throw new ArgumentException("Password es requerido.");
 
-            if (existsUser)
-                throw new InvalidOperationException("Ese Username ya está en uso.");
+//            var existsUser = await _db.InfluenceCenters
+//                .AnyAsync(x => x.Username == req.Username && x.Id != id);
 
-            entity.Username = req.Username;
-            entity.PasswordHash = _hasher.HashPassword(entity, req.Password);
+//            if (existsUser)
+//                throw new InvalidOperationException("Ese Username ya está en uso.");
 
-            await _db.SaveChangesAsync();
-        }
+//            entity.Username = req.Username;
+//            entity.PasswordHash = _hasher.HashPassword(entity, req.Password);
 
-        private static InfluenceCenterResponse Map(InfluenceCenter x) => new()
-        {
-            Id = x.Id,
-            Name = x.Name,
-            RFC = x.RFC,
-            Email = x.Email,
-            Username = x.Username,
-            IsActive = x.IsActive,
-            CreatedAt = x.CreatedAt
-        };
-    }
-}
+//            await _db.SaveChangesAsync();
+//        }
+
+//        private static InfluenceCenterResponse Map(InfluenceCenter x) => new()
+//        {
+//            Id = x.Id,
+//            Name = x.Name,
+//            RFC = x.RFC,
+//            Email = x.Email,
+//            Username = x.Username,
+//            IsActive = x.IsActive,
+//            CreatedAt = x.CreatedAt
+//        };
+//    }
+//}

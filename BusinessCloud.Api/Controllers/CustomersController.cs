@@ -1,26 +1,31 @@
-﻿using BusinessCloud.Infrastructure.Data;
-using BusinessCloud.Domain.Payments.Entities;
+using BusinessCloud.Application.Payments.Commands.CreateCustomer;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using BusinessCloud.Application.Payments.Dtos;
+using BusinessCloud.Application.Payments.Queries.GetCustomerById;
 
-namespace BusinessCloud.Api.Controllers.Payments;
+namespace BusinessCloud.Api.Controllers.Customers;
 
 [ApiController]
 [Route("api/[controller]")]
 public class CustomersController : ControllerBase
 {
-    private readonly PaymentsDbContext _context;
+    private readonly IMediator _mediator;
 
-    public CustomersController(PaymentsDbContext context)
-    {
-        _context = context;
-    }
+    public CustomersController(IMediator mediator) => _mediator = mediator;
 
     [HttpPost]
-    public async Task<IActionResult> Create(Customer customer)
+    public async Task<ActionResult<int>> Create([FromBody] CreateCustomerCommand command, CancellationToken cancellationToken)
     {
-        _context.Customers.Add(customer);
-        await _context.SaveChangesAsync();
-        return Ok(customer);
+        if (command is null) return BadRequest();
+        var id = await _mediator.Send(command, cancellationToken);
+        return CreatedAtAction(nameof(GetById), new { id }, id);
+    }
+
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<CustomerDto>> GetById(int id, CancellationToken cancellationToken)
+    {
+        var dto = await _mediator.Send(new GetCustomerByIdQuery(id), cancellationToken);
+        return dto is null ? NotFound() : Ok(dto);
     }
 }

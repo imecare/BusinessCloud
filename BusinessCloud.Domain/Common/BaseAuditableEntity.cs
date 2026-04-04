@@ -3,7 +3,7 @@
 public abstract class BaseAuditableEntity
 {
 
-    public int TenantId { get; set; }
+    public string TenantId { get; set; }
 
     public DateTime CreatedAt { get; set; }
     public string? CreatedBy { get; set; }

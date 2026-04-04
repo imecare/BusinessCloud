@@ -1,11 +1,17 @@
 using BusinessCloud.Api.Middleware;
 using BusinessCloud.Application;
+using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Infrastructure.Data;
+using BusinessCloud.Infrastructure.Data;
+using BusinessCloud.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using MongoDB.Driver;
 using Serilog; // Solo uno
 using System.Text;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,7 +26,8 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 
 // --- 1. Servicios (DI) ---
-
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddEndpointsApiExplorer();
 
 // REGISTRO DE SWAGGER (SOLO UNA VEZ)
@@ -61,8 +68,24 @@ builder.Services.AddDbContext<PaymentsDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("AbonosConnection")));
 
 // Usuario actual y Capa de Aplicación
-builder.Services.AddScoped<BusinessCloud.Domain.Common.ICurrentUserService, BusinessCloud.Infrastructure.Data.DummyCurrentUserService>();
+builder.Services.AddScoped<IPaymentsDbContext>(provider =>
+    provider.GetRequiredService<PaymentsDbContext>());
 
+// Obtener y validar la cadena de conexión de MongoDB (intenta varias ubicaciones)
+var mongoConnectionString = builder.Configuration.GetConnectionString("MongoDb")
+    ?? builder.Configuration["ConnectionStrings:MongoDb"]
+    ?? builder.Configuration["MongoDb"];
+
+if (string.IsNullOrWhiteSpace(mongoConnectionString))
+{
+    throw new InvalidOperationException("La cadena de conexión 'MongoDb' no está configurada. Añádela en ConnectionStrings:MongoDb en appsettings.json, User Secrets o variables de entorno.");
+}
+
+// Registrar IMongoClient para que MongoContext pueda construirse
+builder.Services.AddSingleton<MongoDB.Driver.IMongoClient>(sp => new MongoDB.Driver.MongoClient(mongoConnectionString));
+
+// Registrar el contexto que depende de IMongoClient
+builder.Services.AddScoped<IMongoContext, MongoContext>();
 builder.Services.AddApplication();
 builder.Services.AddControllers();
 

@@ -1,14 +1,14 @@
 ﻿using MediatR;
-using BusinessCloud.Infrastructure.Data;
+using BusinessCloud.Application.Common.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace BusinessCloud.Application.Dashboard.Queries.GetFinancialSummary;
 
 public class GetFinancialSummaryHandler : IRequestHandler<GetFinancialSummaryQuery, FinancialSummaryDto>
 {
-    private readonly PaymentsDbContext _context;
+    private readonly IPaymentsDbContext _context;
 
-    public GetFinancialSummaryHandler(PaymentsDbContext context) => _context = context;
+    public GetFinancialSummaryHandler(IPaymentsDbContext context) => _context = context;
 
     public async Task<FinancialSummaryDto> Handle(GetFinancialSummaryQuery request, CancellationToken ct)
     {

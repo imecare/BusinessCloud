@@ -1,4 +1,5 @@
 ﻿using BusinessCloud.Domain.Common;
+using System.Text.Json.Serialization;
 
 namespace BusinessCloud.Domain.Payments.Entities
 {
@@ -12,8 +13,12 @@ namespace BusinessCloud.Domain.Payments.Entities
         // Relación con el vendedor (ayudante) que atiende al cliente
         public int SellerId { get; set; }
 
-      
+
         // Relación de navegación
+        [JsonIgnore]
         public virtual ICollection<Sale> Sales { get; set; } = new List<Sale>();
+        // También oculta las de auditoría si vienen de la clase base
+ 
+
     }
 }

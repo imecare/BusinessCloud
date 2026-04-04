@@ -3,6 +3,7 @@ using BusinessCloud.Domain.Common;
 using BusinessCloud.Domain.Payments.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using BusinessCloud.Application.Common.Interfaces;
 
 namespace BusinessCloud.Infrastructure.Data
 {
