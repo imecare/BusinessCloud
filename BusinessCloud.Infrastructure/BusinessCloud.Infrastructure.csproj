@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\BusinessCloud.Application\BusinessCloud.Application.csproj" />
     <ProjectReference Include="..\BusinessCloud.Domain\BusinessCloud.Domain.csproj" />
     <ProjectReference Include="..\BusinessCloud.Shared\BusinessCloud.Shared.csproj" />
   </ItemGroup>
@@ -14,10 +15,13 @@
   <ItemGroup>
     <Folder Include="Commissions\Repositories\" />
     <Folder Include="Commissions\Excel\" />
+    <Folder Include="Common\Interfaces\" />
     <Folder Include="NewFolder\" />
+    <Folder Include="Persistence\" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore" Version="2.3.9" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.24" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.24">
       <PrivateAssets>all</PrivateAssets>

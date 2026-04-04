@@ -1,18 +1,18 @@
-﻿
+﻿using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Domain.Payments.Entities;
-using BusinessCloud.Infrastructure.Data;
-using BusinessCloud.Infrastructure.Persistence;
 using MediatR;
-using MongoDB.Driver;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace BusinessCloud.Application.Payments.Commands.CreateSale;
 
 public class CreateSaleHandler : IRequestHandler<CreateSaleCommand, int>
 {
-    private readonly PaymentsDbContext _sqlContext;
-    private readonly MongoContext _mongoContext;
+    private readonly IPaymentsDbContext _sqlContext;
+    private readonly IMongoContext _mongoContext;
 
-    public CreateSaleHandler(PaymentsDbContext sqlContext, MongoContext mongoContext)
+    public CreateSaleHandler(IPaymentsDbContext sqlContext, IMongoContext mongoContext)
     {
         _sqlContext = sqlContext;
         _mongoContext = mongoContext;
@@ -20,11 +20,11 @@ public class CreateSaleHandler : IRequestHandler<CreateSaleCommand, int>
 
     public async Task<int> Handle(CreateSaleCommand request, CancellationToken cancellationToken)
     {
-        // 1. Cálculo automático de comisión si hay SellerId [cite: 8, 27]
+        // 1. Cálculo automático de comisión si hay SellerId
         decimal commissionPercent = request.SellerId.HasValue ? 0.10m : 0m;
         decimal calculatedCommission = request.TotalAmount * commissionPercent;
 
-        // 2. Mapeo a la entidad (El TenantId se asigna solo en el SaveChanges) [cite: 44]
+        // 2. Mapeo a la entidad
         var sale = new Sale
         {
             CustomerId = request.CustomerId,
@@ -36,26 +36,22 @@ public class CreateSaleHandler : IRequestHandler<CreateSaleCommand, int>
             Date = DateTime.UtcNow
         };
 
-        // 3. AGREGAR MOVIMIENTO INICIAL (Venta como transacción de cargo)
-        // Esto asegura que en la tabla Payments siempre haya un rastro del origen
+        // 3. Movimiento inicial
         var initialMovement = new Payment
         {
-            Amount = 0, // Si es crédito puro, o puedes poner el monto del enganche si el comando lo trae
+            Amount = 0,
             Date = DateTime.UtcNow,
-            Reference = "Registro inicial de venta",
-            // Sale se asociará automáticamente al agregarla a la colección si tienes la navegación
+            Reference = "Registro inicial de venta"
         };
 
-        // Si tu entidad Sale tiene ICollection<Payment> Payments:
         sale.Payments = new List<Payment> { initialMovement };
 
-        // 4. Guardar en SQL Server (EF Core envuelve esto en una sola transacción SQL)
+        // 4. Guardar en SQL
         _sqlContext.Sales.Add(sale);
         await _sqlContext.SaveChangesAsync(cancellationToken);
 
-        // 5. Audit Log en MongoDB (Igual que antes)
-        var auditCollection = _mongoContext.GetCollection<object>("AuditLogs");
-        await auditCollection.InsertOneAsync(new
+        // 5. Audit Log en MongoDB usando la abstracción del contexto (no GetCollection)
+        await _mongoContext.InsertAuditLogAsync(new
         {
             Event = "SaleAndInitialMovementCreated",
             SaleId = sale.Id,
@@ -66,7 +62,7 @@ public class CreateSaleHandler : IRequestHandler<CreateSaleCommand, int>
                 InitialPayment = initialMovement.Amount
             },
             CreatedAt = DateTime.UtcNow
-        }, cancellationToken: cancellationToken);
+        }, cancellationToken);
 
         return sale.Id;
     }

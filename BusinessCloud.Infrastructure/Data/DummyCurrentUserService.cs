@@ -1,9 +1,4 @@
-﻿using BusinessCloud.Domain.Common;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using BusinessCloud.Application.Common.Interfaces; // Esto fallará hasta que hagas el Paso 1
 
 namespace BusinessCloud.Infrastructure.Data
 {
@@ -12,8 +7,6 @@ namespace BusinessCloud.Infrastructure.Data
         public string? UserId => "Admin_Test_ID";
         public string? Username => "admin@test.com";
         public string? Role => "Admin";
-
-        // Forzamos el ID de empresa 1 para tus pruebas locales
-        public int TenantId => 1;
+        public string? TenantId => "1";
     }
 }

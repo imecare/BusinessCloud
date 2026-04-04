@@ -1,13 +1,13 @@
 ﻿using BusinessCloud.Application.Commissions.Commands.PayCommissions;
-using BusinessCloud.Infrastructure.Data;
+using BusinessCloud.Application.Common.Interfaces;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 public class PayCommissionsHandler : IRequestHandler<PayCommissionsCommand, int>
 {
-    private readonly PaymentsDbContext _context;
+    private readonly IPaymentsDbContext _context;
 
-    public PayCommissionsHandler(PaymentsDbContext context) => _context = context;
+    public PayCommissionsHandler(IPaymentsDbContext context) => _context = context;
 
     public async Task<int> Handle(PayCommissionsCommand request, CancellationToken ct)
     {
