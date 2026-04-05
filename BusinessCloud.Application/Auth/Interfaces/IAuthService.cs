@@ -1,4 +1,4 @@
-﻿
+﻿using BusinessCloud.Application.Auth.Dtos;
 
 namespace BusinessCloud.Application.Auth.Interfaces
 {

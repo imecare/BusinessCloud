@@ -1,5 +1,6 @@
 ﻿using BusinessCloud.Application.Common.Interfaces; // <-- ESTO ES LO QUE FALTA PARA QUE ENCUENTRE LA INTERFAZ
 using BusinessCloud.Domain.Common;
+using BusinessCloud.Domain.Common.Entities;
 using BusinessCloud.Domain.Payments.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
@@ -21,6 +22,7 @@ public class PaymentsDbContext : DbContext, IPaymentsDbContext
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Sale> Sales => Set<Sale>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<Tenant> Tenants => Set<Tenant>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
