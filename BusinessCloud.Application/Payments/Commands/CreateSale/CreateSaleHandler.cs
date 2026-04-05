@@ -1,9 +1,7 @@
 ﻿using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Domain.Payments.Entities;
 using MediatR;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Collections.Generic;
+
 
 namespace BusinessCloud.Application.Payments.Commands.CreateSale;
 
