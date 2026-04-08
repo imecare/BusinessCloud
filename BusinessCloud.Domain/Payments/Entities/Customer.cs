@@ -9,7 +9,7 @@ namespace BusinessCloud.Domain.Payments.Entities
         public string Name { get; set; } = string.Empty;
         public string RFC { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
-
+       
         // Relación con el vendedor (ayudante) que atiende al cliente
         public int SellerId { get; set; }
 
