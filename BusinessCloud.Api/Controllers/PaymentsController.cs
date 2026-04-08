@@ -1,10 +1,12 @@
 ﻿using BusinessCloud.Application.Payments.Commands.RegisterPayment;
-using MediatR;
-using Microsoft.AspNetCore.Mvc;
 using BusinessCloud.Application.Payments.Dtos;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace BusinessCloud.Api.Controllers.Payments;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class PaymentsController : ControllerBase

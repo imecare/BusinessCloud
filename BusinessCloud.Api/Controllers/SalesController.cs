@@ -1,10 +1,12 @@
 ﻿using BusinessCloud.Application.Payments.Commands.CreateSale;
 using BusinessCloud.Application.Payments.Queries.GetCustomerHistory;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BusinessCloud.Api.Controllers.Payments;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class SalesController : ControllerBase

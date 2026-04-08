@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BusinessCloud.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/public/[controller]")]
 [AllowAnonymous] // Requerimiento: Consulta pública sin registro complejo 

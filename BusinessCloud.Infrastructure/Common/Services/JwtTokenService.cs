@@ -25,12 +25,13 @@ namespace BusinessCloud.Infrastructure.Common.Services
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var expireMinutes = _config.GetValue<int>("Jwt:ExpireMinutes");
 
             var token = new JwtSecurityToken(
                 issuer: _config["Jwt:Issuer"],
                 audience: _config["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.Now.AddDays(1),
+                expires: DateTime.Now.AddMinutes(expireMinutes),
                 signingCredentials: creds
             );
 
