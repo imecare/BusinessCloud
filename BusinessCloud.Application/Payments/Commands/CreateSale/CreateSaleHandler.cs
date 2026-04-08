@@ -37,8 +37,9 @@ public class CreateSaleHandler : IRequestHandler<CreateSaleCommand, int>
         // 3. Movimiento inicial
         var initialMovement = new Payment
         {
-            Amount = 0,
+            Amount = request.TotalAmount,
             Date = DateTime.UtcNow,
+            PaymentTypeId =1,
             Reference = "Registro inicial de venta"
         };
 

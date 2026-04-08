@@ -32,6 +32,7 @@ public class RegisterPaymentHandler : IRequestHandler<RegisterPaymentCommand, Pa
         {
             SaleId = request.SaleId,
             Amount = request.Amount,
+            PaymentTypeId=2,
             Date = DateTime.UtcNow,
             Reference = request.Reference
         };
