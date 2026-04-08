@@ -2,10 +2,11 @@
 using System.Security.Claims;
 using System.Text;
 using BusinessCloud.Domain.Commissions.Entities;
+using BusinessCloud.Application.Auth.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
-namespace BusinessCloud.Application.Auth.Interfaces
+namespace BusinessCloud.Application.Auth.Services
 {
     public class JwtTokenService : IJwtTokenService
     {

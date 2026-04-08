@@ -1,11 +1,13 @@
 using BusinessCloud.Application.Payments.Commands.CreateCustomer;
-using MediatR;
-using Microsoft.AspNetCore.Mvc;
 using BusinessCloud.Application.Payments.Dtos;
 using BusinessCloud.Application.Payments.Queries.GetCustomerById;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace BusinessCloud.Api.Controllers.Customers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class CustomersController : ControllerBase
