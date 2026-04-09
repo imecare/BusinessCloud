@@ -1,32 +1,32 @@
 ﻿using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Application.Payments.Dtos;
+using BusinessCloud.Application.Payments.Queries.GetCustomerById;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace BusinessCloud.Application.Payments.Queries.GetCustomerById
+namespace BusinessCloud.Application.Payments.Queries.GetSellerById
 {
 
-    public class GetSellerByIdByIdHandler : IRequestHandler<GetSellerByIdQuery, CustomerDto?>
+    public class GetSellerByIdHandler : IRequestHandler<GetSellerByIdQuery, SellerDto?>
     {
         private readonly IPaymentsDbContext _db;
 
-        public GetSellerByIdByIdHandler(IPaymentsDbContext db) => _db = db;
+        public GetSellerByIdHandler(IPaymentsDbContext db) => _db = db;
 
-        public async Task<CustomerDto?> Handle(GetSellerByIdQuery request, CancellationToken cancellationToken)
+        public async Task<SellerDto?> Handle(GetSellerByIdQuery request, CancellationToken cancellationToken)
         {
-            var c = await _db.Customers
+            var c = await _db.Sellers
                              .AsNoTracking()
                              .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
             if (c == null) return null;
 
-            return new CustomerDto
+            return new SellerDto
             {
                 Id = c.Id,
                 Name = c.Name,
-                RFC = c.RFC,
+                LastName = c.LastName,
                 Phone = c.Phone,
-                SellerId = c.SellerId
             };
         }
     }

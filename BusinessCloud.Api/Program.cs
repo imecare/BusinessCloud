@@ -87,7 +87,7 @@ try
     builder.Services.AddMediatR(cfg =>
         cfg.RegisterServicesFromAssemblies(
             typeof(Program).Assembly,
-            typeof(BusinessCloud.Application.Payments.Commands.CreateCustomer.CreateCustomerHandler).Assembly
+            typeof(BusinessCloud.Application.Payments.Commands.CreateCustomer.CreateSellerHandler).Assembly
         )
     );
 

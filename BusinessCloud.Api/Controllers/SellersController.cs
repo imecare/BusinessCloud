@@ -5,16 +5,16 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace BusinessCloud.Api.Controllers.Customers;
+namespace BusinessCloud.Api.Controllers.Sellers;
 
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class CustomersController : ControllerBase
+public class SellersController : ControllerBase
 {
     private readonly IMediator _mediator;
 
-    public CustomersController(IMediator mediator) => _mediator = mediator;
+    public SellersController(IMediator mediator) => _mediator = mediator;
 
     [HttpPost]
     public async Task<ActionResult<int>> Create([FromBody] CreateSellerCommand command, CancellationToken cancellationToken)
@@ -25,7 +25,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<CustomerDto>> GetById(int id, CancellationToken cancellationToken)
+    public async Task<ActionResult<SellerDto>> GetById(int id, CancellationToken cancellationToken)
     {
         var dto = await _mediator.Send(new GetSellerByIdQuery(id), cancellationToken);
         return dto is null ? NotFound() : Ok(dto);

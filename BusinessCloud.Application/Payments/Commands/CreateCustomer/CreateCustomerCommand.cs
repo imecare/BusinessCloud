@@ -2,8 +2,9 @@
 
 namespace BusinessCloud.Application.Payments.Commands.CreateCustomer
 {
-    public record CreateCustomerCommand(
+    public record CreateSellerCommand(
         string Name,
+        string LastName,
         string RFC,
         string Phone,
         int SellerId
