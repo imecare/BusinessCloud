@@ -17,7 +17,7 @@ public class CustomersController : ControllerBase
     public CustomersController(IMediator mediator) => _mediator = mediator;
 
     [HttpPost]
-    public async Task<ActionResult<int>> Create([FromBody] CreateSellerCommand command, CancellationToken cancellationToken)
+    public async Task<ActionResult<int>> Create([FromBody] CreateCustomerCommand command, CancellationToken cancellationToken)
     {
         if (command is null) return BadRequest();
         var id = await _mediator.Send(command, cancellationToken);

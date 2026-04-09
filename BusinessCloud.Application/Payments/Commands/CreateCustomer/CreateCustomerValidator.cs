@@ -3,7 +3,7 @@ using FluentValidation;
 
 namespace BusinessCloud.Application.Payments.Commands.CreateCustomer;
 
-public class CreateSellerValidator : AbstractValidator<CreateSellerCommand>
+public class CreateSellerValidator : AbstractValidator<CreateCustomerCommand>
 {
     public CreateSellerValidator()
     {
