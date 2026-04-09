@@ -34,6 +34,7 @@ public class PaymentsDbContext : DbContext, IPaymentsDbContext
         modelBuilder.Entity<Sale>().HasQueryFilter(s => s.TenantId == _userService.TenantId);
         modelBuilder.Entity<Payment>().HasQueryFilter(p => p.TenantId == _userService.TenantId);
         modelBuilder.Entity<Customer>().HasQueryFilter(c => c.TenantId == _userService.TenantId);
+        modelBuilder.Entity<Seller>().HasQueryFilter(c => c.TenantId == _userService.TenantId);
 
         // 2. Configuración de precisión
         modelBuilder.Entity<Sale>().Property(s => s.TotalAmount).HasPrecision(18, 2);

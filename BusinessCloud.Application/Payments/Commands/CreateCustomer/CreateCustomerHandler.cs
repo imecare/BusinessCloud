@@ -4,13 +4,13 @@ using MediatR;
 
 namespace BusinessCloud.Application.Payments.Commands.CreateCustomer
 {
-    public class CreateSellerHandler : IRequestHandler<CreateSellerCommand, int>
+    public class CreateCustomerHandler : IRequestHandler<CreateCustomerCommand, int>
     {
         private readonly IPaymentsDbContext _db;
 
-        public CreateSellerHandler(IPaymentsDbContext db) => _db = db;
+        public CreateCustomerHandler(IPaymentsDbContext db) => _db = db;
 
-        public async Task<int> Handle(CreateSellerCommand request, CancellationToken cancellationToken)
+        public async Task<int> Handle(CreateCustomerCommand request, CancellationToken cancellationToken)
         {
             var customer = new Customer
             {
