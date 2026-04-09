@@ -21,6 +21,6 @@ namespace BusinessCloud.Domain.Payments.Entities
         public virtual Customer Customer { get; set; } = null!;
 
         // Relación con los abonos individuales
-        public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
+        public virtual ICollection<Payment> Payment { get; set; } = new List<Payment>();
     }
 }

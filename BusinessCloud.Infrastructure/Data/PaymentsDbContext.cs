@@ -22,6 +22,7 @@ public class PaymentsDbContext : DbContext, IPaymentsDbContext
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Sale> Sales => Set<Sale>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<Seller> Sellers => Set<Seller>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

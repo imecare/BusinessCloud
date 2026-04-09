@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace BusinessCloud.Application.Payments.Dtos
+﻿namespace BusinessCloud.Application.Payments.Dtos
 {
     public class CreateSaleRequest
     {

@@ -43,7 +43,7 @@ public class CreateSaleHandler : IRequestHandler<CreateSaleCommand, int>
             Reference = "Registro inicial de venta"
         };
 
-        sale.Payments = new List<Payment> { initialMovement };
+        sale.Payment = new List<Payment> { initialMovement };
 
         // 4. Guardar en SQL
         _sqlContext.Sales.Add(sale);
