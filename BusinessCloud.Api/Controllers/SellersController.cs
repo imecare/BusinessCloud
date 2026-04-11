@@ -1,6 +1,7 @@
-using BusinessCloud.Application.Payments.Commands.CreateCustomer;
+using BusinessCloud.Application.Payments.Commands.CreateSeller;
 using BusinessCloud.Application.Payments.Dtos;
-using BusinessCloud.Application.Payments.Queries.GetCustomerById;
+using BusinessCloud.Application.Payments.Queries.GetAllSellers;
+using BusinessCloud.Application.Payments.Queries.GetSellerById;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -30,4 +31,12 @@ public class SellersController : ControllerBase
         var dto = await _mediator.Send(new GetSellerByIdQuery(id), cancellationToken);
         return dto is null ? NotFound() : Ok(dto);
     }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetAllSellersQuery(), cancellationToken);
+        return Ok(result);
+    }
+
 }

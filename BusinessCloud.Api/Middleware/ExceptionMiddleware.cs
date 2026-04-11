@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using Microsoft.EntityFrameworkCore;
+using System.Net;
 using System.Text.Json;
 
 namespace BusinessCloud.Api.Middleware
@@ -18,6 +19,11 @@ namespace BusinessCloud.Api.Middleware
             {
                 await _next(context);
             }
+            catch (DbUpdateException ex)
+            {
+                // Captura fallos de Base de Datos como FK incorrecta.
+                await HandleExceptionAsync(context, "Error de base de datos: Conflicto de relación. Es posible que estés intentando usar un registro (ej. SellerId) que no existe.", HttpStatusCode.Conflict);
+            }
             catch (InvalidOperationException ex)
             {
                 await HandleExceptionAsync(context, ex.Message, HttpStatusCode.Conflict);
@@ -32,7 +38,7 @@ namespace BusinessCloud.Api.Middleware
             }
             catch (Exception ex)
             {
-                await HandleExceptionAsync(context, "Internal server error" + ex.Message, HttpStatusCode.InternalServerError);
+                await HandleExceptionAsync(context, "Internal server error: " + ex.Message, HttpStatusCode.InternalServerError);
             }
         }
 

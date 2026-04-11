@@ -87,7 +87,7 @@ try
     builder.Services.AddMediatR(cfg =>
         cfg.RegisterServicesFromAssemblies(
             typeof(Program).Assembly,
-            typeof(BusinessCloud.Application.Payments.Commands.CreateCustomer.CreateSellerHandler).Assembly
+            typeof(BusinessCloud.Application.Payments.Commands.CreateSeller.CreateSellerHandler).Assembly
         )
     );
 
@@ -144,14 +144,25 @@ try
     var app = builder.Build();
 
     // --- 2. Middleware ---
-    app.UseMiddleware<ExceptionMiddleware>();
-
     if (app.Environment.IsDevelopment())
     {
-        app.UseDeveloperExceptionPage();
+        // En .NET 8 no suele hacer falta llamarlo explícitamente, pero si lo haces 
+        // debe ir ANTES de tu Middleware personalizado para que tu middleware rija.
+        // Opcional: comentar la siguiente línea para forzar SIEMPRE tu propio JSON.
+        // app.UseDeveloperExceptionPage(); 
+        
         app.UseSwagger();
         app.UseSwaggerUI();
     }
+    app.UseCors(builder =>
+    builder
+        .WithOrigins("http://localhost:5173") // Cambia el puerto si tu Vite usa otro
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials()
+);
+    // REGISTRA TU MIDDLEWARE AQUÍ PARA QUE SEA EL QUE DICTA EL FORMATO
+    app.UseMiddleware<ExceptionMiddleware>();
 
     app.UseHttpsRedirection();
     app.UseRouting();
