@@ -1,4 +1,5 @@
 using BusinessCloud.Application.Payments.Commands.CreateCustomer;
+using BusinessCloud.Application.Payments.Queries.GetAllCustomers;
 using BusinessCloud.Application.Payments.Dtos;
 using BusinessCloud.Application.Payments.Queries.GetCustomerById;
 using MediatR;
@@ -27,7 +28,14 @@ public class CustomersController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<CustomerDto>> GetById(int id, CancellationToken cancellationToken)
     {
-        var dto = await _mediator.Send(new GetSellerByIdQuery(id), cancellationToken);
+        var dto = await _mediator.Send(new GetCustomerByIdQuery(id), cancellationToken);
         return dto is null ? NotFound() : Ok(dto);
+    }
+
+    [HttpGet] // Ruta: GET /api/customers
+    public async Task<IActionResult> GetAll()
+    {
+        var result = await _mediator.Send(new GetAllCustomersQuery());
+        return Ok(result);
     }
 }
