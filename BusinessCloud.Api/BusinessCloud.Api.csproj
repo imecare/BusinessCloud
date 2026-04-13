@@ -29,4 +29,17 @@
     <ProjectReference Include="..\BusinessCloud.Shared\BusinessCloud.Shared.csproj" />
   </ItemGroup>
 
+<PropertyGroup>
+  <BaseOutputPath>D:\Builds\</BaseOutputPath>
+  <BaseIntermediateOutputPath>D:\Builds\obj\</BaseIntermediateOutputPath>
+  <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+  <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
+  <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
+  <GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
+  <GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>
+  <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
+  <GenerateAssemblyTitleAttribute>false</GenerateAssemblyTitleAttribute>
+  <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
+</PropertyGroup>
+
 </Project>

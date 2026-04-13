@@ -1,8 +1,14 @@
-﻿using MediatR;
-using BusinessCloud.Application.Payments.Dtos;
+﻿using BusinessCloud.Application.Payments.Dtos;
+using MediatR;
 
+namespace BusinessCloud.Application.Payments.Queries.GetCustomerById;
 
-namespace BusinessCloud.Application.Payments.Queries.GetCustomerById
+public class GetCustomerByIdQuery : IRequest<CustomerDto?>
 {
-    public record GetCustomerByIdQuery(int Id) : IRequest<CustomerDto?>;
-}
+    public int Id { get; set; }
+
+    public GetCustomerByIdQuery(int id)
+    {
+        Id = id;
+    }
+}   
