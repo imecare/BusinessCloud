@@ -9,5 +9,6 @@ namespace BusinessCloud.Application.Payments.Dtos
         public string RFC { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
         public int SellerId { get; set; }
+        public string SellerName { get; set; } = string.Empty; // <-- Añadido
     }
 }

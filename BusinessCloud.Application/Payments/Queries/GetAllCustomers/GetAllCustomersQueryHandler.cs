@@ -3,31 +3,37 @@ using BusinessCloud.Application.Payments.Dtos;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace BusinessCloud.Application.Payments.Queries.GetCustomerById
+namespace BusinessCloud.Application.Payments.Queries.GetAllCustomers
 {
-
-    public class GetAllCustomersQueryHandler : IRequestHandler<GetCustomerByIdQuery, CustomerDto?>
+    namespace BusinessCloud.Application.Payments.Queries.GetAllCustomers // Corregido el namespace
     {
-        private readonly IPaymentsDbContext _db;
-
-        public GetAllCustomersQueryHandler(IPaymentsDbContext db) => _db = db;
-
-        public async Task<CustomerDto?> Handle(GetCustomerByIdQuery request, CancellationToken cancellationToken)
+        // Cambiado IRequestHandler para recibir GetAllCustomersQuery y devolver List<CustomerDto>
+        public class GetAllCustomersQueryHandler : IRequestHandler<GetAllCustomersQuery, List<CustomerDto>>
         {
-            var c = await _db.Customers
-                             .AsNoTracking()
-                             .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
+            private readonly IPaymentsDbContext _db;
 
-            if (c == null) return null;
+            public GetAllCustomersQueryHandler(IPaymentsDbContext db) => _db = db;
 
-            return new CustomerDto
+            // Cambiado el tipo request a GetAllCustomersQuery
+            public async Task<List<CustomerDto>> Handle(GetAllCustomersQuery request, CancellationToken cancellationToken)
             {
-                Id = c.Id,
-                Name = c.Name,
-                RFC = c.RFC,
-                Phone = c.Phone,
-                SellerId = c.SellerId
-            };
+                var customerDtos = await _db.Customers
+                                 .AsNoTracking()
+                                 .Include(s => s.Seller)
+                                 .Select(s => new CustomerDto
+                                 {
+                                     Id = s.Id,
+                                     Name = s.Name,
+                                     LastName = s.LastName,
+                                     RFC = s.RFC,
+                                     Phone = s.Phone,
+                                     SellerId = s.SellerId,
+                                     SellerName = s.Seller.Name + " " + s.Seller.LastName // Usar comillas dobles para strings
+                                 }
+                                 ).ToListAsync(cancellationToken);
+
+                return customerDtos;
+            }
         }
     }
 }
