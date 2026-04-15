@@ -17,6 +17,10 @@ public class BzaCustomersController : ControllerBase
     public async Task<ActionResult<List<BzaCustomerDto>>> GetAll()
         => await _mediator.Send(new GetBzaCustomersQuery());
 
+    [HttpPost]
+    public async Task<ActionResult<int>> Create(CreateBzaCustomerCommand command)
+        => await _mediator.Send(command);
+
     [HttpPut("{id}")]
     public async Task<ActionResult> Update(int id, UpdateBzaCustomerCommand command)
     {
