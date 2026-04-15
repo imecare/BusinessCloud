@@ -3,17 +3,17 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace BusinessCloud.Api.Controllers;
+namespace BusinessCloud.Api.Controllers.Payments;
 
 [Authorize]
 [ApiController]
-[Route("api/public/[controller]")]
+[Route("payment/[controller]")]
 [AllowAnonymous] // Requerimiento: Consulta pública sin registro complejo 
-public class PublicSalesController : ControllerBase
+public class PayPublicSalesController : ControllerBase
 {
     private readonly IMediator _mediator;
 
-    public PublicSalesController(IMediator mediator) => _mediator = mediator;
+    public PayPublicSalesController(IMediator mediator) => _mediator = mediator;
 
     /// <summary>
     /// Consulta el historial de pagos y saldos mediante Teléfono.

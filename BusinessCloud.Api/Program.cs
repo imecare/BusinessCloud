@@ -80,6 +80,14 @@ try
     })
     .AddEntityFrameworkStores<IdentityDbContext>();
 
+    // Registro del Contexto de Bazares (SQL Server)
+    builder.Services.AddDbContext<BazaresDbContext>(options =>
+        options.UseSqlServer(builder.Configuration.GetConnectionString("PaymentsConnection"))); // Usa la misma conexión si están en la misma BD
+
+    // Registro de la Interfaz
+    builder.Services.AddScoped<IBazaresDbContext>(provider =>
+        provider.GetRequiredService<BazaresDbContext>());
+
     builder.Services.AddScoped<IPaymentsDbContext>(provider =>
         provider.GetRequiredService<PaymentsDbContext>());
 
