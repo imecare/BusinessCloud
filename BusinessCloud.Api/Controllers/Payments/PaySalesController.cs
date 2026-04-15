@@ -8,13 +8,13 @@ namespace BusinessCloud.Api.Controllers.Payments;
 
 [Authorize]
 [ApiController]
-[Route("api/[controller]")]
-public class SalesController : ControllerBase
+[Route("payment/[controller]")]
+public class PaySalesController : ControllerBase
 {
     private readonly IMediator _mediator;
 
     // Inyectamos únicamente IMediator
-    public SalesController(IMediator mediator)
+    public PaySalesController(IMediator mediator)
     {
         _mediator = mediator;
     }

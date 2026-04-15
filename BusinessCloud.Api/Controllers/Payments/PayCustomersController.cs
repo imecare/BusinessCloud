@@ -6,16 +6,16 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace BusinessCloud.Api.Controllers.Customers;
+namespace BusinessCloud.Api.Controllers.Payments;
 
 [Authorize]
 [ApiController]
-[Route("api/[controller]")]
-public class CustomersController : ControllerBase
+[Route("payment/[controller]")]
+public class PayCustomersController : ControllerBase
 {
     private readonly IMediator _mediator;
 
-    public CustomersController(IMediator mediator) => _mediator = mediator;
+    public PayCustomersController(IMediator mediator) => _mediator = mediator;
 
     [HttpPost]
     public async Task<ActionResult<int>> Create([FromBody] CreateCustomerCommand command, CancellationToken cancellationToken)

@@ -1,0 +1,57 @@
+using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Domain.Bazares.Entities;
+using BusinessCloud.Domain.Common;
+using BusinessCloud.Domain.Common.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace BusinessCloud.Infrastructure.Data;
+
+public class BazaresDbContext : DbContext, IBazaresDbContext
+{
+    private readonly ICurrentUserService _userService;
+
+    public BazaresDbContext(DbContextOptions<BazaresDbContext> options, ICurrentUserService userService)
+        : base(options)
+    {
+        _userService = userService;
+    }
+
+    public DbSet<BzaCollector> Collectors => Set<BzaCollector>();
+    public DbSet<BzaCustomer> Customers => Set<BzaCustomer>();
+    public DbSet<BzaDate> Dates => Set<BzaDate>();
+    public DbSet<BzaSale> Sales => Set<BzaSale>();
+    public DbSet<BzaProduct> Products => Set<BzaProduct>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // Prefijos Bza_
+        modelBuilder.Entity<BzaCollector>().ToTable("Bza_Collectors");
+        modelBuilder.Entity<BzaCustomer>().ToTable("Bza_Customers");
+        modelBuilder.Entity<BzaDate>().ToTable("Bza_Dates");
+        modelBuilder.Entity<BzaSale>().ToTable("Bza_Sales");
+        modelBuilder.Entity<BzaProduct>().ToTable("Bza_Products");
+
+        // Multi-tenant Filter
+        modelBuilder.Entity<BzaCollector>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaCustomer>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaDate>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaSale>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaProduct>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        foreach (var entry in ChangeTracker.Entries<BaseAuditableEntity>())
+        {
+            if (entry.State == EntityState.Added)
+            {
+                entry.Entity.TenantId = _userService.TenantId ?? "";
+                entry.Entity.CreatedAt = DateTime.UtcNow;
+                entry.Entity.CreatedBy = _userService.UserId;
+            }
+        }
+        return base.SaveChangesAsync(cancellationToken);
+    }
+}
