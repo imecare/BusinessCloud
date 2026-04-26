@@ -28,10 +28,10 @@ public class PaySalesController : ControllerBase
     }
 
     [HttpGet("history")]
-    public async Task<ActionResult<IEnumerable<CustomerHistoryDto>>> GetHistory([FromQuery] string phone, [FromQuery] string? rfc)
+    public async Task<ActionResult<IEnumerable<CustomerHistoryDto>>> GetHistory([FromQuery] string? phone, [FromQuery] string? rfc)
     {
         // Disparamos la consulta optimizada de MongoDB/Redis
-        var query = new GetCustomerHistoryQuery(phone, rfc);
+        var query = new GetCustomerHistoryQuery(phone ?? string.Empty, rfc);
         var result = await _mediator.Send(query);
         return Ok(result);
     }

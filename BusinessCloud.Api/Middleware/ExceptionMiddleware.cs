@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Serilog;
 using System.Net;
 using System.Text.Json;
 
@@ -19,10 +20,11 @@ namespace BusinessCloud.Api.Middleware
             {
                 await _next(context);
             }
+
             catch (DbUpdateException ex)
             {
                 // Captura fallos de Base de Datos como FK incorrecta.
-                await HandleExceptionAsync(context, "Error de base de datos: Conflicto de relación. Es posible que estés intentando usar un registro (ej. SellerId) que no existe.", HttpStatusCode.Conflict);
+                await HandleExceptionAsync(context, "Error de base de datos: Conflicto de relación. Es posible que estés intentando usar un registro (ej. SellerId) que no existe. Error que regresa "  + ex.Message, HttpStatusCode.Conflict);
             }
             catch (InvalidOperationException ex)
             {
@@ -38,7 +40,8 @@ namespace BusinessCloud.Api.Middleware
             }
             catch (Exception ex)
             {
-                await HandleExceptionAsync(context, "Internal server error: " + ex.Message, HttpStatusCode.InternalServerError);
+                // Usamos 'ex' para que Serilog registre el error completo
+                Log.Fatal(ex, "Fallo grave durante el arranque de la aplicación");
             }
         }
 

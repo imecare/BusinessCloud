@@ -7,10 +7,11 @@ namespace BusinessCloud.Application.Common.Interfaces;
 
 public interface IMongoContext
 {
-    Task InsertAuditLogAsync(object log, CancellationToken ct);
+    Task InsertAuditLogAsync(object logEntry, CancellationToken cancellationToken);
     Task UpdateCustomerReadModelAsync(int saleId, decimal amount, string reference, CancellationToken ct);
     Task<CustomerHistoryDto?> GetCustomerHistoryAsync(int saleId, CancellationToken ct);
-
-    // Nueva abstracción para consultar por tenant y teléfono.
     Task<List<CustomerHistoryDto>> GetCustomerHistoryByPhoneAsync(string tenantId, string customerPhone, CancellationToken ct);
+    Task<List<dynamic>> GetAuditLogsBySaleIdAsync(int saleId, CancellationToken cancellationToken);
+
 }
+

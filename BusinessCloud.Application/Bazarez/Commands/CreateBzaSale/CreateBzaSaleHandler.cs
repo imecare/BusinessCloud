@@ -15,7 +15,7 @@ public class CreateBzaSaleHandler : IRequestHandler<CreateBzaSaleCommand, int>
         _mongoContext = mongoContext;
     }
 
-    public async Task<int> Handle(CreateBzaSaleCommand request, CancellationToken ct)
+    public async Task<int> Handle(CreateBzaSaleCommand request, CancellationToken cancellationToken)
     {
         // 1. Crear la entidad de Venta con sus productos mapeados
         var sale = new BzaSale
@@ -32,7 +32,7 @@ public class CreateBzaSaleHandler : IRequestHandler<CreateBzaSaleCommand, int>
         };
 
         _context.Sales.Add(sale);
-        await _context.SaveChangesAsync(ct);
+        await _context.SaveChangesAsync(cancellationToken);
 
         // 2. Auditoría en MongoDB para el histórico NoSQL
         await _mongoContext.InsertAuditLogAsync(new
@@ -42,7 +42,7 @@ public class CreateBzaSaleHandler : IRequestHandler<CreateBzaSaleCommand, int>
             Total = sale.Total,
             Timestamp = DateTime.UtcNow,
             Details = $"Venta creada con {sale.Products.Count} productos."
-        }, ct);
+        }, cancellationToken);
 
         return sale.Id;
     }

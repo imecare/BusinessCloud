@@ -15,19 +15,19 @@ public class GetBzaSaleDetailHandler : IRequestHandler<GetBzaSaleDetailQuery, Bz
         _mongoContext = mongoContext;
     }
 
-    public async Task<BzaSaleDetailDto> Handle(GetBzaSaleDetailQuery request, CancellationToken ct)
+    public async Task<BzaSaleDetailDto> Handle(GetBzaSaleDetailQuery request, CancellationToken cancellationToken)
     {
         // 1. Consultar SQL Server (Datos relacionales)
         var sale = await _context.Sales
             .Include(s => s.Customer)
             .Include(s => s.Products)
-            .FirstOrDefaultAsync(s => s.Id == request.Id, ct);
+            .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
 
-        if (sale == null) throw new Exception("Venta no encontrada.");
+        if (sale == null) throw new KeyNotFoundException("Venta no encontrada"); 
 
         // 2. Consultar MongoDB (Historial de auditoría)
         // Buscamos todos los logs que tengan el SaleId de esta venta
-        var mongoLogs = await _mongoContext.GetAuditLogsBySaleIdAsync(sale.Id, ct);
+        var mongoLogs = await _mongoContext.GetAuditLogsBySaleIdAsync(sale.Id, cancellationToken);
 
         // 3. Mapear y Retornar
         return new BzaSaleDetailDto(
