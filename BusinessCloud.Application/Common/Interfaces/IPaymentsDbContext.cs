@@ -1,4 +1,5 @@
-﻿using BusinessCloud.Domain.Payments.Entities;
+﻿using BusinessCloud.Domain.Common.Entities;
+using BusinessCloud.Domain.Payments.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace BusinessCloud.Application.Common.Interfaces;
@@ -9,5 +10,6 @@ public interface IPaymentsDbContext
     DbSet<Seller> Sellers { get; }
     DbSet<Sale> Sales { get; }
     DbSet<Payment> Payments { get; }
+    DbSet<Tenant> Tenants { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

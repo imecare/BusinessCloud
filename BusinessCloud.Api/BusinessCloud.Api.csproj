@@ -4,6 +4,16 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <BaseOutputPath>D:\Builds\</BaseOutputPath>
+    <BaseIntermediateOutputPath>D:\Builds\obj\</BaseIntermediateOutputPath>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
+    <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
+    <GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
+    <GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>
+    <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
+    <GenerateAssemblyTitleAttribute>false</GenerateAssemblyTitleAttribute>
+    <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,18 +38,5 @@
     <ProjectReference Include="..\BusinessCloud.Infrastructure\BusinessCloud.Infrastructure.csproj" />
     <ProjectReference Include="..\BusinessCloud.Shared\BusinessCloud.Shared.csproj" />
   </ItemGroup>
-
-<PropertyGroup>
-  <BaseOutputPath>D:\Builds\</BaseOutputPath>
-  <BaseIntermediateOutputPath>D:\Builds\obj\</BaseIntermediateOutputPath>
-  <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
-  <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
-  <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
-  <GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
-  <GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>
-  <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
-  <GenerateAssemblyTitleAttribute>false</GenerateAssemblyTitleAttribute>
-  <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
-</PropertyGroup>
 
 </Project>

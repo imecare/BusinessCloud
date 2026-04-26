@@ -2,6 +2,7 @@
 using BusinessCloud.Application.Bazares.Queries.GetBzaSaleDetail;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using BusinessCloud.Application.Bazares.Commands.UpdateBzaSaleStatus;
 
 namespace BusinessCloud.Api.Controllers.Bazares;
 
@@ -22,5 +23,12 @@ public class BzaSalesController : ControllerBase
     public async Task<ActionResult<BzaSaleDetailDto>> GetById(int id)
     {
         return await _mediator.Send(new GetBzaSaleDetailQuery(id));
+    }
+
+    [HttpPatch("status")]
+    public async Task<ActionResult> UpdateStatus(UpdateBzaSaleStatusCommand command)
+    {
+        await _mediator.Send(command);
+        return NoContent();
     }
 }

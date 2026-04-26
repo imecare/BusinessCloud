@@ -12,6 +12,8 @@ using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using System.Text;
 using System.IdentityModel.Tokens.Jwt;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 
 // Evita que ASP.NET Core cambie los nombres de los claims
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
@@ -126,8 +128,22 @@ try
     builder.Services.AddApplication();
     builder.Services.AddControllers();
 
+    // Rate Limiting para endpoints públicos
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.AddFixedWindowLimiter("public-history", opt =>
+        {
+            opt.PermitLimit = 10;          // máximo 10 requests
+            opt.Window = TimeSpan.FromMinutes(1); // por minuto
+            opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            opt.QueueLimit = 2;
+        });
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    });
+
     // --- CONFIGURACIÓN JWT ---
-    var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new ArgumentNullException("Jwt:Key", "La clave JWT no está configurada.");
+    var jwtKey = builder.Configuration["Jwt:Key"]
+        ?? throw new InvalidOperationException("La clave JWT no está configurada en 'Jwt:Key'.");
     var key = Encoding.UTF8.GetBytes(jwtKey);
 
     builder.Services.AddAuthentication(options =>
@@ -154,11 +170,6 @@ try
     // --- 2. Middleware ---
     if (app.Environment.IsDevelopment())
     {
-        // En .NET 8 no suele hacer falta llamarlo explícitamente, pero si lo haces 
-        // debe ir ANTES de tu Middleware personalizado para que tu middleware rija.
-        // Opcional: comentar la siguiente línea para forzar SIEMPRE tu propio JSON.
-        // app.UseDeveloperExceptionPage(); 
-        
         app.UseSwagger();
         app.UseSwaggerUI();
     }
@@ -175,11 +186,13 @@ try
     app.UseHttpsRedirection();
     app.UseRouting();
 
+    app.UseRateLimiter();
+
     app.UseAuthentication();
     app.UseAuthorization();
     app.MapControllers();
 
-    app.Run();
+    await app.RunAsync();
 }
 catch (Exception ex)
 {
@@ -187,5 +200,5 @@ catch (Exception ex)
 }
 finally
 {
-    Log.CloseAndFlush();
+    await Log.CloseAndFlushAsync();
 }
