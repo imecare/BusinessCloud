@@ -1,5 +1,4 @@
-﻿using BusinessCloud.Application.Auth.Interfaces;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 using BusinessCloud.Application.Common.Interfaces;
 
@@ -23,10 +22,16 @@ namespace BusinessCloud.Application.Auth.Services
         public string? Role =>
             _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.Role);
 
-        // Implementación de TenantId. Intenta varias claves comunes de claim.
         public string? TenantId =>
-            _httpContextAccessor.HttpContext?.User?.FindFirstValue("tenant")
-            ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("TenantId")
-            ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("tid");
+            _httpContextAccessor.HttpContext?.User?.FindFirstValue("tenant_id");
+
+        public int? SellerId
+        {
+            get
+            {
+                var value = _httpContextAccessor.HttpContext?.User?.FindFirstValue("seller_id");
+                return int.TryParse(value, out var id) ? id : null;
+            }
+        }
     }
 }

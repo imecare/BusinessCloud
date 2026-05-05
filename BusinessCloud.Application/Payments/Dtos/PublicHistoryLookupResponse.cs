@@ -15,6 +15,7 @@ public class SaleHistoryDto
 {
     public int Id { get; set; }
     public DateTime Date { get; set; }
+    public string ProductDescription { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
     public bool IsPaid { get; set; }
     public List<PaymentDto> Payment { get; set; } = new();

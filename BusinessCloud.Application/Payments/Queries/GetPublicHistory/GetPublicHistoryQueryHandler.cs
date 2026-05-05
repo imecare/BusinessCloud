@@ -13,18 +13,14 @@ public class GetPublicHistoryQueryHandler : IRequestHandler<GetPublicHistoryQuer
 
     public async Task<PublicHistoryResult> Handle(GetPublicHistoryQuery request, CancellationToken cancellationToken)
     {
-        // 1. Resolver CompanyCode → TenantId
         var tenant = await _db.Tenants
             .IgnoreQueryFilters()
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == request.CompanyCode && t.IsActive, cancellationToken);
 
         if (tenant is null)
-        {
             return new PublicHistoryResult { CustomerFound = false, Data = null };
-        }
 
-        // 2. Buscar cliente por Tenant + Phone + RFC
         var customer = await _db.Customers
             .IgnoreQueryFilters()
             .AsNoTracking()
@@ -35,11 +31,8 @@ public class GetPublicHistoryQueryHandler : IRequestHandler<GetPublicHistoryQuer
                 cancellationToken);
 
         if (customer is null)
-        {
             return new PublicHistoryResult { CustomerFound = false, Data = null };
-        }
 
-        // 3. Traer ventas con pagos incluidos
         var sales = await _db.Sales
             .IgnoreQueryFilters()
             .AsNoTracking()
@@ -50,6 +43,7 @@ public class GetPublicHistoryQueryHandler : IRequestHandler<GetPublicHistoryQuer
             {
                 Id = s.Id,
                 Date = s.Date,
+                ProductDescription = s.ProductDescription,
                 TotalAmount = s.TotalAmount,
                 IsPaid = s.IsPaid,
                 Payment = s.Payment

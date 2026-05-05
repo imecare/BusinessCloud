@@ -1,5 +1,7 @@
 using BusinessCloud.Application.Payments.Commands.CreateSeller;
+using BusinessCloud.Application.Payments.Commands.UpdateSellerStatus;
 using BusinessCloud.Application.Payments.Dtos;
+using BusinessCloud.Application.Payments.Queries.GetActiveSellers;
 using BusinessCloud.Application.Payments.Queries.GetAllSellers;
 using BusinessCloud.Application.Payments.Queries.GetSellerById;
 using MediatR;
@@ -32,6 +34,9 @@ public class PaySellersController : ControllerBase
         return dto is null ? NotFound() : Ok(dto);
     }
 
+    /// <summary>
+    /// Todos los vendedores (activos e inactivos).
+    /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
@@ -39,4 +44,32 @@ public class PaySellersController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Solo vendedores activos (StatusId = 1).
+    /// </summary>
+    [HttpGet("active")]
+    public async Task<IActionResult> GetActive(CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetActiveSellersQuery(), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Activar/desactivar vendedor (borrado lógico).
+    /// </summary>
+    [HttpPatch("{id:int}/status")]
+    public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateSellerStatusRequest request, CancellationToken cancellationToken)
+    {
+        var command = new UpdateSellerStatusCommand(id, request.StatusId);
+        var result = await _mediator.Send(command, cancellationToken);
+
+        return result
+            ? Ok(new { success = true, message = request.StatusId == 1 ? "Vendedor activado." : "Vendedor desactivado." })
+            : NotFound(new { success = false, message = "Vendedor no encontrado." });
+    }
+}
+
+public class UpdateSellerStatusRequest
+{
+    public required int StatusId { get; set; }
 }

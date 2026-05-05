@@ -2,6 +2,7 @@ using BusinessCloud.Application.Payments.Commands.CreateCustomer;
 using BusinessCloud.Application.Payments.Queries.GetAllCustomers;
 using BusinessCloud.Application.Payments.Dtos;
 using BusinessCloud.Application.Payments.Queries.GetCustomerById;
+using BusinessCloud.Application.Payments.Queries.GetMyCustomers;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,6 +18,7 @@ public class PayCustomersController : ControllerBase
 
     public PayCustomersController(IMediator mediator) => _mediator = mediator;
 
+    [Authorize(Policy = "SuperAdmin")]
     [HttpPost]
     public async Task<ActionResult<int>> Create([FromBody] CreateCustomerCommand command, CancellationToken cancellationToken)
     {
@@ -25,6 +27,7 @@ public class PayCustomersController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id }, id);
     }
 
+    [Authorize(Policy = "SuperAdmin")]
     [HttpGet("{id:int}")]
     public async Task<ActionResult<CustomerDto>> GetById(int id, CancellationToken cancellationToken)
     {
@@ -32,10 +35,26 @@ public class PayCustomersController : ControllerBase
         return dto is null ? NotFound() : Ok(dto);
     }
 
-    [HttpGet] // Ruta: GET /api/customers
-    public async Task<IActionResult> GetAll()
+    /// <summary>
+    /// Todos los clientes del tenant. Solo SuperAdmin.
+    /// </summary>
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpGet]
+    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetAllCustomersQuery());
+        var result = await _mediator.Send(new GetAllCustomersQuery(), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Clientes del comisionista autenticado (filtrado por sellerId del token).
+    /// Solo Commissionist.
+    /// </summary>
+    [Authorize(Policy = "Commissionist")]
+    [HttpGet("mine")]
+    public async Task<IActionResult> GetMyCustomers(CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetMyCustomersQuery(), cancellationToken);
         return Ok(result);
     }
 }

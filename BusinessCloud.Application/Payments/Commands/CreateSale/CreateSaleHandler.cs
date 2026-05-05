@@ -18,11 +18,9 @@ public class CreateSaleHandler : IRequestHandler<CreateSaleCommand, int>
 
     public async Task<int> Handle(CreateSaleCommand request, CancellationToken cancellationToken)
     {
-        // 1. Cálculo automático de comisión si hay SellerId
         decimal commissionPercent = request.SellerId.HasValue ? 0.10m : 0m;
         decimal calculatedCommission = request.TotalAmount * commissionPercent;
 
-        // 2. Mapeo a la entidad
         var sale = new Sale
         {
             CustomerId = request.CustomerId,
@@ -30,26 +28,24 @@ public class CreateSaleHandler : IRequestHandler<CreateSaleCommand, int>
             TotalAmount = request.TotalAmount,
             CostPrice = request.CostPrice,
             CommissionAmount = calculatedCommission,
+            ProductDescription = request.ProductDescription,
             IsCommissionPaid = false,
             Date = DateTime.UtcNow
         };
 
-        // 3. Movimiento inicial
         var initialMovement = new Payment
         {
             Amount = request.TotalAmount,
             Date = DateTime.UtcNow,
-            PaymentTypeId =1,
+            PaymentTypeId = 1,
             Reference = "Registro inicial de venta"
         };
 
         sale.Payment = new List<Payment> { initialMovement };
 
-        // 4. Guardar en SQL
         _sqlContext.Sales.Add(sale);
         await _sqlContext.SaveChangesAsync(cancellationToken);
 
-        // 5. Audit Log en MongoDB usando la abstracción del contexto (no GetCollection)
         await _mongoContext.InsertAuditLogAsync(new
         {
             Event = "SaleAndInitialMovementCreated",
@@ -58,6 +54,7 @@ public class CreateSaleHandler : IRequestHandler<CreateSaleCommand, int>
             Details = new
             {
                 request.TotalAmount,
+                request.ProductDescription,
                 InitialPayment = initialMovement.Amount
             },
             CreatedAt = DateTime.UtcNow

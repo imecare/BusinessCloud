@@ -3,10 +3,11 @@
 public record CustomerHistoryDto(
     int SaleId,
     DateTime Date,
-    decimal TotalAmount,      // Monto original de la venta
-    decimal RemainingBalance, // Saldo actual pendiente
-    string Status,            // "Pendiente", "Pagado"
-    List<PaymentLineDto> Movements // <--- Nueva lista de abonos/movimientos
+    string ProductDescription,
+    decimal TotalAmount,
+    decimal RemainingBalance,
+    string Status,
+    List<PaymentLineDto> Movements
 );
 
 public record PaymentLineDto(

@@ -1,4 +1,4 @@
-﻿using System.Security.Claims; // Reemplaza a IdentityModel
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using BusinessCloud.Application.Common.Interfaces;
 
@@ -13,9 +13,17 @@ public class CurrentUserService : ICurrentUserService
         _httpContextAccessor = httpContextAccessor;
     }
 
-    // Asegúrate de que el nombre sea TenantId (con T mayúscula)
     public string? TenantId => _httpContextAccessor.HttpContext?.User?.FindFirstValue("tenant_id");
     public string? UserId => _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
     public string? Username => _httpContextAccessor.HttpContext?.User?.Identity?.Name;
     public string? Role => _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.Role)?.Value;
+
+    public int? SellerId
+    {
+        get
+        {
+            var value = _httpContextAccessor.HttpContext?.User?.FindFirstValue("seller_id");
+            return int.TryParse(value, out var id) ? id : null;
+        }
+    }
 }
