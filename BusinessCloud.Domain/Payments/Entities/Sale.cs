@@ -9,18 +9,23 @@ namespace BusinessCloud.Domain.Payments.Entities
         public int? SellerId { get; set; }
 
         public decimal TotalAmount { get; set; }
-        public decimal CostPrice { get; set; } // Lo que te costó a ti [cite: 8, 26]
-        public decimal CommissionAmount { get; set; } // Comisión del ayudante [cite: 8, 27]
+        public decimal CostPrice { get; set; }
+        public decimal CommissionAmount { get; set; }
 
-        public bool IsCommissionPaid { get; set; } // ¿Dueño ya pagó comisión? 
-        public bool IsPaid { get; set; } // ¿Venta liquidada por el cliente?
+        public string ProductDescription { get; set; } = string.Empty;
+
+        public bool IsCommissionPaid { get; set; }
+        public bool IsPaid { get; set; }
+
+        // Auditoría de pago de comisión
+        public DateTime? CommissionPaidAt { get; set; }
+        public string? CommissionPaidByUserId { get; set; }
+        public string? CommissionPaymentNote { get; set; }
 
         public DateTime Date { get; set; }
 
-        // Agrega esta línea para que EF sepa que una venta pertenece a un cliente
         public virtual Customer Customer { get; set; } = null!;
-
-        // Relación con los abonos individuales
+        public virtual Seller? Seller { get; set; }
         public virtual ICollection<Payment> Payment { get; set; } = new List<Payment>();
     }
 }

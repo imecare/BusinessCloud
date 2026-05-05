@@ -42,6 +42,10 @@ public class PaymentsDbContext : DbContext, IPaymentsDbContext
         modelBuilder.Entity<Sale>().Property(s => s.CommissionAmount).HasPrecision(18, 2);
         modelBuilder.Entity<Payment>().Property(e => e.Amount).HasPrecision(18, 2);
 
+        // 3. Campos de auditoría de comisión
+        modelBuilder.Entity<Sale>().Property(s => s.CommissionPaymentNote).HasMaxLength(500);
+        modelBuilder.Entity<Sale>().Property(s => s.CommissionPaidByUserId).HasMaxLength(450);
+
         modelBuilder.Entity<Customer>(entity => {
             entity.HasIndex(e => new { e.RFC, e.Phone });
         });

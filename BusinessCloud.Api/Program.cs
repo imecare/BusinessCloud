@@ -165,6 +165,12 @@ try
         };
     });
 
+    builder.Services.AddAuthorizationBuilder()
+        .AddPolicy("SuperAdmin", policy => policy.RequireRole("SuperAdmin"))
+        .AddPolicy("Commissionist", policy => policy.RequireRole("Commissionist"))
+        .AddPolicy("SuperAdminOrCommissionist", policy =>
+            policy.RequireRole("SuperAdmin", "Commissionist"));
+
     var app = builder.Build();
 
     // --- 2. Middleware ---
@@ -180,7 +186,7 @@ try
         .AllowAnyMethod()
         .AllowCredentials()
 );
-    // REGISTRA TU MIDDLEWARE AQUÍ PARA QUE SEA EL QUE DICTA EL FORMATO
+    // REGISTRA TU MIDDLEWARE AQUÍ PARA QUE sea EL QUE DICTA EL FORMATO
     app.UseMiddleware<ExceptionMiddleware>();
 
     app.UseHttpsRedirection();
