@@ -1,5 +1,6 @@
 ﻿using BusinessCloud.Application.Payments.Commands.DeletePayment;
 using BusinessCloud.Application.Payments.Commands.RegisterPayment;
+using BusinessCloud.Application.Payments.Commands.UpdatePayment;
 using BusinessCloud.Application.Payments.Dtos;
 using BusinessCloud.Application.Payments.Queries.GetAllPayments;
 using BusinessCloud.Application.Payments.Queries.GetPaymentsBySale;
@@ -39,10 +40,21 @@ public class PayPaymentsController : ControllerBase
         return Ok(result);
     }
 
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdatePaymentCommand command, CancellationToken cancellationToken)
     {
-        var deleted = await _mediator.Send(new DeletePaymentCommand(id), cancellationToken);
+        if (command is null || command.Id != id) return BadRequest();
+        var result = await _mediator.Send(command, cancellationToken);
+        return result ? Ok(new { success = true, message = "Abono actualizado." })
+                      : NotFound(new { success = false, message = "Abono no encontrado." });
+    }
+
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id, [FromQuery] string? reason, CancellationToken cancellationToken)
+    {
+        var deleted = await _mediator.Send(new DeletePaymentCommand(id, reason), cancellationToken);
         return deleted ? NoContent() : NotFound();
     }
 }

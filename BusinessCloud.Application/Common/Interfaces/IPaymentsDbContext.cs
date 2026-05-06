@@ -10,6 +10,7 @@ public interface IPaymentsDbContext
     DbSet<Seller> Sellers { get; }
     DbSet<Sale> Sales { get; }
     DbSet<Payment> Payments { get; }
+    DbSet<DeletedPayment> DeletedPayments { get; }
     DbSet<Tenant> Tenants { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }
