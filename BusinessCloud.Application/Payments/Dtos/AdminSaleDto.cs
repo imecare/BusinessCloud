@@ -1,6 +1,6 @@
 namespace BusinessCloud.Application.Payments.Dtos;
 
-public class CommissionistSaleDto
+public class AdminSaleDto
 {
     public int Id { get; set; }
     public DateTime Date { get; set; }
@@ -10,6 +10,7 @@ public class CommissionistSaleDto
     public string? SellerName { get; set; }
     public string ProductDescription { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
+    public decimal CostPrice { get; set; }
     public bool IsPaid { get; set; }
     public decimal CommissionAmount { get; set; }
     public bool IsCommissionPaid { get; set; }

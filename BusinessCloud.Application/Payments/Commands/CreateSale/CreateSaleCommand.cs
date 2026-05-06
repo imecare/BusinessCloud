@@ -8,5 +8,6 @@ public record CreateSaleCommand(
     int? SellerId,
     decimal TotalAmount,
     decimal CostPrice,
+    decimal CommissionAmount,
     string ProductDescription
 ) : IRequest<int>;

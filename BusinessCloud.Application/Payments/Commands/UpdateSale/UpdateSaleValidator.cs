@@ -1,11 +1,14 @@
-ï»¿using FluentValidation;
+using FluentValidation;
 
-namespace BusinessCloud.Application.Payments.Commands.CreateSale;
+namespace BusinessCloud.Application.Payments.Commands.UpdateSale;
 
-public class CreateSaleValidator : AbstractValidator<CreateSaleCommand>
+public class UpdateSaleValidator : AbstractValidator<UpdateSaleCommand>
 {
-    public CreateSaleValidator()
+    public UpdateSaleValidator()
     {
+        RuleFor(x => x.Id)
+            .GreaterThan(0).WithMessage("El Id de la venta es obligatorio.");
+
         RuleFor(x => x.CustomerId)
             .GreaterThan(0).WithMessage("El cliente es obligatorio.");
 
@@ -15,16 +18,15 @@ public class CreateSaleValidator : AbstractValidator<CreateSaleCommand>
         RuleFor(x => x.CostPrice)
             .GreaterThanOrEqualTo(0).WithMessage("El costo no puede ser negativo.");
 
-        // CommissionAmount <= TotalAmount - CostPrice (margen disponible)
         RuleFor(x => x.CostPrice)
             .LessThanOrEqualTo(x => x.TotalAmount)
             .WithMessage("El costo no puede ser mayor al monto total de la venta.");
 
         RuleFor(x => x.CommissionAmount)
-            .GreaterThanOrEqualTo(0).WithMessage("La comisiÃ³n no puede ser negativa.");
+            .GreaterThanOrEqualTo(0).WithMessage("La comisión no puede ser negativa.");
 
         RuleFor(x => x.ProductDescription)
-            .NotEmpty().WithMessage("La descripciÃ³n del producto es obligatoria.")
-            .MaximumLength(500).WithMessage("La descripciÃ³n no puede superar 500 caracteres.");
+            .NotEmpty().WithMessage("La descripción del producto es obligatoria.")
+            .MaximumLength(500).WithMessage("La descripción no puede superar 500 caracteres.");
     }
 }
