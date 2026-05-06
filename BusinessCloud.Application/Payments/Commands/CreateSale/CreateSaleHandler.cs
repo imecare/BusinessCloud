@@ -18,16 +18,13 @@ public class CreateSaleHandler : IRequestHandler<CreateSaleCommand, int>
 
     public async Task<int> Handle(CreateSaleCommand request, CancellationToken cancellationToken)
     {
-        decimal commissionPercent = request.SellerId.HasValue ? 0.10m : 0m;
-        decimal calculatedCommission = request.TotalAmount * commissionPercent;
-
         var sale = new Sale
         {
             CustomerId = request.CustomerId,
             SellerId = request.SellerId,
             TotalAmount = request.TotalAmount,
             CostPrice = request.CostPrice,
-            CommissionAmount = calculatedCommission,
+            CommissionAmount = request.CommissionAmount,
             ProductDescription = request.ProductDescription,
             IsCommissionPaid = false,
             Date = DateTime.UtcNow

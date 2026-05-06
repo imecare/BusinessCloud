@@ -1,4 +1,5 @@
 using BusinessCloud.Application.Payments.Commands.CreateCustomer;
+using BusinessCloud.Application.Payments.Commands.UpdateCustomer;
 using BusinessCloud.Application.Payments.Queries.GetAllCustomers;
 using BusinessCloud.Application.Payments.Dtos;
 using BusinessCloud.Application.Payments.Queries.GetCustomerById;
@@ -25,6 +26,16 @@ public class PayCustomersController : ControllerBase
         if (command is null) return BadRequest();
         var id = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id }, id);
+    }
+
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateCustomerCommand command, CancellationToken cancellationToken)
+    {
+        if (command is null || command.Id != id) return BadRequest();
+        var result = await _mediator.Send(command, cancellationToken);
+        return result ? Ok(new { success = true, message = "Cliente actualizado." })
+                      : NotFound(new { success = false, message = "Cliente no encontrado." });
     }
 
     [Authorize(Policy = "SuperAdmin")]

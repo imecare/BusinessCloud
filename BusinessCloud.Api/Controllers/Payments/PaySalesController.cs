@@ -1,6 +1,9 @@
 ﻿using BusinessCloud.Application.Payments.Commands.CreateSale;
+using BusinessCloud.Application.Payments.Commands.CreateSale;
 using BusinessCloud.Application.Payments.Commands.MarkCommissionPaid;
+using BusinessCloud.Application.Payments.Commands.UpdateSale;
 using BusinessCloud.Application.Payments.Dtos;
+using BusinessCloud.Application.Payments.Queries.GetAllSales;
 using BusinessCloud.Application.Payments.Queries.GetCustomerHistory;
 using BusinessCloud.Application.Payments.Queries.GetMySales;
 using MediatR;
@@ -23,9 +26,31 @@ public class PaySalesController : ControllerBase
 
     [Authorize(Policy = "SuperAdmin")]
     [HttpPost]
-    public async Task<ActionResult<int>> Create(CreateSaleCommand command, CancellationToken cancellationToken)
+    public async Task<ActionResult<int>> Create([FromBody] CreateSaleCommand command, CancellationToken cancellationToken)
     {
+        if (command is null) return BadRequest();
         var result = await _mediator.Send(command, cancellationToken);
+        return Ok(result);
+    }
+
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateSaleCommand command, CancellationToken cancellationToken)
+    {
+        if (command is null || command.Id != id) return BadRequest();
+        var result = await _mediator.Send(command, cancellationToken);
+        return result ? Ok(new { success = true, message = "Venta actualizada." })
+                      : NotFound(new { success = false, message = "Venta no encontrada." });
+    }
+
+    /// <summary>
+    /// Todas las ventas del tenant. Solo SuperAdmin.
+    /// </summary>
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpGet]
+    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetAllSalesQuery(), cancellationToken);
         return Ok(result);
     }
 

@@ -23,7 +23,8 @@ public class GetAllSellersHandler : IRequestHandler<GetAllSellersQuery, List<Sel
                 Id = seller.Id,
                 Name = seller.Name,
                 LastName = seller.LastName,
-                Phone = seller.Phone
+                Phone = seller.Phone,
+                StatusId = seller.StatusId
             })
             .ToListAsync(cancellationToken);
     }

@@ -3,32 +3,23 @@ using BusinessCloud.Application.Payments.Dtos;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace BusinessCloud.Application.Payments.Queries.GetMySales;
+namespace BusinessCloud.Application.Payments.Queries.GetAllSales;
 
-public class GetMySalesQueryHandler : IRequestHandler<GetMySalesQuery, List<CommissionistSaleDto>>
+public class GetAllSalesQueryHandler : IRequestHandler<GetAllSalesQuery, List<AdminSaleDto>>
 {
     private readonly IPaymentsDbContext _db;
-    private readonly ICurrentUserService _currentUser;
 
-    public GetMySalesQueryHandler(IPaymentsDbContext db, ICurrentUserService currentUser)
+    public GetAllSalesQueryHandler(IPaymentsDbContext db) => _db = db;
+
+    public async Task<List<AdminSaleDto>> Handle(GetAllSalesQuery request, CancellationToken cancellationToken)
     {
-        _db = db;
-        _currentUser = currentUser;
-    }
-
-    public async Task<List<CommissionistSaleDto>> Handle(GetMySalesQuery request, CancellationToken cancellationToken)
-    {
-        var sellerId = _currentUser.SellerId
-            ?? throw new UnauthorizedAccessException("No se pudo determinar el SellerId del token.");
-
         return await _db.Sales
             .AsNoTracking()
-            .Where(s => s.SellerId == sellerId)
             .Include(s => s.Customer)
             .Include(s => s.Seller)
             .Include(s => s.Payment)
             .OrderByDescending(s => s.Date)
-            .Select(s => new CommissionistSaleDto
+            .Select(s => new AdminSaleDto
             {
                 Id = s.Id,
                 Date = s.Date,
@@ -38,6 +29,7 @@ public class GetMySalesQueryHandler : IRequestHandler<GetMySalesQuery, List<Comm
                 SellerName = s.Seller != null ? $"{s.Seller.Name} {s.Seller.LastName}" : null,
                 ProductDescription = s.ProductDescription,
                 TotalAmount = s.TotalAmount,
+                CostPrice = s.CostPrice,
                 IsPaid = s.IsPaid,
                 CommissionAmount = s.CommissionAmount,
                 IsCommissionPaid = s.IsCommissionPaid,
