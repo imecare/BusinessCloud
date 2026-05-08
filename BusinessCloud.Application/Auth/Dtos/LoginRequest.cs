@@ -8,8 +8,13 @@ namespace BusinessCloud.Application.Auth.Dtos
 {
     public class LoginRequest
     {
-        // Añadido Email porque el controlador usa request.Email
         public string Email { get; set; } = null!;
         public string Password { get; set; } = null!;
+
+        /// <summary>
+        /// Módulo desde el cual se hace login: "Payments" | "Bazares".
+        /// Cada SPA envía su propio identificador.
+        /// </summary>
+        public string? Module { get; set; }
     }
 }

@@ -34,6 +34,13 @@ public class GetAllSalesQueryHandler : IRequestHandler<GetAllSalesQuery, List<Ad
                 CommissionAmount = s.CommissionAmount,
                 IsCommissionPaid = s.IsCommissionPaid,
                 CommissionPaidAt = s.CommissionPaidAt,
+                PaidAmount = s.Payment.Where(p => p.PaymentTypeId == 2).Sum(p => p.Amount),
+                RemainingBalance = s.TotalAmount - s.Payment.Where(p => p.PaymentTypeId == 2).Sum(p => p.Amount) > 0
+                    ? s.TotalAmount - s.Payment.Where(p => p.PaymentTypeId == 2).Sum(p => p.Amount)
+                    : 0,
+                PaymentProgress = s.TotalAmount > 0
+                    ? Math.Min(100, s.Payment.Where(p => p.PaymentTypeId == 2).Sum(p => p.Amount) / s.TotalAmount * 100)
+                    : 0,
                 Payments = s.Payment
                     .OrderByDescending(p => p.Date)
                     .Select(p => new PaymentDto

@@ -129,6 +129,39 @@ namespace BusinessCloud.Infrastructure.Migrations.IdentityDb
                     b.ToTable("Tenants");
                 });
 
+            modelBuilder.Entity("BusinessCloud.Domain.Common.Entities.TenantModule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("ActivatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeactivatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Module")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Module")
+                        .IsUnique();
+
+                    b.ToTable("TenantModules");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -262,6 +295,17 @@ namespace BusinessCloud.Infrastructure.Migrations.IdentityDb
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("BusinessCloud.Domain.Common.Entities.TenantModule", b =>
+                {
+                    b.HasOne("BusinessCloud.Domain.Common.Entities.Tenant", "Tenant")
+                        .WithMany("Modules")
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -311,6 +355,11 @@ namespace BusinessCloud.Infrastructure.Migrations.IdentityDb
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("BusinessCloud.Domain.Common.Entities.Tenant", b =>
+                {
+                    b.Navigation("Modules");
                 });
 #pragma warning restore 612, 618
         }

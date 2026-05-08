@@ -21,6 +21,9 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
     public DbSet<BzaDate> Dates => Set<BzaDate>();
     public DbSet<BzaSale> Sales => Set<BzaSale>();
     public DbSet<BzaProduct> Products => Set<BzaProduct>();
+    public DbSet<BzaPayment> Payments => Set<BzaPayment>();
+    public DbSet<BzaDispatchSheet> DispatchSheets => Set<BzaDispatchSheet>();
+    public DbSet<BzaDispatchItem> DispatchItems => Set<BzaDispatchItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -32,6 +35,9 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         modelBuilder.Entity<BzaDate>().ToTable("Bza_Dates");
         modelBuilder.Entity<BzaSale>().ToTable("Bza_Sales");
         modelBuilder.Entity<BzaProduct>().ToTable("Bza_Products");
+        modelBuilder.Entity<BzaPayment>().ToTable("Bza_Payments");
+        modelBuilder.Entity<BzaDispatchSheet>().ToTable("Bza_DispatchSheets");
+        modelBuilder.Entity<BzaDispatchItem>().ToTable("Bza_DispatchItems");
 
         // Multi-tenant Filter
         modelBuilder.Entity<BzaCollector>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
@@ -39,6 +45,9 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         modelBuilder.Entity<BzaDate>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaSale>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaProduct>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaPayment>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaDispatchSheet>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaDispatchItem>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
