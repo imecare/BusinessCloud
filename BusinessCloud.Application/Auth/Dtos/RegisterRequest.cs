@@ -11,6 +11,7 @@ namespace BusinessCloud.Application.Auth.Dtos
      string Password,
      string FirstName,
      string LastName,
-     string CompanyName // Nombre del nuevo Tenant
+     string CompanyName,
+     string[]? Modules = null // "Payments", "Bazares", "Commissions" — null = todos
  );
 }

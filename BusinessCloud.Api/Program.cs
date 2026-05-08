@@ -5,15 +5,16 @@ using BusinessCloud.Domain.Common.Entities;
 using BusinessCloud.Infrastructure.Common.Services;
 using BusinessCloud.Infrastructure.Data;
 using BusinessCloud.Infrastructure.Services;
+using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
-using System.Text;
 using System.IdentityModel.Tokens.Jwt;
+using System.Text;
 using System.Threading.RateLimiting;
-using Microsoft.AspNetCore.RateLimiting;
 
 // Evita que ASP.NET Core cambie los nombres de los claims
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
@@ -23,7 +24,7 @@ Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .Enrich.FromLogContext()
     .WriteTo.Console()
-    .WriteTo.File("logs/BusinessCloud-Startup.txt", rollingInterval: RollingInterval.Day)
+    .WriteTo.ApplicationInsights(TelemetryConfiguration.CreateDefault(), TelemetryConverter.Traces)
     .CreateLogger();
 
 try
@@ -111,14 +112,17 @@ try
     builder.Services.AddScoped<ICacheService, RedisCacheService>();
     builder.Services.AddScoped<JwtTokenService>();
 
-    // MongoDB
-    var mongoConnectionString = builder.Configuration.GetConnectionString("MongoDb")
-        ?? builder.Configuration["ConnectionStrings:MongoDb"]
-        ?? builder.Configuration["MongoDb"];
+    var mongoConnectionString = builder.Configuration.GetConnectionString("MongoDb");
 
-    if (string.IsNullOrWhiteSpace(mongoConnectionString))
+    // Solo registrar Mongo si existe la cadena, para que no truene en Azure si no lo usas
+    if (!string.IsNullOrWhiteSpace(mongoConnectionString))
     {
-        throw new InvalidOperationException("La cadena de conexión 'MongoDb' no está configurada en appsettings.json.");
+        builder.Services.AddSingleton<MongoDB.Driver.IMongoClient>(sp => new MongoDB.Driver.MongoClient(mongoConnectionString));
+        builder.Services.AddScoped<IMongoContext, MongoContext>();
+    }
+    else
+    {
+        Log.Warning("MongoDb no configurado. Algunas funciones podrían no estar disponibles.");
     }
 
     builder.Services.AddSingleton<MongoDB.Driver.IMongoClient>(sp => new MongoDB.Driver.MongoClient(mongoConnectionString));
@@ -169,19 +173,31 @@ try
         .AddPolicy("SuperAdmin", policy => policy.RequireRole("SuperAdmin"))
         .AddPolicy("Commissionist", policy => policy.RequireRole("Commissionist"))
         .AddPolicy("SuperAdminOrCommissionist", policy =>
-            policy.RequireRole("SuperAdmin", "Commissionist"));
+            policy.RequireRole("SuperAdmin", "Commissionist"))
+        .AddPolicy("Module_Payments", policy =>
+            policy.Requirements.Add(new BusinessCloud.Api.Authorization.ModuleRequirement("Payments")))
+        .AddPolicy("Module_Bazares", policy =>
+            policy.Requirements.Add(new BusinessCloud.Api.Authorization.ModuleRequirement("Bazares")))
+        .AddPolicy("Module_Commissions", policy =>
+            policy.Requirements.Add(new BusinessCloud.Api.Authorization.ModuleRequirement("Commissions")));
+
+    builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
+        BusinessCloud.Api.Authorization.ModuleRequirementHandler>();
 
     var app = builder.Build();
 
     // --- 2. Middleware ---
-    if (app.Environment.IsDevelopment())
-    {
-        app.UseSwagger();
-        app.UseSwaggerUI();
-    }
+    //if (app.Environment.IsDevelopment())
+    //{
+    app.UseSwagger();
+    app.UseSwaggerUI(c => {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "BusinessCloud API v1");
+        c.RoutePrefix = string.Empty; // Esto hace que Swagger salga en la raíz de la URL
+    });
+    //}
     app.UseCors(builder =>
     builder
-        .WithOrigins("http://localhost:5173") // Cambia el puerto si tu Vite usa otro
+       .WithOrigins("http://localhost:5173", "https://bcloud.com.mx", "https://stapp-bcloud-payments.azurestaticapps.net")
         .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowCredentials()

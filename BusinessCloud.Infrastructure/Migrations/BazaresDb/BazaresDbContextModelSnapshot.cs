@@ -89,6 +89,9 @@ namespace BusinessCloud.Infrastructure.Migrations.BazaresDb
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("PortalToken")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
@@ -149,6 +152,153 @@ namespace BusinessCloud.Infrastructure.Migrations.BazaresDb
                     b.ToTable("Bza_Dates", (string)null);
                 });
 
+            modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaDispatchItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BzaDispatchSheetId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BzaSaleId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("LabelCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("PieceCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BzaDispatchSheetId");
+
+                    b.HasIndex("BzaSaleId");
+
+                    b.ToTable("Bza_DispatchItems", (string)null);
+                });
+
+            modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaDispatchSheet", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BzaCollectorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CollectorSignatureUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("DispatchDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("SignedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TotalPackages")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BzaCollectorId");
+
+                    b.ToTable("Bza_DispatchSheets", (string)null);
+                });
+
+            modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaPayment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("BzaSaleId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsVerified")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProofImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Reference")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BzaSaleId");
+
+                    b.ToTable("Bza_Payments", (string)null);
+                });
+
             modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaProduct", b =>
                 {
                     b.Property<int>("Id")
@@ -207,7 +357,22 @@ namespace BusinessCloud.Infrastructure.Migrations.BazaresDb
                     b.Property<string>("CreatedBy")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("DeliveredToCollectorAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("LabelCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("PaymentDeadline")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PortalToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProofOfPaymentUrl")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("Status")
@@ -244,6 +409,47 @@ namespace BusinessCloud.Infrastructure.Migrations.BazaresDb
                     b.Navigation("Collector");
                 });
 
+            modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaDispatchItem", b =>
+                {
+                    b.HasOne("BusinessCloud.Domain.Bazares.Entities.BzaDispatchSheet", "DispatchSheet")
+                        .WithMany("Items")
+                        .HasForeignKey("BzaDispatchSheetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BusinessCloud.Domain.Bazares.Entities.BzaSale", "Sale")
+                        .WithMany()
+                        .HasForeignKey("BzaSaleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DispatchSheet");
+
+                    b.Navigation("Sale");
+                });
+
+            modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaDispatchSheet", b =>
+                {
+                    b.HasOne("BusinessCloud.Domain.Bazares.Entities.BzaCollector", "Collector")
+                        .WithMany()
+                        .HasForeignKey("BzaCollectorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Collector");
+                });
+
+            modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaPayment", b =>
+                {
+                    b.HasOne("BusinessCloud.Domain.Bazares.Entities.BzaSale", "Sale")
+                        .WithMany("Payments")
+                        .HasForeignKey("BzaSaleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Sale");
+                });
+
             modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaProduct", b =>
                 {
                     b.HasOne("BusinessCloud.Domain.Bazares.Entities.BzaSale", "Sale")
@@ -276,8 +482,15 @@ namespace BusinessCloud.Infrastructure.Migrations.BazaresDb
                     b.Navigation("Sales");
                 });
 
+            modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaDispatchSheet", b =>
+                {
+                    b.Navigation("Items");
+                });
+
             modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaSale", b =>
                 {
+                    b.Navigation("Payments");
+
                     b.Navigation("Products");
                 });
 #pragma warning restore 612, 618

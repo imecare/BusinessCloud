@@ -1,4 +1,6 @@
 ﻿using BusinessCloud.Domain.Common.Entities;
+using BusinessCloud.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -10,10 +12,15 @@ namespace BusinessCloud.Infrastructure.Common.Services;
 public class JwtTokenService
 {
     private readonly IConfiguration _config;
+    private readonly IdentityDbContext _identityDb;
 
-    public JwtTokenService(IConfiguration config) => _config = config;
+    public JwtTokenService(IConfiguration config, IdentityDbContext identityDb)
+    {
+        _config = config;
+        _identityDb = identityDb;
+    }
 
-    public string GenerateToken(ApplicationUser user)
+    public async Task<string> GenerateTokenAsync(ApplicationUser user)
     {
         var claims = new List<Claim>
         {
@@ -31,6 +38,17 @@ public class JwtTokenService
             claims.Add(new Claim("seller_id", user.SellerId.Value.ToString()));
         }
 
+        // Agregar módulos habilitados del tenant como claims
+        var modules = await _identityDb.TenantModules
+            .Where(tm => tm.TenantId == user.TenantId && tm.IsActive)
+            .Select(tm => tm.Module)
+            .ToListAsync();
+
+        foreach (var module in modules)
+        {
+            claims.Add(new Claim("module", module));
+        }
+
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var expireMinutes = _config.GetValue<int>("Jwt:ExpireMinutes");
@@ -44,5 +62,11 @@ public class JwtTokenService
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    // Mantener versión síncrona para compatibilidad (sin módulos)
+    public string GenerateToken(ApplicationUser user)
+    {
+        return GenerateTokenAsync(user).GetAwaiter().GetResult();
     }
 }

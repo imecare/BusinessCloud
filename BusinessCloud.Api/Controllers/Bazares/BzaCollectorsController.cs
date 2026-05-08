@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using BusinessCloud.Api.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using MediatR;
 using BusinessCloud.Application.Bazares.Commands.CreateCollector;
 using BusinessCloud.Application.Bazares.Commands.UpdateCollector;
@@ -6,6 +8,8 @@ using BusinessCloud.Application.Bazares.Queries.GetCollectors;
 
 namespace BusinessCloud.Api.Controllers.Bazares;
 
+[Authorize]
+[RequireModule("Bazares")]
 [ApiController]
 [Route("api/bazares/[controller]")]
 public class BzaCollectorsController : ControllerBase

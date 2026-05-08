@@ -52,6 +52,22 @@ public class AuthController : ControllerBase
             };
 
             _identityContext.Tenants.Add(tenant);
+
+            // Activar módulos solicitados (o todos por defecto)
+            var modulesToActivate = request.Modules?.Length > 0
+                ? request.Modules.Where(m => SystemModules.All.Contains(m)).ToArray()
+                : SystemModules.All;
+
+            foreach (var module in modulesToActivate)
+            {
+                _identityContext.TenantModules.Add(new TenantModule
+                {
+                    TenantId = tenantId,
+                    Module = module,
+                    IsActive = true
+                });
+            }
+
             await _identityContext.SaveChangesAsync();
 
             var user = new ApplicationUser
@@ -77,7 +93,8 @@ public class AuthController : ControllerBase
             return Ok(new
             {
                 Message = "Empresa y Usuario creados con éxito",
-                TenantId = tenantId
+                TenantId = tenantId,
+                Modules = modulesToActivate
             });
         }
         catch (Exception ex)
@@ -93,10 +110,10 @@ public class AuthController : ControllerBase
         var user = await _userManager.FindByEmailAsync(request.Email);
 
         if (user == null)
-            return Unauthorized("Credenciales inválidas");
+            return Unauthorized(new { success = false, message = "Credenciales inválidas." });
 
         if (!user.IsActive)
-            return Unauthorized("Usuario desactivado. Contacte al administrador.");
+            return Unauthorized(new { success = false, message = "Usuario desactivado. Contacte al administrador." });
 
         if (user.Role == "Commissionist" && !user.SellerId.HasValue)
             return BadRequest(new { success = false, message = "Comisionista sin vendedor asignado. Contacte al administrador." });
@@ -104,9 +121,29 @@ public class AuthController : ControllerBase
         var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, false);
 
         if (!result.Succeeded)
-            return Unauthorized("Credenciales inválidas");
+            return Unauthorized(new { success = false, message = "Credenciales inválidas." });
 
-        var token = _jwtService.GenerateToken(user);
+        // Obtener módulos habilitados del tenant
+        var modules = await _identityContext.TenantModules
+            .Where(tm => tm.TenantId == user.TenantId && tm.IsActive)
+            .Select(tm => tm.Module)
+            .ToListAsync();
+
+        // Si el SPA envía Module, validar que el tenant lo tenga activo
+        if (!string.IsNullOrEmpty(request.Module))
+        {
+            if (!modules.Contains(request.Module))
+            {
+                return StatusCode(403, new
+                {
+                    success = false,
+                    message = $"Su empresa no tiene acceso al módulo '{request.Module}'.",
+                    code = "MODULE_NOT_ENABLED"
+                });
+            }
+        }
+
+        var token = await _jwtService.GenerateTokenAsync(user);
 
         return Ok(new
         {
@@ -118,7 +155,8 @@ public class AuthController : ControllerBase
             user.LastName,
             user.SellerId,
             user.TenantId,
-            user.IsActive
+            user.IsActive,
+            Modules = modules
         });
     }
 
@@ -237,4 +275,96 @@ public class AuthController : ControllerBase
             user.IsActive
         });
     }
+
+    // ============================================================
+    // GESTIÓN DE MÓDULOS DEL TENANT
+    // ============================================================
+
+    /// <summary>
+    /// Obtener los módulos habilitados de mi empresa.
+    /// </summary>
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpGet("modules")]
+    public async Task<IActionResult> GetModules()
+    {
+        var tenantId = _currentUser.TenantId;
+
+        var modules = await _identityContext.TenantModules
+            .Where(tm => tm.TenantId == tenantId)
+            .Select(tm => new
+            {
+                tm.Module,
+                tm.IsActive,
+                tm.ActivatedAt,
+                tm.DeactivatedAt
+            })
+            .ToListAsync();
+
+        return Ok(new
+        {
+            TenantId = tenantId,
+            AvailableModules = SystemModules.All,
+            Modules = modules
+        });
+    }
+
+    /// <summary>
+    /// Activar o desactivar un módulo para mi empresa.
+    /// Solo SuperAdmin.
+    /// </summary>
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPut("modules/{moduleName}")]
+    public async Task<IActionResult> ToggleModule(string moduleName, [FromBody] ToggleModuleRequest request)
+    {
+        if (!SystemModules.All.Contains(moduleName))
+            return BadRequest(new { success = false, message = $"Módulo '{moduleName}' no es válido. Opciones: {string.Join(", ", SystemModules.All)}" });
+
+        var tenantId = _currentUser.TenantId;
+
+        var existing = await _identityContext.TenantModules
+            .FirstOrDefaultAsync(tm => tm.TenantId == tenantId && tm.Module == moduleName);
+
+        if (existing == null)
+        {
+            // Crear registro si no existe
+            _identityContext.TenantModules.Add(new TenantModule
+            {
+                TenantId = tenantId!,
+                Module = moduleName,
+                IsActive = request.IsActive,
+                ActivatedAt = request.IsActive ? DateTime.UtcNow : default,
+                DeactivatedAt = request.IsActive ? null : DateTime.UtcNow
+            });
+        }
+        else
+        {
+            existing.IsActive = request.IsActive;
+            if (request.IsActive)
+            {
+                existing.ActivatedAt = DateTime.UtcNow;
+                existing.DeactivatedAt = null;
+            }
+            else
+            {
+                existing.DeactivatedAt = DateTime.UtcNow;
+            }
+        }
+
+        await _identityContext.SaveChangesAsync();
+
+        return Ok(new
+        {
+            success = true,
+            message = request.IsActive
+                ? $"Módulo '{moduleName}' activado. Los usuarios deben re-iniciar sesión."
+                : $"Módulo '{moduleName}' desactivado. Los usuarios deben re-iniciar sesión.",
+            module = moduleName,
+            isActive = request.IsActive
+        });
+    }
+}
+
+public class ToggleModuleRequest
+{
+    public bool IsActive { get; set; }
 }

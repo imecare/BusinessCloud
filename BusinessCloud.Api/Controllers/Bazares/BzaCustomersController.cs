@@ -2,10 +2,14 @@
 using BusinessCloud.Application.Bazares.Commands.UpdateBzaCustomer;
 using BusinessCloud.Application.Bazares.Queries.GetBzaCustomers;
 using MediatR;
+using BusinessCloud.Api.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BusinessCloud.Api.Controllers.Bazares;
 
+[Authorize]
+[RequireModule("Bazares")]
 [ApiController]
 [Route("api/bazares/[controller]")]
 public class BzaCustomersController : ControllerBase

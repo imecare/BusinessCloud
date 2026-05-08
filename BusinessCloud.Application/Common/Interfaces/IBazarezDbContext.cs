@@ -10,6 +10,9 @@ public interface IBazaresDbContext
     DbSet<BzaDate> Dates { get; }
     DbSet<BzaSale> Sales { get; }
     DbSet<BzaProduct> Products { get; }
+    DbSet<BzaPayment> Payments { get; }
+    DbSet<BzaDispatchSheet> DispatchSheets { get; }
+    DbSet<BzaDispatchItem> DispatchItems { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }
