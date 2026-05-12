@@ -39,6 +39,18 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         modelBuilder.Entity<BzaDispatchSheet>().ToTable("Bza_DispatchSheets");
         modelBuilder.Entity<BzaDispatchItem>().ToTable("Bza_DispatchItems");
 
+        // Precisión de decimales
+        modelBuilder.Entity<BzaPayment>().Property(p => p.Amount).HasPrecision(18, 2);
+        modelBuilder.Entity<BzaProduct>().Property(p => p.Price).HasPrecision(18, 2);
+        modelBuilder.Entity<BzaSale>().Property(p => p.Total).HasPrecision(18, 2);
+
+        // Evitar cascade cycles en DispatchItems
+        modelBuilder.Entity<BzaDispatchItem>()
+            .HasOne(d => d.Sale)
+            .WithMany()
+            .HasForeignKey(d => d.BzaSaleId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // Multi-tenant Filter
         modelBuilder.Entity<BzaCollector>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaCustomer>().HasQueryFilter(x => x.TenantId == _userService.TenantId);

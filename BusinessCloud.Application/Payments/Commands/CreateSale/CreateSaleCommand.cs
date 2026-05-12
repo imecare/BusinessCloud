@@ -9,5 +9,6 @@ public record CreateSaleCommand(
     decimal TotalAmount,
     decimal CostPrice,
     decimal CommissionAmount,
-    string ProductDescription
+    string ProductDescription,
+    DateTime Date // Fecha de la venta enviada desde el front
 ) : IRequest<int>;

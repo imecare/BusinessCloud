@@ -16,12 +16,13 @@ public class GetPaymentsBySaleQueryHandler : IRequestHandler<GetPaymentsBySaleQu
         return await _db.Payments
             .AsNoTracking()
             .Where(p => p.SaleId == request.SaleId)
-            .OrderBy(p => p.Date)
+            .OrderBy(p => p.PaymentDate)
             .Select(p => new PaymentDto
             {
                 Id = p.Id,
                 SaleId = p.SaleId,
                 Amount = p.Amount,
+                PaymentDate = p.PaymentDate,
                 Date = p.Date,
                 PaymentMethod = p.PaymentMethod,
                 Reference = p.Reference,

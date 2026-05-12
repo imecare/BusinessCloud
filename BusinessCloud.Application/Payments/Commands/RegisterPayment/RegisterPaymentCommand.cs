@@ -6,5 +6,6 @@ namespace BusinessCloud.Application.Payments.Commands.RegisterPayment;
 public record RegisterPaymentCommand(
     int SaleId,
     decimal Amount,
-    string Reference // Ej: "Efectivo", "Transferencia 1234"
+    string Reference, // Ej: "Efectivo", "Transferencia 1234"
+    DateTime PaymentDate // Fecha del abono enviada desde el front
 ) : IRequest<PaymentReceiptDto>;

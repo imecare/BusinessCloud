@@ -20,6 +20,8 @@ public class UpdatePaymentHandler : IRequestHandler<UpdatePaymentCommand, bool>
         payment.Amount = request.Amount;
         payment.PaymentMethod = request.PaymentMethod;
         payment.Reference = request.Reference;
+        if (request.PaymentDate.HasValue)
+            payment.PaymentDate = request.PaymentDate.Value;
 
         // Recalcular IsPaid de la venta
         var sale = await _db.Sales

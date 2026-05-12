@@ -1,28 +1,29 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
 {
     /// <inheritdoc />
-    public partial class AddTypePayments : Migration
+    public partial class AddPaymentDate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "paymentTypeId",
+            migrationBuilder.AddColumn<DateTime>(
+                name: "PaymentDate",
                 table: "Payments",
-                type: "int",
+                type: "datetime2",
                 nullable: false,
-                defaultValue: 0);
+                defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "paymentTypeId",
+                name: "PaymentDate",
                 table: "Payments");
         }
     }

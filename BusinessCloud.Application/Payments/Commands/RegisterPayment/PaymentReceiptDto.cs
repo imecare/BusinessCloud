@@ -7,6 +7,7 @@ public record PaymentReceiptDto(
     string CustomerName,
     decimal AmountPaid,
     decimal NewBalance,
+    DateTime PaymentDate,
     DateTime Date,
     List<PaymentLineDto> LastMovements
 );

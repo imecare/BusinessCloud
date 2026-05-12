@@ -47,12 +47,13 @@ public class GetPublicHistoryQueryHandler : IRequestHandler<GetPublicHistoryQuer
                 TotalAmount = s.TotalAmount,
                 IsPaid = s.IsPaid,
                 Payment = s.Payment
-                    .OrderByDescending(p => p.Date)
+                    .OrderByDescending(p => p.PaymentDate)
                     .Select(p => new PaymentDto
                     {
                         Id = p.Id,
                         SaleId = p.SaleId,
                         Amount = p.Amount,
+                        PaymentDate = p.PaymentDate,
                         Date = p.Date,
                         PaymentMethod = p.PaymentMethod,
                         Reference = p.Reference,

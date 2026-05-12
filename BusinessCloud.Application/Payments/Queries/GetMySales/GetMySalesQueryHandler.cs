@@ -50,12 +50,13 @@ public class GetMySalesQueryHandler : IRequestHandler<GetMySalesQuery, List<Comm
                     ? Math.Min(100, s.Payment.Where(p => p.PaymentTypeId == 2).Sum(p => p.Amount) / s.TotalAmount * 100)
                     : 0,
                 Payments = s.Payment
-                    .OrderByDescending(p => p.Date)
+                    .OrderByDescending(p => p.PaymentDate)
                     .Select(p => new PaymentDto
                     {
                         Id = p.Id,
                         SaleId = p.SaleId,
                         Amount = p.Amount,
+                        PaymentDate = p.PaymentDate,
                         Date = p.Date,
                         PaymentMethod = p.PaymentMethod,
                         Reference = p.Reference,

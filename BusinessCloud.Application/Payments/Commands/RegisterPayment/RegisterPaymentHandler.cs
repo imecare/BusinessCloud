@@ -32,7 +32,8 @@ public class RegisterPaymentHandler : IRequestHandler<RegisterPaymentCommand, Pa
         {
             SaleId = request.SaleId,
             Amount = request.Amount,
-            PaymentTypeId=2,
+            PaymentTypeId = 2,
+            PaymentDate = request.PaymentDate,
             Date = DateTime.UtcNow,
             Reference = request.Reference
         };
@@ -62,13 +63,14 @@ public class RegisterPaymentHandler : IRequestHandler<RegisterPaymentCommand, Pa
                 CustomerName: sale.Customer?.Name ?? "Cliente",
                 AmountPaid: request.Amount,
                 NewBalance: history?.RemainingBalance ?? 0,
+                PaymentDate: request.PaymentDate,
                 Date: DateTime.UtcNow,
                 LastMovements: history?.Movements.OrderByDescending(m => m.Date).Take(5).ToList() ?? new List<PaymentLineDto>()
             );
         }
         catch
         {
-            return new PaymentReceiptDto($"PAY-{payment.Id}", sale.Customer?.Name ?? "Cliente", request.Amount, 0, DateTime.UtcNow, new List<PaymentLineDto>());
+            return new PaymentReceiptDto($"PAY-{payment.Id}", sale.Customer?.Name ?? "Cliente", request.Amount, 0, request.PaymentDate, DateTime.UtcNow, new List<PaymentLineDto>());
         }
     }
 }

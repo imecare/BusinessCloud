@@ -255,6 +255,7 @@ namespace BusinessCloud.Infrastructure.Migrations.BazaresDb
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("BzaSaleId")
@@ -321,6 +322,7 @@ namespace BusinessCloud.Infrastructure.Migrations.BazaresDb
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Price")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("TenantId")
@@ -383,6 +385,7 @@ namespace BusinessCloud.Infrastructure.Migrations.BazaresDb
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Total")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -420,7 +423,7 @@ namespace BusinessCloud.Infrastructure.Migrations.BazaresDb
                     b.HasOne("BusinessCloud.Domain.Bazares.Entities.BzaSale", "Sale")
                         .WithMany()
                         .HasForeignKey("BzaSaleId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("DispatchSheet");

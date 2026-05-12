@@ -20,6 +20,7 @@ public class GetAllPaymentsQueryHandler : IRequestHandler<GetAllPaymentsQuery, L
                 Id = p.Id,
                 SaleId = p.SaleId,
                 Amount = p.Amount,
+                PaymentDate = p.PaymentDate,
                 Date = p.Date,
                 PaymentMethod = p.PaymentMethod,
                 Reference = p.Reference,

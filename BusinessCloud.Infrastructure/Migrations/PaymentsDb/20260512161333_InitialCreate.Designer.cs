@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
 {
     [DbContext(typeof(PaymentsDbContext))]
-    [Migration("20260408213525_AddTypePayments")]
-    partial class AddTypePayments
+    [Migration("20260512161333_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -42,7 +42,42 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
 
                     b.HasKey("Id");
 
-                    b.ToTable("Tenants");
+                    b.ToTable("Tenants", null, t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
+            modelBuilder.Entity("BusinessCloud.Domain.Common.Entities.TenantModule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("ActivatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeactivatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Module")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("TenantModule");
                 });
 
             modelBuilder.Entity("BusinessCloud.Domain.Payments.Entities.Customer", b =>
@@ -57,6 +92,10 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
                         .HasColumnType("datetime2");
 
                     b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
@@ -86,9 +125,65 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
 
                     b.HasKey("Id");
 
+                    b.HasIndex("SellerId");
+
                     b.HasIndex("RFC", "Phone");
 
                     b.ToTable("Customers");
+                });
+
+            modelBuilder.Entity("BusinessCloud.Domain.Payments.Entities.DeletedPayment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DeletedReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("OriginalCreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("OriginalCreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("OriginalPaymentId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("PaymentDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("PaymentTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reference")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SaleId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TenantId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DeletedPayments");
                 });
 
             modelBuilder.Entity("BusinessCloud.Domain.Payments.Entities.Payment", b =>
@@ -116,6 +211,9 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("PaymentTypeId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Reference")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -132,9 +230,6 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
 
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("paymentTypeId")
-                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -154,6 +249,17 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
                     b.Property<decimal>("CommissionAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("CommissionPaidAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CommissionPaidByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("CommissionPaymentNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<decimal>("CostPrice")
                         .HasPrecision(18, 2)
@@ -177,6 +283,10 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
                     b.Property<bool>("IsPaid")
                         .HasColumnType("bit");
 
+                    b.Property<string>("ProductDescription")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int?>("SellerId")
                         .HasColumnType("int");
 
@@ -198,13 +308,84 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
 
                     b.HasIndex("CustomerId");
 
+                    b.HasIndex("SellerId");
+
                     b.ToTable("Sales");
+                });
+
+            modelBuilder.Entity("BusinessCloud.Domain.Payments.Entities.Seller", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("StatusId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Sellers");
+                });
+
+            modelBuilder.Entity("BusinessCloud.Domain.Common.Entities.TenantModule", b =>
+                {
+                    b.HasOne("BusinessCloud.Domain.Common.Entities.Tenant", "Tenant")
+                        .WithMany("Modules")
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("BusinessCloud.Domain.Payments.Entities.Customer", b =>
+                {
+                    b.HasOne("BusinessCloud.Domain.Payments.Entities.Seller", "Seller")
+                        .WithMany("Customers")
+                        .HasForeignKey("SellerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Seller");
                 });
 
             modelBuilder.Entity("BusinessCloud.Domain.Payments.Entities.Payment", b =>
                 {
                     b.HasOne("BusinessCloud.Domain.Payments.Entities.Sale", "Sale")
-                        .WithMany("Payments")
+                        .WithMany("Payment")
                         .HasForeignKey("SaleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -220,7 +401,18 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("BusinessCloud.Domain.Payments.Entities.Seller", "Seller")
+                        .WithMany()
+                        .HasForeignKey("SellerId");
+
                     b.Navigation("Customer");
+
+                    b.Navigation("Seller");
+                });
+
+            modelBuilder.Entity("BusinessCloud.Domain.Common.Entities.Tenant", b =>
+                {
+                    b.Navigation("Modules");
                 });
 
             modelBuilder.Entity("BusinessCloud.Domain.Payments.Entities.Customer", b =>
@@ -230,7 +422,12 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
 
             modelBuilder.Entity("BusinessCloud.Domain.Payments.Entities.Sale", b =>
                 {
-                    b.Navigation("Payments");
+                    b.Navigation("Payment");
+                });
+
+            modelBuilder.Entity("BusinessCloud.Domain.Payments.Entities.Seller", b =>
+                {
+                    b.Navigation("Customers");
                 });
 #pragma warning restore 612, 618
         }

@@ -27,12 +27,13 @@ public class CreateSaleHandler : IRequestHandler<CreateSaleCommand, int>
             CommissionAmount = request.CommissionAmount,
             ProductDescription = request.ProductDescription,
             IsCommissionPaid = false,
-            Date = DateTime.UtcNow
+            Date = request.Date
         };
 
         var initialMovement = new Payment
         {
             Amount = request.TotalAmount,
+            PaymentDate = request.Date,
             Date = DateTime.UtcNow,
             PaymentTypeId = 1,
             Reference = "Registro inicial de venta"

@@ -23,6 +23,8 @@ public class UpdateSaleHandler : IRequestHandler<UpdateSaleCommand, bool>
         sale.CostPrice = request.CostPrice;
         sale.CommissionAmount = request.CommissionAmount;
         sale.ProductDescription = request.ProductDescription;
+        if (request.Date.HasValue)
+            sale.Date = request.Date.Value;
 
         await _db.SaveChangesAsync(cancellationToken);
         return true;

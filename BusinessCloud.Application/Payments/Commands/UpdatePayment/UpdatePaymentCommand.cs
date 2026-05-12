@@ -6,5 +6,6 @@ public record UpdatePaymentCommand(
     int Id,
     decimal Amount,
     string PaymentMethod,
-    string? Reference
+    string? Reference,
+    DateTime? PaymentDate
 ) : IRequest<bool>;

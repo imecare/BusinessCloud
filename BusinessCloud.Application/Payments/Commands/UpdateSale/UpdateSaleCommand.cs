@@ -9,5 +9,6 @@ public record UpdateSaleCommand(
     decimal TotalAmount,
     decimal CostPrice,
     decimal CommissionAmount,
-    string ProductDescription
+    string ProductDescription,
+    DateTime? Date
 ) : IRequest<bool>;

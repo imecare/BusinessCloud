@@ -40,8 +40,6 @@ public class AuthController : ControllerBase
     [HttpPost("register-company")]
     public async Task<IActionResult> Register(RegisterRequest request)
     {
-        using var transaction = await _identityContext.Database.BeginTransactionAsync();
-
         try
         {
             var tenantId = Guid.NewGuid().ToString().Substring(0, 8);
@@ -85,10 +83,16 @@ public class AuthController : ControllerBase
 
             if (!result.Succeeded)
             {
+                // Rollback manual: eliminar tenant y módulos creados
+                var tenantToRemove = await _identityContext.Tenants.FindAsync(tenantId);
+                if (tenantToRemove != null)
+                    _identityContext.Tenants.Remove(tenantToRemove);
+                var modulesToRemove = _identityContext.TenantModules.Where(m => m.TenantId == tenantId);
+                _identityContext.TenantModules.RemoveRange(modulesToRemove);
+                await _identityContext.SaveChangesAsync();
+
                 return BadRequest(result.Errors);
             }
-
-            await transaction.CommitAsync();
 
             return Ok(new
             {
@@ -99,7 +103,6 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            await transaction.RollbackAsync();
             return StatusCode(500, $"Error interno: {ex.Message}");
         }
     }

@@ -30,6 +30,9 @@ public class PaymentsDbContext : DbContext, IPaymentsDbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        // Excluir entidades que ya maneja IdentityDbContext
+        modelBuilder.Entity<Tenant>().ToTable("Tenants", t => t.ExcludeFromMigrations());
+
         // 1. FILTRO GLOBAL SAAS: Seguridad automática
         // IMPORTANTE: Aquí usamos la propiedad del servicio
         modelBuilder.Entity<Sale>().HasQueryFilter(s => s.TenantId == _userService.TenantId);
@@ -79,7 +82,7 @@ public class PaymentsDbContextFactory : IDesignTimeDbContextFactory<PaymentsDbCo
     public PaymentsDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<PaymentsDbContext>();
-        optionsBuilder.UseSqlServer("Server=LAPTOP-5L4BL4RK\\SQLEXPRESS;Database=Payments;Trusted_Connection=True;TrustServerCertificate=True");
+        optionsBuilder.UseSqlServer("Server=tcp:sql-server-bcloud.database.windows.net,1433;Initial Catalog=bcloudMain;Persist Security Info=False;User ID=bcloud_admin;Password=BCServicesCarelia123+;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;");
 
         return new PaymentsDbContext(optionsBuilder.Options, new DummyCurrentUserService());
     }

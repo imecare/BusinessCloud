@@ -39,7 +39,42 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
 
                     b.HasKey("Id");
 
-                    b.ToTable("Tenants");
+                    b.ToTable("Tenants", null, t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
+            modelBuilder.Entity("BusinessCloud.Domain.Common.Entities.TenantModule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("ActivatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeactivatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Module")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("TenantModule");
                 });
 
             modelBuilder.Entity("BusinessCloud.Domain.Payments.Entities.Customer", b =>
@@ -167,6 +202,9 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("PaymentDate")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("PaymentMethod")
@@ -322,6 +360,17 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
                     b.ToTable("Sellers");
                 });
 
+            modelBuilder.Entity("BusinessCloud.Domain.Common.Entities.TenantModule", b =>
+                {
+                    b.HasOne("BusinessCloud.Domain.Common.Entities.Tenant", "Tenant")
+                        .WithMany("Modules")
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("BusinessCloud.Domain.Payments.Entities.Customer", b =>
                 {
                     b.HasOne("BusinessCloud.Domain.Payments.Entities.Seller", "Seller")
@@ -359,6 +408,11 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
                     b.Navigation("Customer");
 
                     b.Navigation("Seller");
+                });
+
+            modelBuilder.Entity("BusinessCloud.Domain.Common.Entities.Tenant", b =>
+                {
+                    b.Navigation("Modules");
                 });
 
             modelBuilder.Entity("BusinessCloud.Domain.Payments.Entities.Customer", b =>
