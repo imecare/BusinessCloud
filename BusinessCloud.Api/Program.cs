@@ -197,7 +197,7 @@ try
     //}
     app.UseCors(builder =>
     builder
-       .WithOrigins("http://localhost:5173", "https://bcloud.com.mx", "https://stapp-bcloud-payments.azurestaticapps.net")
+       .WithOrigins("http://localhost:5173", "https://bcloud.com.mx", "https://stapp-bcloud-payments.azurestaticapps.net", "https://jolly-sky-02a5e1c10.7.azurestaticapps.net")
         .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowCredentials()
