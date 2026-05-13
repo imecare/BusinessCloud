@@ -44,6 +44,17 @@ public class PaySalesController : ControllerBase
     }
 
     /// <summary>
+    /// Eliminar una venta (solo si no tiene abonos). Solo SuperAdmin.
+    /// </summary>
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id, [FromQuery] string? reason, CancellationToken cancellationToken)
+    {
+        var deleted = await _mediator.Send(new BusinessCloud.Application.Payments.Commands.DeleteSale.DeleteSaleCommand(id, reason), cancellationToken);
+        return deleted ? NoContent() : NotFound(new { success = false, message = "Venta no encontrada." });
+    }
+
+    /// <summary>
     /// Todas las ventas del tenant. Solo SuperAdmin.
     /// </summary>
     [Authorize(Policy = "SuperAdmin")]

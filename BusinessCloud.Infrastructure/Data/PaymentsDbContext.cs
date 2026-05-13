@@ -24,6 +24,7 @@ public class PaymentsDbContext : DbContext, IPaymentsDbContext
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Seller> Sellers => Set<Seller>();
     public DbSet<DeletedPayment> DeletedPayments => Set<DeletedPayment>();
+    public DbSet<DeletedSale> DeletedSales => Set<DeletedSale>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -46,6 +47,9 @@ public class PaymentsDbContext : DbContext, IPaymentsDbContext
         modelBuilder.Entity<Sale>().Property(s => s.CommissionAmount).HasPrecision(18, 2);
         modelBuilder.Entity<Payment>().Property(e => e.Amount).HasPrecision(18, 2);
         modelBuilder.Entity<DeletedPayment>().Property(e => e.Amount).HasPrecision(18, 2);
+        modelBuilder.Entity<DeletedSale>().Property(e => e.TotalAmount).HasPrecision(18, 2);
+        modelBuilder.Entity<DeletedSale>().Property(e => e.CostPrice).HasPrecision(18, 2);
+        modelBuilder.Entity<DeletedSale>().Property(e => e.CommissionAmount).HasPrecision(18, 2);
 
         // 3. Campos de auditoría de comisión
         modelBuilder.Entity<Sale>().Property(s => s.CommissionPaymentNote).HasMaxLength(500);

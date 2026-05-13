@@ -11,6 +11,7 @@ public interface IPaymentsDbContext
     DbSet<Sale> Sales { get; }
     DbSet<Payment> Payments { get; }
     DbSet<DeletedPayment> DeletedPayments { get; }
+    DbSet<DeletedSale> DeletedSales { get; }
     DbSet<Tenant> Tenants { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }
