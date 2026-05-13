@@ -49,14 +49,15 @@ public class DeletePaymentCommandHandler : IRequestHandler<DeletePaymentCommand,
 
         // 3. Recalcular IsPaid de la venta
         var sale = await _db.Sales
-            .Include(s => s.Payment)
             .FirstOrDefaultAsync(s => s.Id == payment.SaleId, cancellationToken);
 
         if (sale is not null)
         {
-            var totalPaid = sale.Payment
-                .Where(p => p.Id != payment.Id)
-                .Sum(p => p.Amount);
+            // Calcular el total abonado restante directamente de la BD,
+            // excluyendo el pago que se está eliminando.
+            var totalPaid = await _db.Payments
+                .Where(p => p.SaleId == payment.SaleId && p.Id != payment.Id)
+                .SumAsync(p => p.Amount, cancellationToken);
 
             sale.IsPaid = totalPaid >= sale.TotalAmount;
         }

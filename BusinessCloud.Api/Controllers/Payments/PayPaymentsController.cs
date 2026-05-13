@@ -44,8 +44,9 @@ public class PayPaymentsController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdatePaymentCommand command, CancellationToken cancellationToken)
     {
-        if (command is null || command.Id != id) return BadRequest();
-        var result = await _mediator.Send(command, cancellationToken);
+        if (command is null) return BadRequest();
+        var cmd = command with { Id = id };
+        var result = await _mediator.Send(cmd, cancellationToken);
         return result ? Ok(new { success = true, message = "Abono actualizado." })
                       : NotFound(new { success = false, message = "Abono no encontrado." });
     }
