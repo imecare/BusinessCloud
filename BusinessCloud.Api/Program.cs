@@ -69,13 +69,13 @@ try
     var commissionsConn = builder.Configuration.GetConnectionString("CommissionsConnection")
         ?? builder.Configuration.GetConnectionString("PaymentsConnection");
     builder.Services.AddDbContext<CommissionsDbContext>(options =>
-        options.UseSqlServer(commissionsConn));
+        options.UseSqlServer(commissionsConn, sql => sql.EnableRetryOnFailure()));
 
     builder.Services.AddDbContext<PaymentsDbContext>(options =>
-        options.UseSqlServer(builder.Configuration.GetConnectionString("PaymentsConnection")));
+        options.UseSqlServer(builder.Configuration.GetConnectionString("PaymentsConnection"), sql => sql.EnableRetryOnFailure()));
 
     builder.Services.AddDbContext<IdentityDbContext>(options =>
-        options.UseSqlServer(builder.Configuration.GetConnectionString("PaymentsConnection")));
+        options.UseSqlServer(builder.Configuration.GetConnectionString("PaymentsConnection"), sql => sql.EnableRetryOnFailure()));
 
     builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => {
         options.Password.RequireDigit = false;
@@ -85,7 +85,7 @@ try
 
     // Registro del Contexto de Bazares (SQL Server)
     builder.Services.AddDbContext<BazaresDbContext>(options =>
-        options.UseSqlServer(builder.Configuration.GetConnectionString("PaymentsConnection"))); // Usa la misma conexión si están en la misma BD
+        options.UseSqlServer(builder.Configuration.GetConnectionString("PaymentsConnection"), sql => sql.EnableRetryOnFailure()));
 
     // Registro de la Interfaz
     builder.Services.AddScoped<IBazaresDbContext>(provider =>

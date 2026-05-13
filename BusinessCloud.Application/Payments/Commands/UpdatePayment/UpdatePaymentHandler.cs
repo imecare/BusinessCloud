@@ -25,13 +25,16 @@ public class UpdatePaymentHandler : IRequestHandler<UpdatePaymentCommand, bool>
 
         // Recalcular IsPaid de la venta
         var sale = await _db.Sales
-            .Include(s => s.Payment)
             .FirstOrDefaultAsync(s => s.Id == payment.SaleId, cancellationToken);
 
         if (sale is not null)
         {
-            var totalPaid = sale.Payment.Sum(p => p.Id == payment.Id ? request.Amount : p.Amount);
-            sale.IsPaid = totalPaid >= sale.TotalAmount;
+            // Sumar los demás abonos desde la BD y agregar el monto actualizado de este abono
+            var otherPaid = await _db.Payments
+                .Where(p => p.SaleId == payment.SaleId && p.Id != payment.Id)
+                .SumAsync(p => p.Amount, cancellationToken);
+
+            sale.IsPaid = (otherPaid + request.Amount) >= sale.TotalAmount;
         }
 
         await _db.SaveChangesAsync(cancellationToken);
