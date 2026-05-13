@@ -125,9 +125,6 @@ try
         Log.Warning("MongoDb no configurado. Algunas funciones podrían no estar disponibles.");
     }
 
-    builder.Services.AddSingleton<MongoDB.Driver.IMongoClient>(sp => new MongoDB.Driver.MongoClient(mongoConnectionString));
-    builder.Services.AddScoped<IMongoContext, MongoContext>();
-    
     // Application y Controllers
     builder.Services.AddApplication();
     builder.Services.AddControllers();
