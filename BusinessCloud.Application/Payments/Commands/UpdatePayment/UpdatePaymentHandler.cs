@@ -31,7 +31,7 @@ public class UpdatePaymentHandler : IRequestHandler<UpdatePaymentCommand, bool>
         {
             // Sumar los demás abonos desde la BD y agregar el monto actualizado de este abono
             var otherPaid = await _db.Payments
-                .Where(p => p.SaleId == payment.SaleId && p.Id != payment.Id)
+                .Where(p => p.SaleId == payment.SaleId && p.Id != payment.Id && p.PaymentTypeId == 2)
                 .SumAsync(p => p.Amount, cancellationToken);
 
             sale.IsPaid = (otherPaid + request.Amount) >= sale.TotalAmount;

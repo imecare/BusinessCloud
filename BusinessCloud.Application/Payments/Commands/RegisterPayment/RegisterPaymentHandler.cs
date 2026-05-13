@@ -38,16 +38,14 @@ public class RegisterPaymentHandler : IRequestHandler<RegisterPaymentCommand, Pa
             Reference = request.Reference
         };
 
+        // Recalcular IsPaid de la venta: sumar abonos existentes + el nuevo
+        var previousPaid = await _sqlContext.Payments
+            .Where(p => p.SaleId == request.SaleId && p.PaymentTypeId == 2)
+            .SumAsync(p => p.Amount, cancellationToken);
+
+        sale.IsPaid = (previousPaid + request.Amount) >= sale.TotalAmount;
+
         _sqlContext.Payments.Add(payment);
-
-        // Recalcular IsPaid de la venta
-        var totalPaid = await _sqlContext.Payments
-            .Where(p => p.SaleId == request.SaleId)
-            .SumAsync(p => p.Amount, cancellationToken)
-            + request.Amount;
-
-        sale.IsPaid = totalPaid >= sale.TotalAmount;
-
         await _sqlContext.SaveChangesAsync(cancellationToken);
 
         try
