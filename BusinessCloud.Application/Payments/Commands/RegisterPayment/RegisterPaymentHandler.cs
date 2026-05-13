@@ -39,7 +39,16 @@ public class RegisterPaymentHandler : IRequestHandler<RegisterPaymentCommand, Pa
         };
 
         _sqlContext.Payments.Add(payment);
-        await _sqlContext.SaveChangesAsync(cancellationToken); // Agregado el token
+
+        // Recalcular IsPaid de la venta
+        var totalPaid = await _sqlContext.Payments
+            .Where(p => p.SaleId == request.SaleId)
+            .SumAsync(p => p.Amount, cancellationToken)
+            + request.Amount;
+
+        sale.IsPaid = totalPaid >= sale.TotalAmount;
+
+        await _sqlContext.SaveChangesAsync(cancellationToken);
 
         try
         {
