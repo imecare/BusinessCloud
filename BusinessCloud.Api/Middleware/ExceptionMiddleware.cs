@@ -40,8 +40,8 @@ namespace BusinessCloud.Api.Middleware
             }
             catch (Exception ex)
             {
-                // Usamos 'ex' para que Serilog registre el error completo
-                Log.Fatal(ex, "Fallo grave durante el arranque de la aplicación");
+                Log.Fatal(ex, "Error interno no controlado");
+                await HandleExceptionAsync(context, "Error interno del servidor: " + ex.Message, HttpStatusCode.InternalServerError);
             }
         }
 

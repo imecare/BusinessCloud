@@ -137,6 +137,22 @@ try
         Log.Warning("MongoDB no configurado. Funciones de auditoría e historial deshabilitadas.");
     }
 
+    // CORS
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("AllowFrontend", policy =>
+        {
+            policy.WithOrigins(
+                    "http://localhost:5173",
+                    "https://bcloud.com.mx",
+                    "https://stapp-bcloud-payments.azurestaticapps.net",
+                    "https://jolly-sky-02a5e1c10.7.azurestaticapps.net")
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        });
+    });
+
     // Application y Controllers
     builder.Services.AddApplication();
     builder.Services.AddControllers();
@@ -204,13 +220,7 @@ try
         c.RoutePrefix = string.Empty; // Esto hace que Swagger salga en la raíz de la URL
     });
     //}
-    app.UseCors(builder =>
-    builder
-       .WithOrigins("http://localhost:5173", "https://bcloud.com.mx", "https://stapp-bcloud-payments.azurestaticapps.net", "https://jolly-sky-02a5e1c10.7.azurestaticapps.net")
-        .AllowAnyHeader()
-        .AllowAnyMethod()
-        .AllowCredentials()
-);
+    app.UseCors("AllowFrontend");
     // REGISTRA TU MIDDLEWARE AQUÍ PARA QUE sea EL QUE DICTA EL FORMATO
     app.UseMiddleware<ExceptionMiddleware>();
 
@@ -230,6 +240,14 @@ try
 catch (Exception ex)
 {
     Log.Fatal(ex, "Fallo grave durante el arranque de la aplicación (Application Startup Failed)");
+
+    // Crear una app mínima que muestre el error para diagnóstico en Azure
+    var errorApp = WebApplication.CreateBuilder(args).Build();
+    var errorMessage = ex.ToString();
+    errorApp.MapGet("/{**path}", () => Results.Text(
+        $"ERROR AL ARRANCAR LA API:\n\n{errorMessage}",
+        "text/plain", statusCode: 500));
+    await errorApp.RunAsync();
 }
 finally
 {
