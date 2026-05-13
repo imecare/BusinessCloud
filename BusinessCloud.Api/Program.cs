@@ -68,8 +68,10 @@ try
     });
 
     // Bases de Datos
+    var commissionsConn = builder.Configuration.GetConnectionString("CommissionsConnection")
+        ?? builder.Configuration.GetConnectionString("PaymentsConnection");
     builder.Services.AddDbContext<CommissionsDbContext>(options =>
-        options.UseSqlServer(builder.Configuration.GetConnectionString("CommissionsConnection")));
+        options.UseSqlServer(commissionsConn));
 
     builder.Services.AddDbContext<PaymentsDbContext>(options =>
         options.UseSqlServer(builder.Configuration.GetConnectionString("PaymentsConnection")));
@@ -102,27 +104,39 @@ try
         )
     );
 
-    // Configuración de Redis
-    builder.Services.AddStackExchangeRedisCache(options =>
+    // Configuración de Redis (opcional)
+    var redisConnection = builder.Configuration.GetConnectionString("Redis");
+    if (!string.IsNullOrWhiteSpace(redisConnection) && redisConnection != "localhost:6379")
     {
-        options.Configuration = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
-        options.InstanceName = "BusinessCloud_";
-    });
-
-    builder.Services.AddScoped<ICacheService, RedisCacheService>();
-    builder.Services.AddScoped<JwtTokenService>();
-
-    var mongoConnectionString = builder.Configuration.GetConnectionString("MongoDb");
-
-    // Solo registrar Mongo si existe la cadena, para que no truene en Azure si no lo usas
-    if (!string.IsNullOrWhiteSpace(mongoConnectionString))
-    {
-        builder.Services.AddSingleton<MongoDB.Driver.IMongoClient>(sp => new MongoDB.Driver.MongoClient(mongoConnectionString));
-        builder.Services.AddScoped<IMongoContext, MongoContext>();
+        builder.Services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration = redisConnection;
+            options.InstanceName = "BusinessCloud_";
+        });
+        builder.Services.AddScoped<ICacheService, RedisCacheService>();
+        Log.Information("Redis configurado correctamente.");
     }
     else
     {
-        Log.Warning("MongoDb no configurado. Algunas funciones podrían no estar disponibles.");
+        builder.Services.AddDistributedMemoryCache();
+        builder.Services.AddScoped<ICacheService, NoOpCacheService>();
+        Log.Warning("Redis no configurado. Usando caché en memoria (no-op).");
+    }
+
+    builder.Services.AddScoped<JwtTokenService>();
+
+    // Configuración de MongoDB (opcional)
+    var mongoConnectionString = builder.Configuration.GetConnectionString("MongoDb");
+    if (!string.IsNullOrWhiteSpace(mongoConnectionString) && !mongoConnectionString.Contains("localhost"))
+    {
+        builder.Services.AddSingleton<MongoDB.Driver.IMongoClient>(sp => new MongoDB.Driver.MongoClient(mongoConnectionString));
+        builder.Services.AddScoped<IMongoContext, MongoContext>();
+        Log.Information("MongoDB configurado correctamente.");
+    }
+    else
+    {
+        builder.Services.AddScoped<IMongoContext, NoOpMongoContext>();
+        Log.Warning("MongoDB no configurado. Funciones de auditoría e historial deshabilitadas.");
     }
 
     // Application y Controllers
