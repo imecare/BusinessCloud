@@ -5,7 +5,6 @@ using BusinessCloud.Domain.Common.Entities;
 using BusinessCloud.Infrastructure.Common.Services;
 using BusinessCloud.Infrastructure.Data;
 using BusinessCloud.Infrastructure.Services;
-using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
@@ -24,7 +23,6 @@ Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .Enrich.FromLogContext()
     .WriteTo.Console()
-    .WriteTo.ApplicationInsights(TelemetryConfiguration.CreateDefault(), TelemetryConverter.Traces)
     .CreateLogger();
 
 try
