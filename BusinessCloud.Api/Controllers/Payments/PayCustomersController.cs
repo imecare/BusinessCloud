@@ -19,7 +19,7 @@ public class PayCustomersController : ControllerBase
 
     public PayCustomersController(IMediator mediator) => _mediator = mediator;
 
-    [Authorize(Policy = "SuperAdmin")]
+    [Authorize(Policy = "SuperAdminOrCommissionist")]
     [HttpPost]
     public async Task<ActionResult<int>> Create([FromBody] CreateCustomerCommand command, CancellationToken cancellationToken)
     {
@@ -28,7 +28,7 @@ public class PayCustomersController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id }, id);
     }
 
-    [Authorize(Policy = "SuperAdmin")]
+    [Authorize(Policy = "SuperAdminOrCommissionist")]       
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateCustomerCommand command, CancellationToken cancellationToken)
     {
