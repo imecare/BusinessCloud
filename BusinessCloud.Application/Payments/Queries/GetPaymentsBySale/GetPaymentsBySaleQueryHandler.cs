@@ -18,16 +18,16 @@ public class GetPaymentsBySaleQueryHandler : IRequestHandler<GetPaymentsBySaleQu
             .Where(p => p.SaleId == request.SaleId)
             .OrderBy(p => p.PaymentDate)
             .Select(p => new PaymentDto
-            {
-                Id = p.Id,
-                SaleId = p.SaleId,
-                Amount = p.Amount,
-                PaymentDate = p.PaymentDate,
-                Date = p.Date,
-                PaymentMethod = p.PaymentMethod,
-                Reference = p.Reference,
-                PaymentTypeId = p.PaymentTypeId
-            })
+                {
+                    Id = p.Id,
+                    SaleId = p.SaleId,
+                    Amount = p.Amount,
+                    PaymentDate = p.PaymentDate,
+                    Date = p.PaymentDate,
+                    PaymentMethod = p.PaymentMethod,
+                    Reference = p.Reference,
+                    PaymentTypeId = p.PaymentTypeId
+                })
             .ToListAsync(cancellationToken);
     }
 }

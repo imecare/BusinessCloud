@@ -54,7 +54,7 @@ public class GetPublicHistoryQueryHandler : IRequestHandler<GetPublicHistoryQuer
                         SaleId = p.SaleId,
                         Amount = p.Amount,
                         PaymentDate = p.PaymentDate,
-                        Date = p.Date,
+                        Date = p.PaymentDate,
                         PaymentMethod = p.PaymentMethod,
                         Reference = p.Reference,
                         PaymentTypeId = p.PaymentTypeId
