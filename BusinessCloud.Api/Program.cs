@@ -145,6 +145,7 @@ try
             policy.WithOrigins(
                     "http://localhost:5173",
                     "https://bcloud.com.mx",
+                    "https://payments.bcloud.com.mx",
                     "https://stapp-bcloud-payments.azurestaticapps.net",
                     "https://jolly-sky-02a51ec10.7.azurestaticapps.net")
                 .AllowAnyHeader()
