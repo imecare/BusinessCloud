@@ -1,4 +1,5 @@
-﻿using BusinessCloud.Application.Common.Interfaces;
+﻿using BusinessCloud.Application.Common.Dtos;
+using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Application.Payments.Queries.GetCustomerHistory;
 using Microsoft.Extensions.Configuration;
 using MongoDB.Bson;
@@ -54,13 +55,24 @@ public class MongoContext : IMongoContext
                                .ToListAsync(ct);
     }
 
-    public async Task<List<dynamic>> GetAuditLogsBySaleIdAsync(int saleId, CancellationToken cancellationToken)
+    public async Task<List<AuditLogEntry>> GetAuditLogsBySaleIdAsync(int saleId, CancellationToken cancellationToken)
     {
         var filter = Builders<BsonDocument>.Filter.Eq("SaleId", saleId);
         var documents = await _db.GetCollection<BsonDocument>("AuditLogs")
             .Find(filter)
             .ToListAsync(cancellationToken);
 
-        return documents.Select(doc => BsonTypeMapper.MapToDotNetValue(doc)).ToList();
+        return documents.Select(doc => new AuditLogEntry
+        {
+            Id = doc.GetValue("_id", BsonNull.Value).ToString(),
+            Event = doc.GetValue("Event", BsonNull.Value).AsString,
+            SaleId = doc.GetValue("SaleId", BsonNull.Value).AsNullableInt32,
+            TenantId = doc.GetValue("TenantId", BsonNull.Value).AsString,
+            Timestamp = doc.GetValue("CreatedAt", doc.GetValue("Timestamp", BsonNull.Value)).ToUniversalTime(),
+            Details = doc.GetValue("Details", BsonNull.Value).ToJson(),
+            Amount = doc.Contains("Amount") ? (decimal?)doc["Amount"].AsDouble : null,
+            UserId = doc.GetValue("UserId", BsonNull.Value).AsString,
+            Reference = doc.GetValue("Reference", BsonNull.Value).AsString
+        }).ToList();
     }
 }

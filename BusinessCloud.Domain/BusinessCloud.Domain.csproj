@@ -1,13 +1,21 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.24" />
+    <!--
+      ARCHITECTURAL EXCEPTION: ApplicationUser hereda de IdentityUser.
+      Esta dependencia existe porque ASP.NET Core Identity requiere que la entidad
+      de usuario sea accesible desde el proyecto que configura Identity.
+      Mover ApplicationUser a Infrastructure requeriría regenerar migraciones.
+      Ver: https://docs.microsoft.com/en-us/aspnet/core/security/authentication/customize-identity-model
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.0" />
   </ItemGroup>
 
 </Project>

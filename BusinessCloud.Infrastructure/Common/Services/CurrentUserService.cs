@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Domain.Common.Exceptions;
 
 namespace BusinessCloud.Infrastructure.Services;
 
@@ -25,5 +26,15 @@ public class CurrentUserService : ICurrentUserService
             var value = _httpContextAccessor.HttpContext?.User?.FindFirstValue("seller_id");
             return int.TryParse(value, out var id) ? id : null;
         }
+    }
+
+    public string GetRequiredTenantId()
+    {
+        var tenantId = TenantId;
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            throw new TenantResolutionException();
+        }
+        return tenantId;
     }
 }

@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using BusinessCloud.Domain.Common.Exceptions;
+using BusinessCloud.Shared.Responses;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Net;
 using System.Text.Json;
@@ -8,6 +10,10 @@ namespace BusinessCloud.Api.Middleware
     public class ExceptionMiddleware
     {
         private readonly RequestDelegate _next;
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
 
         public ExceptionMiddleware(RequestDelegate next)
         {
@@ -20,7 +26,11 @@ namespace BusinessCloud.Api.Middleware
             {
                 await _next(context);
             }
-
+            catch (TenantResolutionException ex)
+            {
+                // Multi-tenant security: TenantId not resolved → 403 Forbidden
+                await HandleExceptionAsync(context, ex.Message, HttpStatusCode.Forbidden);
+            }
             catch (DbUpdateException ex)
             {
                 // Captura fallos de Base de Datos como FK incorrecta.
@@ -50,12 +60,14 @@ namespace BusinessCloud.Api.Middleware
             context.Response.ContentType = "application/json";
             context.Response.StatusCode = (int)status;
 
-            var result = JsonSerializer.Serialize(new
+            var response = new ApiResponse<object>
             {
-                success = false,
-                message = message
-            });
+                Success = false,
+                Message = message,
+                Data = null
+            };
 
+            var result = JsonSerializer.Serialize(response, JsonOptions);
             await context.Response.WriteAsync(result);
         }
     }

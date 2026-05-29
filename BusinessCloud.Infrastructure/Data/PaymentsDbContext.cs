@@ -33,6 +33,7 @@ public class PaymentsDbContext : DbContext, IPaymentsDbContext
 
         // Excluir entidades que ya maneja IdentityDbContext
         modelBuilder.Entity<Tenant>().ToTable("Tenants", t => t.ExcludeFromMigrations());
+        modelBuilder.Entity<TenantModule>().ToTable("TenantModules", t => t.ExcludeFromMigrations());
 
         // 1. FILTRO GLOBAL SAAS: Seguridad automática
         // IMPORTANTE: Aquí usamos la propiedad del servicio

@@ -1,4 +1,5 @@
 ﻿using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Domain.Common.Exceptions;
 
 namespace BusinessCloud.Infrastructure.Data;
 
@@ -9,4 +10,14 @@ public class DummyCurrentUserService : ICurrentUserService
     public string? Role => "Admin";
     public string? TenantId => "1";
     public int? SellerId => null;
+
+    public string GetRequiredTenantId()
+    {
+        var tenantId = TenantId;
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            throw new TenantResolutionException();
+        }
+        return tenantId;
+    }
 }

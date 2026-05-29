@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace BusinessCloud.Api.Controllers;
+namespace BusinessCloud.Api.Controllers.Shared;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -148,7 +148,7 @@ public class AuthController : ControllerBase
 
         var token = await _jwtService.GenerateTokenAsync(user);
 
-        return Ok(new
+        var data = new
         {
             Token = token,
             UserId = user.Id,
@@ -160,7 +160,8 @@ public class AuthController : ControllerBase
             user.TenantId,
             user.IsActive,
             Modules = modules
-        });
+        };
+        return Ok(data);
     }
 
     /// <summary>
@@ -216,7 +217,7 @@ public class AuthController : ControllerBase
 
         return CreatedAtAction(nameof(GetCommissionists), null, new
         {
-            Id = user.Id,
+            user.Id,
             user.Email,
             user.FirstName,
             user.LastName,

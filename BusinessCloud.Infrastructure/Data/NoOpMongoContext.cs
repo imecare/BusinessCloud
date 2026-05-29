@@ -1,3 +1,4 @@
+using BusinessCloud.Application.Common.Dtos;
 using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Application.Payments.Queries.GetCustomerHistory;
 
@@ -13,5 +14,5 @@ public class NoOpMongoContext : IMongoContext
 
     public Task<List<CustomerHistoryDto>> GetCustomerHistoryByPhoneAsync(string tenantId, string customerPhone, CancellationToken ct) => Task.FromResult(new List<CustomerHistoryDto>());
 
-    public Task<List<dynamic>> GetAuditLogsBySaleIdAsync(int saleId, CancellationToken cancellationToken) => Task.FromResult(new List<dynamic>());
+    public Task<List<AuditLogEntry>> GetAuditLogsBySaleIdAsync(int saleId, CancellationToken cancellationToken) => Task.FromResult(new List<AuditLogEntry>());
 }
