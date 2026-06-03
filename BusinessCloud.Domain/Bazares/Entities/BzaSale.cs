@@ -1,25 +1,46 @@
 using BusinessCloud.Domain.Common;
-using BusinessCloud.Domain.Common.Entities;
 
 namespace BusinessCloud.Domain.Bazares.Entities;
 
+/// <summary>
+/// Representa un Evento de Venta (Corte / En Vivo / Catálogo).
+/// NO pertenece a un cliente único; agrupa productos comprados por múltiples clientes.
+/// </summary>
 public class BzaSale : BaseAuditableEntity
 {
     public int Id { get; set; }
-    public string? Description { get; set; }
-    public decimal Total { get; set; }
-    /// <summary>
-    /// 1=Pendiente, 2=Pagado, 3=ListoParaEntrega, 4=EntregadoARecolector, 5=Cancelado
-    /// </summary>
-    public int Status { get; set; }
-    public DateTime? PaymentDeadline { get; set; }
-    public string? ProofOfPaymentUrl { get; set; }
-    public DateTime? DeliveredToCollectorAt { get; set; }
-    public string? LabelCode { get; set; }
-    public string? PortalToken { get; set; }
 
-    public int BzaCustomerId { get; set; }
-    public BzaCustomer Customer { get; set; } = null!;
-    public ICollection<BzaProduct> Products { get; set; } = new List<BzaProduct>();
-    public ICollection<BzaPayment> Payments { get; set; } = new List<BzaPayment>();
+    /// <summary>
+    /// Descripción del evento (ej: "En vivo 5 de Junio", "Catálogo Primavera 2026").
+    /// </summary>
+    public string Description { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Fecha límite de pago para los clientes que participan en este evento.
+    /// </summary>
+    public DateTime? PaymentDeadline { get; set; }
+
+    /// <summary>
+    /// Fecha programada de entrega del evento.
+    /// </summary>
+    public DateTime? DeliveryDate { get; set; }
+
+    /// <summary>
+    /// Estado del evento de venta:
+    /// 1=Abierto (Activo), 2=Cerrado (No acepta más compras), 3=EnEntrega, 4=Finalizado, 5=Cancelado
+    /// </summary>
+    public int Status { get; set; } = 1;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Navegación
+    // ─────────────────────────────────────────────────────────────────────────
+    /// <summary>
+    /// Productos/compras registradas en este evento de venta (de múltiples clientes).
+    /// </summary>
+    public ICollection<BzaProduct> Products { get; set; } = [];
+
+    /// <summary>
+    /// Pagos recibidos de clientes para este evento de venta.
+    /// </summary>
+    public ICollection<BzaPayment> Payments { get; set; } = [];
 }
