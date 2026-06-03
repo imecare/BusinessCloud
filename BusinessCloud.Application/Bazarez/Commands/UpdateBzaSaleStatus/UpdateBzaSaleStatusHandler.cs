@@ -3,36 +3,30 @@ using BusinessCloud.Application.Common.Interfaces;
 
 namespace BusinessCloud.Application.Bazares.Commands.UpdateBzaSaleStatus;
 
-public class UpdateBzaSaleStatusHandler : IRequestHandler<UpdateBzaSaleStatusCommand>
+public class UpdateBzaSaleStatusHandler(IBazaresDbContext context, IMongoContext mongoContext)
+    : IRequestHandler<UpdateBzaSaleStatusCommand>
 {
-    private readonly IBazaresDbContext _context;
-    private readonly IMongoContext _mongoContext;
-
-    public UpdateBzaSaleStatusHandler(IBazaresDbContext context, IMongoContext mongoContext)
-    {
-        _context = context;
-        _mongoContext = mongoContext;
-    }
+    private readonly IBazaresDbContext _context = context;
+    private readonly IMongoContext _mongoContext = mongoContext;
 
     public async Task Handle(UpdateBzaSaleStatusCommand request, CancellationToken cancellationToken)
     {
         // 1. Actualizar SQL
-        var sale = await _context.Sales.FindAsync(new object[] { request.SaleId }, cancellationToken);
+        var saleEvent = await _context.Sales.FindAsync([request.SaleId], cancellationToken)
+            ?? throw new KeyNotFoundException("Evento de Venta no encontrado.");
 
-        if (sale == null) throw new KeyNotFoundException("Venta no encontrada"); ;
-
-        sale.Status = request.NewStatus;
+        saleEvent.Status = request.NewStatus;
         await _context.SaveChangesAsync(cancellationToken);
 
         // 2. Auditoría en MongoDB (Histórico de transacciones)
         await _mongoContext.InsertAuditLogAsync(new
         {
-            Event = "Bza_PaymentRegistered",
-            SaleId = sale.Id,
+            Event = "Bza_SaleEventStatusUpdated",
+            SaleEventId = saleEvent.Id,
+            Description = saleEvent.Description,
             NewStatus = request.NewStatus,
             Note = request.Note,
-            Timestamp = DateTime.UtcNow,
-            TotalConfirmed = sale.Total
+            Timestamp = DateTime.UtcNow
         }, cancellationToken);
     }
 }

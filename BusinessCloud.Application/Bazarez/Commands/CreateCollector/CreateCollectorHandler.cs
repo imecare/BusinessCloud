@@ -19,7 +19,7 @@ public class CreateCollectorHandler : IRequestHandler<CreateCollectorCommand, in
         {
             Name = request.Name,
             FacebookName = request.FacebookName,
-            GroupId = request.GroupId
+            BzaCollectorGroupId = request.BzaCollectorGroupId
         };
 
         _context.Collectors.Add(entity);

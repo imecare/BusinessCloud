@@ -25,7 +25,7 @@ public class UpdateCollectorHandler : IRequestHandler<UpdateCollectorCommand>
 
         entity.Name = request.Name;
         entity.FacebookName = request.FacebookName;
-        entity.GroupId = request.GroupId;
+        entity.BzaCollectorGroupId = request.BzaCollectorGroupId;
 
         await _context.SaveChangesAsync(cancellationToken);
     }

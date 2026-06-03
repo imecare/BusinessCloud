@@ -4,11 +4,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BusinessCloud.Application.Bazares.Queries.GetBzaDashboard;
 
-public class GetBzaDashboardHandler : IRequestHandler<GetBzaDashboardQuery, BzaDashboardDto>
+public class GetBzaDashboardHandler(IBazaresDbContext context)
+    : IRequestHandler<GetBzaDashboardQuery, BzaDashboardDto>
 {
-    private readonly IBazaresDbContext _context;
-
-    public GetBzaDashboardHandler(IBazaresDbContext context) => _context = context;
+    private readonly IBazaresDbContext _context = context;
 
     public async Task<BzaDashboardDto> Handle(GetBzaDashboardQuery request, CancellationToken ct)
     {
@@ -18,49 +17,68 @@ public class GetBzaDashboardHandler : IRequestHandler<GetBzaDashboardQuery, BzaD
         var totalCustomers = await _context.Customers.CountAsync(ct);
         var totalCollectors = await _context.Collectors.CountAsync(ct);
 
+        // Obtener eventos de venta de la semana con productos y pagos
         var sales = await _context.Sales
-            .Include(s => s.Customer)
+            .Include(s => s.SoldProducts).ThenInclude(p => p.Customer).ThenInclude(c => c.Collector).ThenInclude(c => c.CollectorGroup)
             .Include(s => s.Payments)
             .Where(s => s.CreatedAt >= weekStart)
             .ToListAsync(ct);
 
         var allPendingSales = await _context.Sales
-            .Include(s => s.Customer)
+            .Include(s => s.SoldProducts).ThenInclude(p => p.Customer)
             .Include(s => s.Payments)
             .Where(s => s.Status == 1 && s.PaymentDeadline < today)
             .ToListAsync(ct);
 
-        // Volumen por recolector
-        var collectorVolume = await _context.Sales
-            .Include(s => s.Customer).ThenInclude(c => c.Collector)
-            .Where(s => s.CreatedAt >= weekStart && s.Status != 5)
-            .GroupBy(s => new { s.Customer.Collector.Name, s.Customer.Collector.GroupId })
+        // Volumen por recolector - agrupando a través de SoldProducts
+        var collectorVolume = sales
+            .Where(s => s.Status != 5)
+            .SelectMany(s => s.SoldProducts, (sale, product) => new { sale, product })
+            .GroupBy(x => new
+            {
+                x.product.Customer.Collector.Name,
+                x.product.Customer.Collector.BzaCollectorGroupId,
+                GroupDescription = x.product.Customer.Collector.CollectorGroup != null
+                    ? x.product.Customer.Collector.CollectorGroup.Description
+                    : null
+            })
             .Select(g => new CollectorVolumeDto
             {
                 CollectorName = g.Key.Name,
-                GroupId = g.Key.GroupId,
-                PackageCount = g.Count(),
-                TotalValue = g.Sum(s => s.Total)
+                BzaCollectorGroupId = g.Key.BzaCollectorGroupId,
+                GroupDescription = g.Key.GroupDescription,
+                PackageCount = g.Select(x => x.sale.Id).Distinct().Count(),
+                TotalValue = g.Sum(x => x.product.Price)
             })
-            .ToListAsync(ct);
+            .ToList();
 
-        // Morosos
+        // Morosos - agrupando a través de SoldProducts
         var delinquents = allPendingSales
-            .GroupBy(s => new { s.BzaCustomerId, s.Customer.Name })
-            .Select(g => new DelinquentCustomerDto
+            .SelectMany(s => s.SoldProducts, (sale, product) => new { sale, product })
+            .GroupBy(x => new { x.product.BzaCustomerId, x.product.Customer.Name })
+            .Select(g =>
             {
-                CustomerId = g.Key.BzaCustomerId,
-                CustomerName = g.Key.Name,
-                AmountOwed = g.Sum(s => s.Total - s.Payments.Where(p => p.IsVerified).Sum(p => p.Amount)),
-                OldestDeadline = g.Min(s => s.PaymentDeadline),
-                OverdueSales = g.Count()
+                var customerTotal = g.Sum(x => x.product.Price);
+                var customerPaid = allPendingSales
+                    .SelectMany(s => s.Payments)
+                    .Where(p => p.IsVerified && p.BzaCustomerId == g.Key.BzaCustomerId)
+                    .Sum(p => p.Amount);
+
+                return new DelinquentCustomerDto
+                {
+                    CustomerId = g.Key.BzaCustomerId,
+                    CustomerName = g.Key.Name,
+                    AmountOwed = Math.Max(0, customerTotal - customerPaid),
+                    OldestDeadline = g.Select(x => x.sale.PaymentDeadline).Min(),
+                    OverdueSales = g.Select(x => x.sale.Id).Distinct().Count()
+                };
             })
             .Where(d => d.AmountOwed > 0)
             .OrderByDescending(d => d.AmountOwed)
             .ToList();
 
         var weeklyCollected = sales.SelectMany(s => s.Payments).Where(p => p.IsVerified).Sum(p => p.Amount);
-        var weeklySales = sales.Where(s => s.Status != 5).Sum(s => s.Total);
+        var weeklySales = sales.Where(s => s.Status != 5).SelectMany(s => s.SoldProducts).Sum(p => p.Price);
 
         return new BzaDashboardDto
         {

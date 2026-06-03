@@ -4,45 +4,52 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BusinessCloud.Application.Bazares.Queries.GetCustomerPortal;
 
-public class GetCustomerPortalHandler : IRequestHandler<GetCustomerPortalQuery, CustomerPortalDto>
+public class GetCustomerPortalHandler(IBazaresDbContext context)
+    : IRequestHandler<GetCustomerPortalQuery, CustomerPortalDto>
 {
-    private readonly IBazaresDbContext _context;
-
-    public GetCustomerPortalHandler(IBazaresDbContext context) => _context = context;
+    private readonly IBazaresDbContext _context = context;
 
     public async Task<CustomerPortalDto> Handle(GetCustomerPortalQuery request, CancellationToken ct)
     {
         var customer = await _context.Customers
-            .IgnoreQueryFilters() // Portal p˙blico, no requiere tenant filter por token
-            .Include(c => c.Collector)
-            .Include(c => c.Sales).ThenInclude(s => s.Products)
-            .Include(c => c.Sales).ThenInclude(s => s.Payments)
+            .IgnoreQueryFilters() // Portal p√∫blico, no requiere tenant filter por token
+            .Include(c => c.Collector).ThenInclude(c => c.CollectorGroup)
+            .Include(c => c.SoldProducts).ThenInclude(p => p.Sale).ThenInclude(s => s.Payments)
+            .Include(c => c.Payments)
             .FirstOrDefaultAsync(c => c.PortalToken == request.PortalToken, ct)
-            ?? throw new KeyNotFoundException("Token de portal inv·lido.");
+            ?? throw new KeyNotFoundException("Token de portal inv√°lido.");
 
         var statusNames = new Dictionary<int, string>
         {
-            { 1, "Pendiente" }, { 2, "Pagado" }, { 3, "Listo para Entrega" },
-            { 4, "Entregado a Recolector" }, { 5, "Cancelado" }
+            { 1, "Abierto" }, { 2, "Cerrado" }, { 3, "En Entrega" },
+            { 4, "Finalizado" }, { 5, "Cancelado" }
         };
 
-        var allSales = customer.Sales
-            .OrderByDescending(s => s.CreatedAt)
-            .Select(s =>
+        // Agrupar productos vendidos al cliente por evento de venta
+        var salesGrouped = customer.SoldProducts
+            .GroupBy(p => p.Sale)
+            .OrderByDescending(g => g.Key.CreatedAt)
+            .Select(g =>
             {
-                var paid = s.Payments.Where(p => p.IsVerified).Sum(p => p.Amount);
+                var sale = g.Key;
+                var customerProducts = g.ToList();
+                var customerTotal = customerProducts.Sum(p => p.Price);
+                var customerPaid = customer.Payments
+                    .Where(pay => pay.BzaSaleId == sale.Id && pay.IsVerified)
+                    .Sum(pay => pay.Amount);
+
                 return new CustomerPortalSaleDto
                 {
-                    SaleId = s.Id,
-                    Description = s.Description,
-                    Products = s.Products.Select(p => $"{p.Description} - ${p.Price:N2}").ToList(),
-                    Total = s.Total,
-                    Paid = paid,
-                    Remaining = Math.Max(0, s.Total - paid),
-                    Status = s.Status,
-                    StatusName = statusNames.GetValueOrDefault(s.Status, "Desconocido"),
-                    PaymentDeadline = s.PaymentDeadline,
-                    CreatedAt = s.CreatedAt
+                    SaleId = sale.Id,
+                    Description = sale.Description,
+                    Products = customerProducts.Select(p => $"{p.Description} - ${p.Price:N2}").ToList(),
+                    Total = customerTotal,
+                    Paid = customerPaid,
+                    Remaining = Math.Max(0, customerTotal - customerPaid),
+                    Status = sale.Status,
+                    StatusName = statusNames.GetValueOrDefault(sale.Status, "Desconocido"),
+                    PaymentDeadline = sale.PaymentDeadline,
+                    CreatedAt = sale.CreatedAt
                 };
             }).ToList();
 
@@ -50,10 +57,10 @@ public class GetCustomerPortalHandler : IRequestHandler<GetCustomerPortalQuery, 
         {
             CustomerName = customer.Name,
             CollectorName = customer.Collector.Name,
-            CollectorGroup = customer.Collector.GroupId,
-            ActiveSales = allSales.Where(s => s.Status < 4).ToList(),
-            History = allSales.Where(s => s.Status >= 4).ToList(),
-            TotalPending = allSales.Where(s => s.Status < 4).Sum(s => s.Remaining)
+            CollectorGroup = customer.Collector.CollectorGroup?.Description,
+            ActiveSales = salesGrouped.Where(s => s.Status < 4).ToList(),
+            History = salesGrouped.Where(s => s.Status >= 4).ToList(),
+            TotalPending = salesGrouped.Where(s => s.Status < 4).Sum(s => s.Remaining)
         };
     }
 }

@@ -5,16 +5,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BusinessCloud.Application.Bazares.Commands.CreateDispatchSheet;
 
-public class CreateDispatchSheetHandler : IRequestHandler<CreateDispatchSheetCommand, DispatchSheetResultDto>
+public class CreateDispatchSheetHandler(IBazaresDbContext context, IMongoContext mongoContext)
+    : IRequestHandler<CreateDispatchSheetCommand, DispatchSheetResultDto>
 {
-    private readonly IBazaresDbContext _context;
-    private readonly IMongoContext _mongoContext;
-
-    public CreateDispatchSheetHandler(IBazaresDbContext context, IMongoContext mongoContext)
-    {
-        _context = context;
-        _mongoContext = mongoContext;
-    }
+    private readonly IBazaresDbContext _context = context;
+    private readonly IMongoContext _mongoContext = mongoContext;
 
     public async Task<DispatchSheetResultDto> Handle(CreateDispatchSheetCommand request, CancellationToken ct)
     {
@@ -22,12 +17,10 @@ public class CreateDispatchSheetHandler : IRequestHandler<CreateDispatchSheetCom
             .FirstOrDefaultAsync(c => c.Id == request.BzaCollectorId, ct)
             ?? throw new KeyNotFoundException("Recolector no encontrado.");
 
-        // Ventas pagadas (status=2) de clientes asignados a este recolector, aún no entregadas
+        // Ventas listas para entrega (status=3) de clientes asignados a este recolector
         var readySales = await _context.Sales
-            .Include(s => s.Customer)
-            .Include(s => s.Products)
-            .Where(s => s.Customer.BzaCollectorId == request.BzaCollectorId
-                     && s.Status == 3) // Listo para Entrega
+            .Include(s => s.SoldProducts).ThenInclude(p => p.Customer)
+            .Where(s => s.Status == 3 && s.SoldProducts.Any(p => p.Customer.BzaCollectorId == request.BzaCollectorId))
             .ToListAsync(ct);
 
         if (readySales.Count == 0)
@@ -42,18 +35,17 @@ public class CreateDispatchSheetHandler : IRequestHandler<CreateDispatchSheetCom
             Items = readySales.Select(s => new BzaDispatchItem
             {
                 BzaSaleId = s.Id,
-                PieceCount = s.Products.Count,
-                LabelCode = s.LabelCode ?? Guid.NewGuid().ToString("N")[..8].ToUpper()
+                PieceCount = s.SoldProducts.Count,
+                LabelCode = Guid.NewGuid().ToString("N")[..8].ToUpper()
             }).ToList()
         };
 
         _context.DispatchSheets.Add(sheet);
 
-        // Actualizar estado de ventas a "Entregado a Recolector"
+        // Actualizar estado de ventas a "Finalizado"
         foreach (var sale in readySales)
         {
             sale.Status = 4;
-            sale.DeliveredToCollectorAt = DateTime.UtcNow;
         }
 
         await _context.SaveChangesAsync(ct);
@@ -76,13 +68,14 @@ public class CreateDispatchSheetHandler : IRequestHandler<CreateDispatchSheetCom
             Items = sheet.Items.Select(i =>
             {
                 var sale = readySales.First(s => s.Id == i.BzaSaleId);
+                var firstCustomer = sale.SoldProducts.FirstOrDefault()?.Customer;
                 return new DispatchItemDto
                 {
                     SaleId = i.BzaSaleId,
-                    CustomerName = sale.Customer.Name,
+                    CustomerName = firstCustomer?.Name ?? "Varios Clientes",
                     PieceCount = i.PieceCount,
                     LabelCode = i.LabelCode ?? "",
-                    Total = sale.Total
+                    Total = sale.SoldProducts.Sum(p => p.Price)
                 };
             }).ToList()
         };

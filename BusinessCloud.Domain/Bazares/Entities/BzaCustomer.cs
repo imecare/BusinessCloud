@@ -1,18 +1,61 @@
 using BusinessCloud.Domain.Common;
-using BusinessCloud.Domain.Common.Entities;
 
 namespace BusinessCloud.Domain.Bazares.Entities;
 
+/// <summary>
+/// Cliente del bazar. Puede comprar productos en múltiples Eventos de Venta.
+/// </summary>
 public class BzaCustomer : BaseAuditableEntity
 {
     public int Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string? FacebookName { get; set; }
-    public string Phone { get; set; } = string.Empty;
-    public int Status { get; set; } = 1; // 1: Activo, 0: Inactivo
-    public string? PortalToken { get; set; } // Token �nico para portal de auto-gesti�n
 
+    /// <summary>
+    /// Nombre completo del cliente.
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Nombre de Facebook (opcional).
+    /// </summary>
+    public string? FacebookName { get; set; }
+
+    /// <summary>
+    /// Teléfono de contacto.
+    /// </summary>
+    public string Phone { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Dirección de entrega del cliente.
+    /// </summary>
+    public string? Address { get; set; }
+
+    /// <summary>
+    /// Estado del cliente: 1=Activo, 0=Inactivo
+    /// </summary>
+    public int Status { get; set; } = 1;
+
+    /// <summary>
+    /// Token único para portal de auto-gestión del cliente.
+    /// </summary>
+    public string? PortalToken { get; set; }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Relaciones
+    // ─────────────────────────────────────────────────────────────────────────
+    /// <summary>
+    /// FK al Recolector asignado al cliente.
+    /// </summary>
     public int BzaCollectorId { get; set; }
     public BzaCollector Collector { get; set; } = null!;
-    public ICollection<BzaSale> Sales { get; set; } = new List<BzaSale>();
+
+    /// <summary>
+    /// Productos vendidos a este cliente en diferentes Eventos de Venta.
+    /// NO es un catálogo, es el historial de productos vendidos.
+    /// </summary>
+    public ICollection<BzaSoldProduct> SoldProducts { get; set; } = [];
+
+    /// <summary>
+    /// Pagos realizados por este cliente en diferentes Eventos de Venta.
+    /// </summary>
+    public ICollection<BzaPayment> Payments { get; set; } = [];
 }

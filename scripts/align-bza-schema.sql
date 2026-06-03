@@ -1,4 +1,25 @@
--- Sincronizar esquema BD con modelo: BzaSale como evento, BzaProduct con FK al cliente
+-- Sincronizar esquema BD con modelo: BzaSale como evento, BzaSoldProduct con FK al cliente
+-- Renombrar tabla Bza_Products a Bza_SoldProducts para claridad semántica
+
+-- 0) Renombrar tabla Bza_Products a Bza_SoldProducts (si no existe ya)
+IF OBJECT_ID('Bza_Products', 'U') IS NOT NULL AND OBJECT_ID('Bza_SoldProducts', 'U') IS NULL
+BEGIN
+    -- Eliminar FKs existentes antes de renombrar
+    IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Bza_Products_Bza_Customers_BzaCustomerId')
+        ALTER TABLE [Bza_Products] DROP CONSTRAINT [FK_Bza_Products_Bza_Customers_BzaCustomerId];
+    IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Bza_Products_Bza_Sales_BzaSaleId')
+        ALTER TABLE [Bza_Products] DROP CONSTRAINT [FK_Bza_Products_Bza_Sales_BzaSaleId];
+    
+    EXEC sp_rename 'Bza_Products', 'Bza_SoldProducts';
+    
+    -- Recrear FKs con nuevo nombre
+    IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Bza_SoldProducts_Bza_Customers_BzaCustomerId')
+        ALTER TABLE [Bza_SoldProducts] ADD CONSTRAINT [FK_Bza_SoldProducts_Bza_Customers_BzaCustomerId]
+            FOREIGN KEY ([BzaCustomerId]) REFERENCES [Bza_Customers]([Id]);
+    IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Bza_SoldProducts_Bza_Sales_BzaSaleId')
+        ALTER TABLE [Bza_SoldProducts] ADD CONSTRAINT [FK_Bza_SoldProducts_Bza_Sales_BzaSaleId]
+            FOREIGN KEY ([BzaSaleId]) REFERENCES [Bza_Sales]([Id]) ON DELETE CASCADE;
+END
 
 -- 1) Bza_Sales: quitar FK + indice + columnas legacy
 IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Bza_Sales_Bza_Customers_BzaCustomerId')

@@ -4,40 +4,60 @@ using BusinessCloud.Application.Common.Interfaces;
 
 namespace BusinessCloud.Application.Bazares.Queries.GetBzaSaleDetail;
 
-public class GetBzaSaleDetailHandler : IRequestHandler<GetBzaSaleDetailQuery, BzaSaleDetailDto>
+public class GetBzaSaleDetailHandler(IBazaresDbContext context, IMongoContext mongoContext)
+    : IRequestHandler<GetBzaSaleDetailQuery, BzaSaleDetailDto>
 {
-    private readonly IBazaresDbContext _context;
-    private readonly IMongoContext _mongoContext;
+    private readonly IBazaresDbContext _context = context;
+    private readonly IMongoContext _mongoContext = mongoContext;
 
-    public GetBzaSaleDetailHandler(IBazaresDbContext context, IMongoContext mongoContext)
+    private static readonly Dictionary<int, string> StatusNames = new()
     {
-        _context = context;
-        _mongoContext = mongoContext;
-    }
+        { 1, "Abierto" },
+        { 2, "Cerrado" },
+        { 3, "En Entrega" },
+        { 4, "Finalizado" },
+        { 5, "Cancelado" }
+    };
 
     public async Task<BzaSaleDetailDto> Handle(GetBzaSaleDetailQuery request, CancellationToken cancellationToken)
     {
         // 1. Consultar SQL Server (Datos relacionales)
-        var sale = await _context.Sales
-            .Include(s => s.Customer)
-            .Include(s => s.Products)
-            .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
+        var saleEvent = await _context.Sales
+            .Include(s => s.SoldProducts)
+            .Include(s => s.Payments)
+            .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken)
+            ?? throw new KeyNotFoundException("Evento de Venta no encontrado.");
 
-        if (sale == null) throw new KeyNotFoundException("Venta no encontrada"); 
+        // 2. Calcular métricas
+        var totalRevenue = saleEvent.SoldProducts.Sum(p => p.Price);
+        var productsCount = saleEvent.SoldProducts.Count;
+        var uniqueCustomersCount = saleEvent.SoldProducts.Select(p => p.BzaCustomerId).Distinct().Count();
+        var totalPaid = saleEvent.Payments.Where(p => p.IsVerified).Sum(p => p.Amount);
+        var pendingAmount = Math.Max(0, totalRevenue - totalPaid);
 
-        // 2. Consultar MongoDB (Historial de auditoría)
-        // Buscamos todos los logs que tengan el SaleId de esta venta
-        var mongoLogs = await _mongoContext.GetAuditLogsBySaleIdAsync(sale.Id, cancellationToken);
+        // 3. Consultar MongoDB (Historial de auditoría)
+        var mongoLogs = await _mongoContext.GetAuditLogsBySaleIdAsync(saleEvent.Id, cancellationToken);
 
-        // 3. Mapear y Retornar
-        return new BzaSaleDetailDto(
-            sale.Id,
-            sale.Description,
-            sale.Total,
-            sale.Status,
-            sale.Customer.Name,
-            sale.Products.Select(p => new BzaSaleProductDto(p.Description, p.Price)).ToList(),
-            mongoLogs.Select(l => new BzaSaleAuditDto(l.Event, l.Timestamp, l.Details)).ToList()
-        );
+        // 4. Mapear y Retornar
+        return new BzaSaleDetailDto
+        {
+            Id = saleEvent.Id,
+            Description = saleEvent.Description,
+            PaymentDeadline = saleEvent.PaymentDeadline,
+            DeliveryDate = saleEvent.DeliveryDate,
+            Status = saleEvent.Status,
+            StatusName = StatusNames.GetValueOrDefault(saleEvent.Status, "Desconocido"),
+            TotalRevenue = totalRevenue,
+            ProductsCount = productsCount,
+            UniqueCustomersCount = uniqueCustomersCount,
+            TotalPaid = totalPaid,
+            PendingAmount = pendingAmount,
+            AuditHistory = mongoLogs.Select(l => new BzaSaleAuditDto
+            {
+                Event = l.Event,
+                Timestamp = l.Timestamp,
+                Details = l.Details
+            }).ToList()
+        };
     }
 }

@@ -1,4 +1,5 @@
 ﻿using MediatR;
+using Microsoft.EntityFrameworkCore;
 using BusinessCloud.Application.Common.Interfaces;
 
 namespace BusinessCloud.Application.Bazares.Commands.UpdateBzaCustomer;
@@ -20,6 +21,14 @@ public class UpdateBzaCustomerHandler : IRequestHandler<UpdateBzaCustomerCommand
         if (entity == null)
         {
             throw new Exception($"Cliente de bazar con ID {request.Id} no encontrado.");
+        }
+
+        var collectorExists = await _context.Collectors
+            .AnyAsync(c => c.Id == request.BzaCollectorId, cancellationToken);
+
+        if (!collectorExists)
+        {
+            throw new Exception($"El recolector con ID {request.BzaCollectorId} no existe.");
         }
 
         entity.Name = request.Name;

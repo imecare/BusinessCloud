@@ -6,14 +6,8 @@ public class CreateBzaSaleValidator : AbstractValidator<CreateBzaSaleCommand>
 {
     public CreateBzaSaleValidator()
     {
-        RuleFor(v => v.BzaCustomerId).GreaterThan(0);
-
-        RuleFor(v => v.Products)
-            .NotEmpty().WithMessage("La venta debe tener al menos un producto.");
-
-        RuleForEach(v => v.Products).ChildRules(p => {
-            p.RuleFor(x => x.Description).NotEmpty();
-            p.RuleFor(x => x.Price).GreaterThan(0);
-        });
+        RuleFor(v => v.Description)
+            .NotEmpty().WithMessage("La descripción del evento es requerida.")
+            .MaximumLength(200).WithMessage("La descripción no puede exceder 200 caracteres.");
     }
 }

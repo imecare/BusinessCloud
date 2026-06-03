@@ -449,7 +449,49 @@ namespace BusinessCloud.Infrastructure.Migrations.BazaresDb
                     b.ToTable("Bza_Payments", (string)null);
                 });
 
-            modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaProduct", b =>
+            modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaSale", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeliveryDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("PaymentDeadline")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Bza_Sales", (string)null);
+                });
+
+            modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaSoldProduct", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -493,49 +535,7 @@ namespace BusinessCloud.Infrastructure.Migrations.BazaresDb
 
                     b.HasIndex("BzaSaleId");
 
-                    b.ToTable("Bza_Products", (string)null);
-                });
-
-            modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaSale", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("DeliveryDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("PaymentDeadline")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<string>("TenantId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Bza_Sales", (string)null);
+                    b.ToTable("Bza_SoldProducts", (string)null);
                 });
 
             modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaCollector", b =>
@@ -637,16 +637,16 @@ namespace BusinessCloud.Infrastructure.Migrations.BazaresDb
                     b.Navigation("Sale");
                 });
 
-            modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaProduct", b =>
+            modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaSoldProduct", b =>
                 {
                     b.HasOne("BusinessCloud.Domain.Bazares.Entities.BzaCustomer", "Customer")
-                        .WithMany("Products")
+                        .WithMany("SoldProducts")
                         .HasForeignKey("BzaCustomerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("BusinessCloud.Domain.Bazares.Entities.BzaSale", "Sale")
-                        .WithMany("Products")
+                        .WithMany("SoldProducts")
                         .HasForeignKey("BzaSaleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -670,7 +670,7 @@ namespace BusinessCloud.Infrastructure.Migrations.BazaresDb
                 {
                     b.Navigation("Payments");
 
-                    b.Navigation("Products");
+                    b.Navigation("SoldProducts");
                 });
 
             modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaDelivery", b =>
@@ -687,7 +687,7 @@ namespace BusinessCloud.Infrastructure.Migrations.BazaresDb
                 {
                     b.Navigation("Payments");
 
-                    b.Navigation("Products");
+                    b.Navigation("SoldProducts");
                 });
 #pragma warning restore 612, 618
         }

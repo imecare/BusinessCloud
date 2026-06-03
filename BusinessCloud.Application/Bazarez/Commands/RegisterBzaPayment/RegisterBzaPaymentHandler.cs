@@ -5,64 +5,77 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BusinessCloud.Application.Bazares.Commands.RegisterBzaPayment;
 
-public class RegisterBzaPaymentHandler : IRequestHandler<RegisterBzaPaymentCommand, BzaPaymentResultDto>
+public class RegisterBzaPaymentHandler(IBazaresDbContext context, IMongoContext mongoContext)
+    : IRequestHandler<RegisterBzaPaymentCommand, BzaPaymentResultDto>
 {
-    private readonly IBazaresDbContext _context;
-    private readonly IMongoContext _mongoContext;
-
-    public RegisterBzaPaymentHandler(IBazaresDbContext context, IMongoContext mongoContext)
-    {
-        _context = context;
-        _mongoContext = mongoContext;
-    }
+    private readonly IBazaresDbContext _context = context;
+    private readonly IMongoContext _mongoContext = mongoContext;
 
     public async Task<BzaPaymentResultDto> Handle(RegisterBzaPaymentCommand request, CancellationToken ct)
     {
-        var sale = await _context.Sales
-            .Include(s => s.Payments)
-            .FirstOrDefaultAsync(s => s.Id == request.BzaSaleId, ct)
-            ?? throw new KeyNotFoundException("Venta no encontrada.");
+        // 1. Validar que el Evento de Venta exista
+        var saleEvent = await _context.Sales.FirstOrDefaultAsync(s => s.Id == request.BzaSaleId, ct)
+            ?? throw new KeyNotFoundException("Evento de Venta no encontrado.");
 
-        if (sale.Status == 5)
-            throw new InvalidOperationException("No se puede registrar pago en una venta cancelada.");
+        if (saleEvent.Status == 5)
+            throw new InvalidOperationException("No se puede registrar pago en un evento cancelado.");
 
+        // 2. Validar que el Cliente exista
+        var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Id == request.BzaCustomerId, ct)
+            ?? throw new KeyNotFoundException("Cliente no encontrado.");
+
+        // 3. Calcular totales del cliente en este evento
+        var customerProductsTotal = await _context.SoldProducts
+            .Where(p => p.BzaSaleId == request.BzaSaleId && p.BzaCustomerId == request.BzaCustomerId)
+            .SumAsync(p => p.Price, ct);
+
+        var customerPaidAmount = await _context.Payments
+            .Where(p => p.BzaSaleId == request.BzaSaleId && p.BzaCustomerId == request.BzaCustomerId && p.IsVerified)
+            .SumAsync(p => p.Amount, ct);
+
+        // 4. Crear el pago
         var payment = new BzaPayment
         {
-            BzaSaleId = sale.Id,
+            BzaSaleId = request.BzaSaleId,
+            BzaCustomerId = request.BzaCustomerId,
             Amount = request.Amount,
             Date = DateTime.UtcNow,
             PaymentMethod = request.PaymentMethod,
-            ProofImageUrl = request.ProofImageUrl,
             Reference = request.Reference,
-            IsVerified = false // Requiere verificación del bazar
+            PaymentStatus = 2, // Aprobado directamente (sin comprobante)
+            IsVerified = true
         };
 
         _context.Payments.Add(payment);
-
-        var totalPaid = sale.Payments.Where(p => p.IsVerified).Sum(p => p.Amount) + request.Amount;
-        var fullyPaid = totalPaid >= sale.Total;
-
-        if (fullyPaid && sale.Status == 1)
-        {
-            sale.Status = 2; // Pagado
-        }
-
         await _context.SaveChangesAsync(ct);
 
+        // 5. Calcular nuevo saldo
+        var newTotalPaid = customerPaidAmount + request.Amount;
+        var pendingBalance = Math.Max(0, customerProductsTotal - newTotalPaid);
+        var isFullyPaid = pendingBalance <= 0;
+
+        // 6. AuditorÃ­a en MongoDB
         await _mongoContext.InsertAuditLogAsync(new
         {
             Event = "Bza_PaymentRegistered",
-            SaleId = sale.Id,
+            SaleEventId = saleEvent.Id,
+            SaleEventDescription = saleEvent.Description,
+            CustomerId = customer.Id,
+            CustomerName = customer.Name,
             PaymentId = payment.Id,
             Amount = payment.Amount,
+            CustomerTotalInEvent = customerProductsTotal,
+            CustomerPaidInEvent = newTotalPaid,
+            CustomerPendingInEvent = pendingBalance,
+            IsFullyPaid = isFullyPaid,
             Timestamp = DateTime.UtcNow
         }, ct);
 
         return new BzaPaymentResultDto
         {
             PaymentId = payment.Id,
-            NewBalance = Math.Max(0, sale.Total - totalPaid),
-            SaleFullyPaid = fullyPaid
+            CustomerPendingBalanceInEvent = pendingBalance,
+            IsFullyPaid = isFullyPaid
         };
     }
 }

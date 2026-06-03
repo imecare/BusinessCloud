@@ -11,237 +11,195 @@ namespace BusinessCloud.Infrastructure.Migrations.BazaresDb
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_Bza_Sales_Bza_Customers_BzaCustomerId",
-                table: "Bza_Sales");
+            // Usar SQL condicional para evitar errores si los objetos no existen
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Bza_Sales_Bza_Customers_BzaCustomerId')
+                    ALTER TABLE [Bza_Sales] DROP CONSTRAINT [FK_Bza_Sales_Bza_Customers_BzaCustomerId];
+            ");
 
-            migrationBuilder.DropIndex(
-                name: "IX_Bza_Sales_BzaCustomerId",
-                table: "Bza_Sales");
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Bza_Sales_BzaCustomerId' AND object_id = OBJECT_ID('Bza_Sales'))
+                    DROP INDEX [IX_Bza_Sales_BzaCustomerId] ON [Bza_Sales];
+            ");
 
-            migrationBuilder.DropColumn(
-                name: "BzaCustomerId",
-                table: "Bza_Sales");
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT 1 FROM sys.columns WHERE name = 'BzaCustomerId' AND object_id = OBJECT_ID('Bza_Sales'))
+                    ALTER TABLE [Bza_Sales] DROP COLUMN [BzaCustomerId];
+            ");
 
-            migrationBuilder.DropColumn(
-                name: "LabelCode",
-                table: "Bza_Sales");
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT 1 FROM sys.columns WHERE name = 'LabelCode' AND object_id = OBJECT_ID('Bza_Sales'))
+                    ALTER TABLE [Bza_Sales] DROP COLUMN [LabelCode];
+            ");
 
-            migrationBuilder.DropColumn(
-                name: "PortalToken",
-                table: "Bza_Sales");
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT 1 FROM sys.columns WHERE name = 'PortalToken' AND object_id = OBJECT_ID('Bza_Sales'))
+                    ALTER TABLE [Bza_Sales] DROP COLUMN [PortalToken];
+            ");
 
-            migrationBuilder.DropColumn(
-                name: "ProofOfPaymentUrl",
-                table: "Bza_Sales");
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT 1 FROM sys.columns WHERE name = 'ProofOfPaymentUrl' AND object_id = OBJECT_ID('Bza_Sales'))
+                    ALTER TABLE [Bza_Sales] DROP COLUMN [ProofOfPaymentUrl];
+            ");
 
-            migrationBuilder.DropColumn(
-                name: "Total",
-                table: "Bza_Sales");
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT 1 FROM sys.columns WHERE name = 'Total' AND object_id = OBJECT_ID('Bza_Sales'))
+                    ALTER TABLE [Bza_Sales] DROP COLUMN [Total];
+            ");
 
-            migrationBuilder.DropColumn(
-                name: "GroupId",
-                table: "Bza_Collectors");
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT 1 FROM sys.columns WHERE name = 'GroupId' AND object_id = OBJECT_ID('Bza_Collectors'))
+                    ALTER TABLE [Bza_Collectors] DROP COLUMN [GroupId];
+            ");
 
-            migrationBuilder.RenameColumn(
-                name: "DeliveredToCollectorAt",
-                table: "Bza_Sales",
-                newName: "DeliveryDate");
+            // Renombrar columna si existe
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT 1 FROM sys.columns WHERE name = 'DeliveredToCollectorAt' AND object_id = OBJECT_ID('Bza_Sales'))
+                    EXEC sp_rename 'Bza_Sales.DeliveredToCollectorAt', 'DeliveryDate', 'COLUMN';
+            ");
 
-            migrationBuilder.AlterColumn<string>(
-                name: "Description",
-                table: "Bza_Sales",
-                type: "nvarchar(max)",
-                nullable: false,
-                defaultValue: "",
-                oldClrType: typeof(string),
-                oldType: "nvarchar(max)",
-                oldNullable: true);
+            // Asegurar que Description no sea nullable
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT 1 FROM sys.columns WHERE name = 'Description' AND object_id = OBJECT_ID('Bza_Sales') AND is_nullable = 1)
+                    ALTER TABLE [Bza_Sales] ALTER COLUMN [Description] nvarchar(max) NOT NULL;
+            ");
 
-            migrationBuilder.AddColumn<int>(
-                name: "BzaCustomerId",
-                table: "Bza_Products",
-                type: "int",
-                nullable: false,
-                defaultValue: 0);
+            // Agregar columnas si no existen
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE name = 'BzaCustomerId' AND object_id = OBJECT_ID('Bza_Products'))
+                    ALTER TABLE [Bza_Products] ADD [BzaCustomerId] int NOT NULL DEFAULT 0;
+            ");
 
-            migrationBuilder.AddColumn<int>(
-                name: "BzaCustomerId",
-                table: "Bza_Payments",
-                type: "int",
-                nullable: false,
-                defaultValue: 0);
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE name = 'BzaCustomerId' AND object_id = OBJECT_ID('Bza_Payments'))
+                    ALTER TABLE [Bza_Payments] ADD [BzaCustomerId] int NOT NULL DEFAULT 0;
+            ");
 
-            migrationBuilder.AddColumn<int>(
-                name: "PaymentStatus",
-                table: "Bza_Payments",
-                type: "int",
-                nullable: false,
-                defaultValue: 0);
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE name = 'PaymentStatus' AND object_id = OBJECT_ID('Bza_Payments'))
+                    ALTER TABLE [Bza_Payments] ADD [PaymentStatus] int NOT NULL DEFAULT 0;
+            ");
 
-            migrationBuilder.AddColumn<string>(
-                name: "VerificationNotes",
-                table: "Bza_Payments",
-                type: "nvarchar(max)",
-                nullable: true);
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE name = 'VerificationNotes' AND object_id = OBJECT_ID('Bza_Payments'))
+                    ALTER TABLE [Bza_Payments] ADD [VerificationNotes] nvarchar(max) NULL;
+            ");
 
-            migrationBuilder.AddColumn<DateTime>(
-                name: "VerifiedAt",
-                table: "Bza_Payments",
-                type: "datetime2",
-                nullable: true);
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE name = 'VerifiedAt' AND object_id = OBJECT_ID('Bza_Payments'))
+                    ALTER TABLE [Bza_Payments] ADD [VerifiedAt] datetime2 NULL;
+            ");
 
-            migrationBuilder.AddColumn<string>(
-                name: "Address",
-                table: "Bza_Customers",
-                type: "nvarchar(max)",
-                nullable: true);
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE name = 'Address' AND object_id = OBJECT_ID('Bza_Customers'))
+                    ALTER TABLE [Bza_Customers] ADD [Address] nvarchar(max) NULL;
+            ");
 
-            migrationBuilder.AddColumn<int>(
-                name: "BzaCollectorGroupId",
-                table: "Bza_Collectors",
-                type: "int",
-                nullable: true);
+            // Agregar columnas a Bza_Collectors
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE name = 'BzaCollectorGroupId' AND object_id = OBJECT_ID('Bza_Collectors'))
+                    ALTER TABLE [Bza_Collectors] ADD [BzaCollectorGroupId] int NULL;
+            ");
 
-            migrationBuilder.AddColumn<bool>(
-                name: "IsActive",
-                table: "Bza_Collectors",
-                type: "bit",
-                nullable: false,
-                defaultValue: false);
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE name = 'IsActive' AND object_id = OBJECT_ID('Bza_Collectors'))
+                    ALTER TABLE [Bza_Collectors] ADD [IsActive] bit NOT NULL DEFAULT 0;
+            ");
 
-            migrationBuilder.CreateTable(
-                name: "Bza_CollectorGroups",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Description = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false),
-                    TenantId = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    UpdatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Bza_CollectorGroups", x => x.Id);
-                });
+            // Crear tablas si no existen
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Bza_CollectorGroups')
+                BEGIN
+                    CREATE TABLE [Bza_CollectorGroups] (
+                        [Id] int NOT NULL IDENTITY(1,1),
+                        [Description] nvarchar(max) NOT NULL,
+                        [IsActive] bit NOT NULL,
+                        [TenantId] nvarchar(max) NOT NULL,
+                        [CreatedAt] datetime2 NOT NULL,
+                        [CreatedBy] nvarchar(max) NULL,
+                        [UpdatedAt] datetime2 NULL,
+                        [UpdatedBy] nvarchar(max) NULL,
+                        CONSTRAINT [PK_Bza_CollectorGroups] PRIMARY KEY ([Id])
+                    );
+                END
+            ");
 
-            migrationBuilder.CreateTable(
-                name: "Bza_Deliveries",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    BzaCollectorGroupId = table.Column<int>(type: "int", nullable: false),
-                    DeliveryDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    TenantId = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    UpdatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Bza_Deliveries", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Bza_Deliveries_Bza_CollectorGroups_BzaCollectorGroupId",
-                        column: x => x.BzaCollectorGroupId,
-                        principalTable: "Bza_CollectorGroups",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Bza_Deliveries')
+                BEGIN
+                    CREATE TABLE [Bza_Deliveries] (
+                        [Id] int NOT NULL IDENTITY(1,1),
+                        [BzaCollectorGroupId] int NOT NULL,
+                        [DeliveryDate] datetime2 NOT NULL,
+                        [Status] int NOT NULL,
+                        [Notes] nvarchar(max) NULL,
+                        [TenantId] nvarchar(max) NOT NULL,
+                        [CreatedAt] datetime2 NOT NULL,
+                        [CreatedBy] nvarchar(max) NULL,
+                        [UpdatedAt] datetime2 NULL,
+                        [UpdatedBy] nvarchar(max) NULL,
+                        CONSTRAINT [PK_Bza_Deliveries] PRIMARY KEY ([Id]),
+                        CONSTRAINT [FK_Bza_Deliveries_Bza_CollectorGroups_BzaCollectorGroupId] FOREIGN KEY ([BzaCollectorGroupId]) REFERENCES [Bza_CollectorGroups]([Id]) ON DELETE CASCADE
+                    );
+                    CREATE INDEX [IX_Bza_Deliveries_BzaCollectorGroupId] ON [Bza_Deliveries]([BzaCollectorGroupId]);
+                END
+            ");
 
-            migrationBuilder.CreateTable(
-                name: "Bza_DeliveryItems",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    BzaDeliveryId = table.Column<int>(type: "int", nullable: false),
-                    BzaSaleId = table.Column<int>(type: "int", nullable: false),
-                    Delivered = table.Column<bool>(type: "bit", nullable: false),
-                    DeliveredAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    TenantId = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    UpdatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Bza_DeliveryItems", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Bza_DeliveryItems_Bza_Deliveries_BzaDeliveryId",
-                        column: x => x.BzaDeliveryId,
-                        principalTable: "Bza_Deliveries",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_Bza_DeliveryItems_Bza_Sales_BzaSaleId",
-                        column: x => x.BzaSaleId,
-                        principalTable: "Bza_Sales",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Bza_DeliveryItems')
+                BEGIN
+                    CREATE TABLE [Bza_DeliveryItems] (
+                        [Id] int NOT NULL IDENTITY(1,1),
+                        [BzaDeliveryId] int NOT NULL,
+                        [BzaSaleId] int NOT NULL,
+                        [Delivered] bit NOT NULL,
+                        [DeliveredAt] datetime2 NULL,
+                        [Notes] nvarchar(max) NULL,
+                        [TenantId] nvarchar(max) NOT NULL,
+                        [CreatedAt] datetime2 NOT NULL,
+                        [CreatedBy] nvarchar(max) NULL,
+                        [UpdatedAt] datetime2 NULL,
+                        [UpdatedBy] nvarchar(max) NULL,
+                        CONSTRAINT [PK_Bza_DeliveryItems] PRIMARY KEY ([Id]),
+                        CONSTRAINT [FK_Bza_DeliveryItems_Bza_Deliveries_BzaDeliveryId] FOREIGN KEY ([BzaDeliveryId]) REFERENCES [Bza_Deliveries]([Id]) ON DELETE CASCADE,
+                        CONSTRAINT [FK_Bza_DeliveryItems_Bza_Sales_BzaSaleId] FOREIGN KEY ([BzaSaleId]) REFERENCES [Bza_Sales]([Id])
+                    );
+                    CREATE INDEX [IX_Bza_DeliveryItems_BzaDeliveryId] ON [Bza_DeliveryItems]([BzaDeliveryId]);
+                    CREATE INDEX [IX_Bza_DeliveryItems_BzaSaleId] ON [Bza_DeliveryItems]([BzaSaleId]);
+                END
+            ");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_Bza_Products_BzaCustomerId",
-                table: "Bza_Products",
-                column: "BzaCustomerId");
+            // Crear índices si no existen
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Bza_Products_BzaCustomerId' AND object_id = OBJECT_ID('Bza_Products'))
+                    CREATE INDEX [IX_Bza_Products_BzaCustomerId] ON [Bza_Products]([BzaCustomerId]);
+            ");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_Bza_Payments_BzaCustomerId",
-                table: "Bza_Payments",
-                column: "BzaCustomerId");
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Bza_Payments_BzaCustomerId' AND object_id = OBJECT_ID('Bza_Payments'))
+                    CREATE INDEX [IX_Bza_Payments_BzaCustomerId] ON [Bza_Payments]([BzaCustomerId]);
+            ");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_Bza_Collectors_BzaCollectorGroupId",
-                table: "Bza_Collectors",
-                column: "BzaCollectorGroupId");
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Bza_Collectors_BzaCollectorGroupId' AND object_id = OBJECT_ID('Bza_Collectors'))
+                    CREATE INDEX [IX_Bza_Collectors_BzaCollectorGroupId] ON [Bza_Collectors]([BzaCollectorGroupId]);
+            ");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_Bza_Deliveries_BzaCollectorGroupId",
-                table: "Bza_Deliveries",
-                column: "BzaCollectorGroupId");
+            // Crear FKs si no existen
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Bza_Collectors_Bza_CollectorGroups_BzaCollectorGroupId')
+                    ALTER TABLE [Bza_Collectors] ADD CONSTRAINT [FK_Bza_Collectors_Bza_CollectorGroups_BzaCollectorGroupId] FOREIGN KEY ([BzaCollectorGroupId]) REFERENCES [Bza_CollectorGroups]([Id]);
+            ");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_Bza_DeliveryItems_BzaDeliveryId",
-                table: "Bza_DeliveryItems",
-                column: "BzaDeliveryId");
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Bza_Payments_Bza_Customers_BzaCustomerId')
+                    ALTER TABLE [Bza_Payments] ADD CONSTRAINT [FK_Bza_Payments_Bza_Customers_BzaCustomerId] FOREIGN KEY ([BzaCustomerId]) REFERENCES [Bza_Customers]([Id]);
+            ");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_Bza_DeliveryItems_BzaSaleId",
-                table: "Bza_DeliveryItems",
-                column: "BzaSaleId");
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_Bza_Collectors_Bza_CollectorGroups_BzaCollectorGroupId",
-                table: "Bza_Collectors",
-                column: "BzaCollectorGroupId",
-                principalTable: "Bza_CollectorGroups",
-                principalColumn: "Id");
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_Bza_Payments_Bza_Customers_BzaCustomerId",
-                table: "Bza_Payments",
-                column: "BzaCustomerId",
-                principalTable: "Bza_Customers",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_Bza_Products_Bza_Customers_BzaCustomerId",
-                table: "Bza_Products",
-                column: "BzaCustomerId",
-                principalTable: "Bza_Customers",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Bza_Products_Bza_Customers_BzaCustomerId')
+                    ALTER TABLE [Bza_Products] ADD CONSTRAINT [FK_Bza_Products_Bza_Customers_BzaCustomerId] FOREIGN KEY ([BzaCustomerId]) REFERENCES [Bza_Customers]([Id]);
+            ");
         }
 
         /// <inheritdoc />

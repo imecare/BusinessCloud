@@ -20,7 +20,7 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
     public DbSet<BzaCustomer> Customers => Set<BzaCustomer>();
     public DbSet<BzaDate> Dates => Set<BzaDate>();
     public DbSet<BzaSale> Sales => Set<BzaSale>();
-    public DbSet<BzaProduct> Products => Set<BzaProduct>();
+    public DbSet<BzaSoldProduct> SoldProducts => Set<BzaSoldProduct>();
     public DbSet<BzaPayment> Payments => Set<BzaPayment>();
     public DbSet<BzaDispatchSheet> DispatchSheets => Set<BzaDispatchSheet>();
     public DbSet<BzaDispatchItem> DispatchItems => Set<BzaDispatchItem>();
@@ -39,7 +39,7 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         modelBuilder.Entity<BzaCustomer>().ToTable("Bza_Customers");
         modelBuilder.Entity<BzaDate>().ToTable("Bza_Dates");
         modelBuilder.Entity<BzaSale>().ToTable("Bza_Sales");
-        modelBuilder.Entity<BzaProduct>().ToTable("Bza_Products");
+        modelBuilder.Entity<BzaSoldProduct>().ToTable("Bza_SoldProducts");
         modelBuilder.Entity<BzaPayment>().ToTable("Bza_Payments");
         modelBuilder.Entity<BzaDispatchSheet>().ToTable("Bza_DispatchSheets");
         modelBuilder.Entity<BzaDispatchItem>().ToTable("Bza_DispatchItems");
@@ -50,20 +50,20 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         // Precisión de decimales
         // ─────────────────────────────────────────────────────────────────────
         modelBuilder.Entity<BzaPayment>().Property(p => p.Amount).HasPrecision(18, 2);
-        modelBuilder.Entity<BzaProduct>().Property(p => p.Price).HasPrecision(18, 2);
+        modelBuilder.Entity<BzaSoldProduct>().Property(p => p.Price).HasPrecision(18, 2);
 
-        // ─────────────────────────────────────────────────────────────────────
-        // Relaciones de BzaProduct (Compra de Cliente en un Evento de Venta)
-        // ─────────────────────────────────────────────────────────────────────
-        modelBuilder.Entity<BzaProduct>()
+        // ─────────────────────────────────────────────────────────────────────────────
+        // Relaciones de BzaSoldProduct (Producto vendido a Cliente en un Evento de Venta)
+        // ─────────────────────────────────────────────────────────────────────────────
+        modelBuilder.Entity<BzaSoldProduct>()
             .HasOne(p => p.Sale)
-            .WithMany(s => s.Products)
+            .WithMany(s => s.SoldProducts)
             .HasForeignKey(p => p.BzaSaleId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<BzaProduct>()
+        modelBuilder.Entity<BzaSoldProduct>()
             .HasOne(p => p.Customer)
-            .WithMany(c => c.Products)
+            .WithMany(c => c.SoldProducts)
             .HasForeignKey(p => p.BzaCustomerId)
             .OnDelete(DeleteBehavior.Restrict);
 
@@ -105,7 +105,7 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         modelBuilder.Entity<BzaCustomer>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaDate>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaSale>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
-        modelBuilder.Entity<BzaProduct>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaSoldProduct>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaPayment>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaDispatchSheet>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaDispatchItem>().HasQueryFilter(x => x.TenantId == _userService.TenantId);

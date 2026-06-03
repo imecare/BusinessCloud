@@ -18,7 +18,7 @@ using System.Threading.RateLimiting;
 // Evita que ASP.NET Core cambie los nombres de los claims
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
-// --- CONFIGURACIÓN DE SERILOG TEMPRANA ---
+// --- CONFIGURACIï¿½N DE SERILOG TEMPRANA ---
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .Enrich.FromLogContext()
@@ -77,7 +77,8 @@ try
     builder.Services.AddDbContext<IdentityDbContext>(options =>
         options.UseSqlServer(builder.Configuration.GetConnectionString("PaymentsConnection"), sql => sql.EnableRetryOnFailure()));
 
-    builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => {
+    builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+    {
         options.Password.RequireDigit = false;
         options.Password.RequiredLength = 6;
     })
@@ -102,7 +103,7 @@ try
         )
     );
 
-    // Configuración de Redis (opcional)
+    // Configuraciï¿½n de Redis (opcional)
     var redisConnection = builder.Configuration.GetConnectionString("Redis");
     if (!string.IsNullOrWhiteSpace(redisConnection) && redisConnection != "localhost:6379")
     {
@@ -118,12 +119,12 @@ try
     {
         builder.Services.AddDistributedMemoryCache();
         builder.Services.AddScoped<ICacheService, NoOpCacheService>();
-        Log.Warning("Redis no configurado. Usando caché en memoria (no-op).");
+        Log.Warning("Redis no configurado. Usando cachï¿½ en memoria (no-op).");
     }
 
     builder.Services.AddScoped<JwtTokenService>();
 
-    // Configuración de MongoDB (opcional)
+    // Configuraciï¿½n de MongoDB (opcional)
     var mongoConnectionString = builder.Configuration.GetConnectionString("MongoDb");
     if (!string.IsNullOrWhiteSpace(mongoConnectionString) && !mongoConnectionString.Contains("localhost"))
     {
@@ -134,7 +135,20 @@ try
     else
     {
         builder.Services.AddScoped<IMongoContext, NoOpMongoContext>();
-        Log.Warning("MongoDB no configurado. Funciones de auditoría e historial deshabilitadas.");
+        Log.Warning("MongoDB no configurado. Funciones de auditorÃ­a e historial deshabilitadas.");
+    }
+
+    // ConfiguraciÃ³n de Azure Blob Storage
+    var blobConnectionString = builder.Configuration.GetConnectionString("AzureBlobStorage");
+    if (!string.IsNullOrWhiteSpace(blobConnectionString))
+    {
+        builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
+        Log.Information("Azure Blob Storage configurado correctamente.");
+    }
+    else
+    {
+        builder.Services.AddScoped<IBlobStorageService, NoOpBlobStorageService>();
+        Log.Warning("Azure Blob Storage no configurado. Usando implementaciÃ³n no-op (subida de archivos deshabilitada).");
     }
 
     // CORS
@@ -144,6 +158,7 @@ try
         {
             policy.WithOrigins(
                     "http://localhost:5173",
+                    "http://localhost:4200",
                     "https://bcloud.com.mx",
                     "https://payments.bcloud.com.mx",
                     "https://stapp-bcloud-payments.azurestaticapps.net",
@@ -158,12 +173,12 @@ try
     builder.Services.AddApplication();
     builder.Services.AddControllers();
 
-    // Rate Limiting para endpoints públicos
+    // Rate Limiting para endpoints pï¿½blicos
     builder.Services.AddRateLimiter(options =>
     {
         options.AddFixedWindowLimiter("public-history", opt =>
         {
-            opt.PermitLimit = 10;          // máximo 10 requests
+            opt.PermitLimit = 10;          // mï¿½ximo 10 requests
             opt.Window = TimeSpan.FromMinutes(1); // por minuto
             opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
             opt.QueueLimit = 2;
@@ -171,9 +186,9 @@ try
         options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     });
 
-    // --- CONFIGURACIÓN JWT ---
+    // --- CONFIGURACIï¿½N JWT ---
     var jwtKey = builder.Configuration["Jwt:Key"]
-        ?? throw new InvalidOperationException("La clave JWT no está configurada en 'Jwt:Key'.");
+        ?? throw new InvalidOperationException("La clave JWT no estï¿½ configurada en 'Jwt:Key'.");
     var key = Encoding.UTF8.GetBytes(jwtKey);
 
     builder.Services.AddAuthentication(options =>
@@ -216,13 +231,14 @@ try
     //if (app.Environment.IsDevelopment())
     //{
     app.UseSwagger();
-    app.UseSwaggerUI(c => {
+    app.UseSwaggerUI(c =>
+    {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "BusinessCloud API v1");
-        c.RoutePrefix = string.Empty; // Esto hace que Swagger salga en la raíz de la URL
+        c.RoutePrefix = string.Empty; // Esto hace que Swagger salga en la raï¿½z de la URL
     });
     //}
     app.UseCors("AllowFrontend");
-    // REGISTRA TU MIDDLEWARE AQUÍ PARA QUE sea EL QUE DICTA EL FORMATO
+    // REGISTRA TU MIDDLEWARE AQUï¿½ PARA QUE sea EL QUE DICTA EL FORMATO
     app.UseMiddleware<ExceptionMiddleware>();
 
     app.UseHttpsRedirection();
@@ -240,9 +256,9 @@ try
 }
 catch (Exception ex)
 {
-    Log.Fatal(ex, "Fallo grave durante el arranque de la aplicación (Application Startup Failed)");
+    Log.Fatal(ex, "Fallo grave durante el arranque de la aplicaciï¿½n (Application Startup Failed)");
 
-    // Crear una app mínima que muestre el error para diagnóstico en Azure
+    // Crear una app mï¿½nima que muestre el error para diagnï¿½stico en Azure
     var errorApp = WebApplication.CreateBuilder(args).Build();
     var errorMessage = ex.ToString();
     errorApp.MapGet("/{**path}", () => Results.Text(

@@ -98,8 +98,8 @@ public class ImportProductsToSaleHandler(IBazaresDbContext context, IMongoContex
                 result.NewCustomersCreated++;
             }
 
-            // 5. Crear producto/compra
-            var product = new BzaProduct
+            // 5. Crear producto vendido
+            var product = new BzaSoldProduct
             {
                 BzaSaleId = request.BzaSaleId,
                 BzaCustomerId = customer.Id,
@@ -107,7 +107,7 @@ public class ImportProductsToSaleHandler(IBazaresDbContext context, IMongoContex
                 Price = price
             };
 
-            _context.Products.Add(product);
+            _context.SoldProducts.Add(product);
             result.ImportedProducts++;
         }
 

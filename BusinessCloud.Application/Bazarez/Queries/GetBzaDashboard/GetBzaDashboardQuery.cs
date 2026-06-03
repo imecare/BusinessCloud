@@ -21,7 +21,8 @@ public class BzaDashboardDto
 public class CollectorVolumeDto
 {
     public string CollectorName { get; set; } = string.Empty;
-    public string? GroupId { get; set; }
+    public int? BzaCollectorGroupId { get; set; }
+    public string? GroupDescription { get; set; }
     public int PackageCount { get; set; }
     public decimal TotalValue { get; set; }
 }

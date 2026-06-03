@@ -35,9 +35,10 @@ public class BzaSale : BaseAuditableEntity
     // Navegación
     // ─────────────────────────────────────────────────────────────────────────
     /// <summary>
-    /// Productos/compras registradas en este evento de venta (de múltiples clientes).
+    /// Productos vendidos en este evento de venta (de múltiples clientes).
+    /// NO es un catálogo, es el listado de productos vendidos.
     /// </summary>
-    public ICollection<BzaProduct> Products { get; set; } = [];
+    public ICollection<BzaSoldProduct> SoldProducts { get; set; } = [];
 
     /// <summary>
     /// Pagos recibidos de clientes para este evento de venta.

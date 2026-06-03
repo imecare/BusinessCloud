@@ -4,9 +4,9 @@ using BusinessCloud.Application.Common.Interfaces;
 
 namespace BusinessCloud.Application.Bazares.Queries.GetCollectors;
 
-public record CollectorDto(int Id, string Name, string? FacebookName, string? GroupId);
+public record CollectorDto(int Id, string Name, string? FacebookName, bool IsActive, int? BzaCollectorGroupId, string? GroupDescription);
 
-public record GetCollectorsQuery : IRequest<List<CollectorDto>>;
+public record GetCollectorsQuery(bool IncludeInactive = false) : IRequest<List<CollectorDto>>;
 
 public class GetCollectorsHandler : IRequestHandler<GetCollectorsQuery, List<CollectorDto>>
 {
@@ -15,8 +15,17 @@ public class GetCollectorsHandler : IRequestHandler<GetCollectorsQuery, List<Col
 
     public async Task<List<CollectorDto>> Handle(GetCollectorsQuery request, CancellationToken ct)
     {
-        return await _context.Collectors
-            .Select(c => new CollectorDto(c.Id, c.Name, c.FacebookName, c.GroupId))
+        var query = _context.Collectors
+            .Include(c => c.CollectorGroup)
+            .AsQueryable();
+
+        if (!request.IncludeInactive)
+        {
+            query = query.Where(c => c.IsActive);
+        }
+
+        return await query
+            .Select(c => new CollectorDto(c.Id, c.Name, c.FacebookName, c.IsActive, c.BzaCollectorGroupId, c.CollectorGroup != null ? c.CollectorGroup.Description : null))
             .ToListAsync(ct);
     }
 }

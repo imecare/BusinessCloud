@@ -2,11 +2,24 @@
 
 namespace BusinessCloud.Application.Bazares.Commands.CreateBzaSale;
 
-public record CreateBzaSaleProductDto(string Description, decimal Price);
-
+/// <summary>
+/// Comando para crear un nuevo Evento de Venta (Corte/Catálogo/En Vivo).
+/// El evento agrupa productos comprados por múltiples clientes.
+/// </summary>
 public record CreateBzaSaleCommand : IRequest<int>
 {
-    public int BzaCustomerId { get; init; }
-    public string? Description { get; init; }
-    public List<CreateBzaSaleProductDto> Products { get; init; } = new();
+    /// <summary>
+    /// Descripción del evento (ej: "En vivo 5 de Junio", "Catálogo Primavera 2026").
+    /// </summary>
+    public string Description { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Fecha límite de pago para los clientes que participan en este evento.
+    /// </summary>
+    public DateTime? PaymentDeadline { get; init; }
+
+    /// <summary>
+    /// Fecha programada de entrega del evento.
+    /// </summary>
+    public DateTime? DeliveryDate { get; init; }
 }
