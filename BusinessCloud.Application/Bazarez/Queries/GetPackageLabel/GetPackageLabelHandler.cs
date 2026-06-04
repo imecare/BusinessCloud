@@ -8,8 +8,10 @@ namespace BusinessCloud.Application.Bazares.Queries.GetPackageLabel;
 /// que agrupa productos de múltiples clientes, no de uno solo.
 /// Usar GetCustomerPackageLabel con customerId y saleId específicos.
 /// </summary>
-public class GetPackageLabelHandler(IBazaresDbContext context)
+#pragma warning disable CS9113 // Parameter is unread
+public class GetPackageLabelHandler(IBazaresDbContext _)
     : IRequestHandler<GetPackageLabelQuery, PackageLabelDto>
+#pragma warning restore CS9113
 {
     public Task<PackageLabelDto> Handle(GetPackageLabelQuery request, CancellationToken ct)
     {

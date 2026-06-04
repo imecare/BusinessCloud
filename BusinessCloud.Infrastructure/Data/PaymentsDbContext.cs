@@ -56,7 +56,8 @@ public class PaymentsDbContext : DbContext, IPaymentsDbContext
         modelBuilder.Entity<Sale>().Property(s => s.CommissionPaymentNote).HasMaxLength(500);
         modelBuilder.Entity<Sale>().Property(s => s.CommissionPaidByUserId).HasMaxLength(450);
 
-        modelBuilder.Entity<Customer>(entity => {
+        modelBuilder.Entity<Customer>(entity =>
+        {
             entity.HasIndex(e => new { e.RFC, e.Phone });
         });
     }
@@ -68,7 +69,7 @@ public class PaymentsDbContext : DbContext, IPaymentsDbContext
         {
             if (entry.State == EntityState.Added)
             {
-                entry.Entity.TenantId = _userService.TenantId;
+                entry.Entity.TenantId = _userService.TenantId ?? string.Empty;
                 entry.Entity.CreatedAt = DateTime.UtcNow;
                 entry.Entity.CreatedBy = _userService.UserId ?? "System";
             }

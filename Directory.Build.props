@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <!-- Configuración de rutas de salida - debe estar aquí para evitar MSB3539 -->
+    <BaseOutputPath>D:\Builds\</BaseOutputPath>
+    <BaseIntermediateOutputPath>D:\Builds\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    
+    <!-- Suprimir warnings de vulnerabilidades de dependencias transitivas de MongoDB.Driver -->
+    <!-- NU1902: Vulnerabilidad moderada (SharpCompress) -->
+    <!-- NU1903: Vulnerabilidad alta (Snappier, System.Security.Cryptography.Xml) -->
+    <!-- Estas son dependencias transitivas que se actualizarán cuando MongoDB.Driver las actualice -->
+    <NoWarn>$(NoWarn);NU1902;NU1903</NoWarn>
+  </PropertyGroup>
+</Project>

@@ -159,6 +159,7 @@ try
             policy.WithOrigins(
                     "http://localhost:5173",
                     "http://localhost:4200",
+                    "http://localhost:53517",
                     "https://bcloud.com.mx",
                     "https://payments.bcloud.com.mx",
                     "https://stapp-bcloud-payments.azurestaticapps.net",

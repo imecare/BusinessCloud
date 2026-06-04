@@ -7,5 +7,6 @@ public record RegisterPaymentCommand(
     int SaleId,
     decimal Amount,
     string Reference, // Ej: "Efectivo", "Transferencia 1234"
-    DateTime PaymentDate // Fecha del abono enviada desde el front
+    DateTime PaymentDate, // Fecha del abono enviada desde el front
+    string? IdempotencyKey = null // Clave única para evitar duplicados en reintentos
 ) : IRequest<PaymentReceiptDto>;

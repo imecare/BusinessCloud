@@ -1,4 +1,5 @@
 using BusinessCloud.Application.Payments.Commands.CreateSeller;
+using BusinessCloud.Application.Payments.Commands.UpdateSeller;
 using BusinessCloud.Application.Payments.Commands.UpdateSellerStatus;
 using BusinessCloud.Application.Payments.Dtos;
 using BusinessCloud.Application.Payments.Queries.GetActiveSellers;
@@ -25,6 +26,16 @@ public class PaySellersController : ControllerBase
         if (command is null) return BadRequest();
         var id = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id }, id);
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateSellerCommand command, CancellationToken cancellationToken)
+    {
+        if (command is null || command.Id != id) return BadRequest();
+        var result = await _mediator.Send(command, cancellationToken);
+        return result
+            ? Ok(new { success = true, message = "Vendedor actualizado." })
+            : NotFound(new { success = false, message = "Vendedor no encontrado." });
     }
 
     [HttpGet("{id:int}")]
@@ -55,7 +66,7 @@ public class PaySellersController : ControllerBase
     }
 
     /// <summary>
-    /// Activar/desactivar vendedor (borrado lógico).
+    /// Activar/desactivar vendedor (borrado lï¿½gico).
     /// </summary>
     [HttpPatch("{id:int}/status")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateSellerStatusRequest request, CancellationToken cancellationToken)

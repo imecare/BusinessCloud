@@ -8,8 +8,10 @@ namespace BusinessCloud.Application.Bazares.Commands.ImportSalesFromExcel;
 /// que agrupa productos de múltiples clientes, no crea ventas individuales.
 /// Usar ImportProductsToSale con un BzaSaleId específico para importar productos a un evento.
 /// </summary>
-public class ImportSalesFromExcelHandler(IBazaresDbContext context, IMongoContext mongoContext)
+#pragma warning disable CS9113 // Parameter is unread
+public class ImportSalesFromExcelHandler(IBazaresDbContext _, IMongoContext __)
     : IRequestHandler<ImportSalesFromExcelCommand, ImportSalesResult>
+#pragma warning restore CS9113
 {
     public Task<ImportSalesResult> Handle(ImportSalesFromExcelCommand request, CancellationToken ct)
     {

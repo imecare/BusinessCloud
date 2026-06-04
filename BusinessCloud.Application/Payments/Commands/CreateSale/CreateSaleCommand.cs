@@ -10,5 +10,6 @@ public record CreateSaleCommand(
     decimal CostPrice,
     decimal CommissionAmount,
     string ProductDescription,
-    DateTime Date // Fecha de la venta enviada desde el front
+    DateTime Date, // Fecha de la venta enviada desde el front
+    string? IdempotencyKey = null // Clave única para evitar duplicados en reintentos
 ) : IRequest<int>;

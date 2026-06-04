@@ -10,7 +10,7 @@ namespace BusinessCloud.Domain.Payments.Entities
         public DateTime PaymentDate { get; set; } // Fecha del abono (enviada desde el front)
         public DateTime Date { get; set; } // Fecha de registro (interna, automática)
         public string PaymentMethod { get; set; } = "Cash"; // Cash, Card, Transfer [cite: 12]
-        public string Reference { get; set; }
+        public string Reference { get; set; } = string.Empty;
         public int PaymentTypeId { get; set; } = 2;
         public virtual Sale Sale { get; set; } = null!;
     }

@@ -19,7 +19,7 @@ public class UpdatePaymentHandler : IRequestHandler<UpdatePaymentCommand, bool>
 
         payment.Amount = request.Amount;
         payment.PaymentMethod = request.PaymentMethod;
-        payment.Reference = request.Reference;
+        payment.Reference = request.Reference ?? payment.Reference;
         if (request.PaymentDate.HasValue)
             payment.PaymentDate = request.PaymentDate.Value;
 
@@ -29,7 +29,7 @@ public class UpdatePaymentHandler : IRequestHandler<UpdatePaymentCommand, bool>
 
         if (sale is not null)
         {
-            // Sumar los demás abonos desde la BD y agregar el monto actualizado de este abono
+            // Sumar los demï¿½s abonos desde la BD y agregar el monto actualizado de este abono
             var otherPaid = await _db.Payments
                 .Where(p => p.SaleId == payment.SaleId && p.Id != payment.Id && p.PaymentTypeId == 2)
                 .SumAsync(p => p.Amount, cancellationToken);

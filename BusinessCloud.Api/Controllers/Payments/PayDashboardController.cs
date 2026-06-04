@@ -1,5 +1,4 @@
 using BusinessCloud.Application.Payments.Dtos;
-using BusinessCloud.Application.Payments.Dtos;
 using BusinessCloud.Application.Payments.Queries.GetCommissionistStats;
 using BusinessCloud.Application.Payments.Queries.GetDashboardStats;
 using MediatR;
@@ -18,7 +17,7 @@ public class PayDashboardController : ControllerBase
     public PayDashboardController(IMediator mediator) => _mediator = mediator;
 
     /// <summary>
-    /// Estadísticas generales del tenant. Solo SuperAdmin.
+    /// Estadï¿½sticas generales del tenant. Solo SuperAdmin.
     /// </summary>
     [Authorize(Policy = "SuperAdmin")]
     [HttpGet("stats")]
@@ -29,7 +28,7 @@ public class PayDashboardController : ControllerBase
     }
 
     /// <summary>
-    /// Estadísticas del comisionista autenticado.
+    /// Estadï¿½sticas del comisionista autenticado.
     /// Solo Commissionist.
     /// </summary>
     [Authorize(Policy = "Commissionist")]

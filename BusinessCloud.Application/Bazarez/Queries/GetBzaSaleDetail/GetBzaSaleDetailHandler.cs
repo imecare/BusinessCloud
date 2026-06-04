@@ -54,9 +54,9 @@ public class GetBzaSaleDetailHandler(IBazaresDbContext context, IMongoContext mo
             PendingAmount = pendingAmount,
             AuditHistory = mongoLogs.Select(l => new BzaSaleAuditDto
             {
-                Event = l.Event,
+                Event = l.Event ?? string.Empty,
                 Timestamp = l.Timestamp,
-                Details = l.Details
+                Details = l.Details ?? string.Empty
             }).ToList()
         };
     }

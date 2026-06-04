@@ -1,5 +1,4 @@
 ﻿using BusinessCloud.Application.Payments.Commands.CreateSale;
-using BusinessCloud.Application.Payments.Commands.CreateSale;
 using BusinessCloud.Application.Payments.Commands.MarkCommissionPaid;
 using BusinessCloud.Application.Payments.Commands.UpdateSale;
 using BusinessCloud.Application.Payments.Dtos;
@@ -9,6 +8,7 @@ using BusinessCloud.Application.Payments.Queries.GetMySales;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Diagnostics;
 
 namespace BusinessCloud.Api.Controllers.Payments;
 
@@ -18,18 +18,27 @@ namespace BusinessCloud.Api.Controllers.Payments;
 public class PaySalesController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly ILogger<PaySalesController> _logger;
 
-    public PaySalesController(IMediator mediator)
+    public PaySalesController(IMediator mediator, ILogger<PaySalesController> logger)
     {
         _mediator = mediator;
+        _logger = logger;
     }
 
     [Authorize(Policy = "SuperAdmin")]
     [HttpPost]
     public async Task<ActionResult<int>> Create([FromBody] CreateSaleCommand command, CancellationToken cancellationToken)
     {
+        var sw = Stopwatch.StartNew();
+        _logger.LogInformation("[TIMING] PaySalesController.Create - Inicio");
+
         if (command is null) return BadRequest();
+
+        _logger.LogInformation("[TIMING] PaySalesController.Create - Antes de _mediator.Send: {Elapsed}ms", sw.ElapsedMilliseconds);
         var result = await _mediator.Send(command, cancellationToken);
+        _logger.LogInformation("[TIMING] PaySalesController.Create - Después de _mediator.Send: {Elapsed}ms, SaleId: {SaleId}", sw.ElapsedMilliseconds, result);
+
         return Ok(result);
     }
 
