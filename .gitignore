@@ -482,3 +482,16 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# =========================
+# Secrets & Local Config
+# =========================
+# NUNCA subir archivos con credenciales
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+*.secrets.json
+
+# User secrets
+secrets/
+.secrets/
