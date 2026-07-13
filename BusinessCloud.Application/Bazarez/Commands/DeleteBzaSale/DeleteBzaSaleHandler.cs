@@ -12,18 +12,18 @@ public class DeleteBzaSaleHandler(IBazaresDbContext context, IMongoContext mongo
 
     public async Task<DeleteBzaSaleResult> Handle(DeleteBzaSaleCommand request, CancellationToken cancellationToken)
     {
-        var saleEvent = await _context.Sales
-            .Include(s => s.SoldProducts)
+        var saleEvent = await _context.Events
+            .Include(s => s.Sales).ThenInclude(s => s.Products)
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
 
         if (saleEvent is null)
             return new DeleteBzaSaleResult(false, "Evento de Venta no encontrado.");
 
         // Solo se puede eliminar si ningún cliente tiene productos registrados
-        if (saleEvent.SoldProducts.Count != 0)
+        if (saleEvent.Sales.SelectMany(s => s.Products).Any())
             return new DeleteBzaSaleResult(false, "No se puede eliminar un Evento de Venta que tiene productos vendidos registrados.");
 
-        _context.Sales.Remove(saleEvent);
+        _context.Events.Remove(saleEvent);
         await _context.SaveChangesAsync(cancellationToken);
 
         await _mongoContext.InsertAuditLogAsync(new

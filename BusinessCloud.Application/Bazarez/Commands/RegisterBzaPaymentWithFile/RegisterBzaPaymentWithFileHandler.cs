@@ -25,7 +25,7 @@ public class RegisterBzaPaymentWithFileHandler(
     public async Task<BzaPaymentWithFileResultDto> Handle(RegisterBzaPaymentWithFileCommand request, CancellationToken ct)
     {
         // 1. Validar que el Evento de Venta exista
-        var saleEvent = await _context.Sales.FirstOrDefaultAsync(s => s.Id == request.BzaSaleId, ct)
+        var saleEvent = await _context.Events.FirstOrDefaultAsync(s => s.Id == request.BzaSaleId, ct)
             ?? throw new KeyNotFoundException("Evento de Venta no encontrado.");
 
         if (saleEvent.Status == 5)
@@ -52,7 +52,7 @@ public class RegisterBzaPaymentWithFileHandler(
         // 4. Crear el pago (Preautorizado)
         var payment = new BzaPayment
         {
-            BzaSaleId = request.BzaSaleId,
+            BzaEventId = request.BzaSaleId,
             BzaCustomerId = request.BzaCustomerId,
             Amount = request.Amount,
             Date = DateTime.UtcNow,
@@ -68,11 +68,11 @@ public class RegisterBzaPaymentWithFileHandler(
 
         // 5. Calcular balance del cliente en este evento (solo pagos aprobados)
         var customerProductsTotal = await _context.SoldProducts
-            .Where(p => p.BzaSaleId == request.BzaSaleId && p.BzaCustomerId == request.BzaCustomerId)
+            .Where(p => p.Sale.BzaEventId == request.BzaSaleId && p.Sale.BzaCustomerId == request.BzaCustomerId)
             .SumAsync(p => p.Price, ct);
 
         var customerPaidAmount = await _context.Payments
-            .Where(p => p.BzaSaleId == request.BzaSaleId && p.BzaCustomerId == request.BzaCustomerId && p.IsVerified)
+            .Where(p => p.BzaEventId == request.BzaSaleId && p.BzaCustomerId == request.BzaCustomerId && p.IsVerified)
             .SumAsync(p => p.Amount, ct);
 
         var pendingBalance = Math.Max(0, customerProductsTotal - customerPaidAmount);

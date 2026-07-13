@@ -6,6 +6,7 @@ using BusinessCloud.Application.Bazares.Commands.CreateCollectorGroup;
 using BusinessCloud.Application.Bazares.Commands.UpdateCollectorGroup;
 using BusinessCloud.Application.Bazares.Commands.DeleteCollectorGroup;
 using BusinessCloud.Application.Bazares.Commands.ActivateCollectorGroup;
+using BusinessCloud.Application.Bazares.Commands.DeactivateCollectorGroup;
 using BusinessCloud.Application.Bazares.Queries.GetCollectorGroups;
 
 namespace BusinessCloud.Api.Controllers.Bazares;
@@ -47,6 +48,13 @@ public class BzaCollectorGroupsController(ISender mediator) : ControllerBase
     public async Task<ActionResult> Activate(int id)
     {
         await mediator.Send(new ActivateCollectorGroupCommand(id));
+        return NoContent();
+    }
+
+    [HttpPatch("{id}/deactivate")]
+    public async Task<ActionResult> Deactivate(int id)
+    {
+        await mediator.Send(new DeactivateCollectorGroupCommand(id));
         return NoContent();
     }
 }

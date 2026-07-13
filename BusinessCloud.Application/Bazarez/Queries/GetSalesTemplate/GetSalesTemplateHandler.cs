@@ -26,9 +26,15 @@ public class GetSalesTemplateHandler : IRequestHandler<GetSalesTemplateQuery, Sa
 
         using var workbook = new XLWorkbook();
 
-        // --- Hoja 1: Plantilla de Ventas ---
-        var ws = workbook.Worksheets.Add("Ventas Live");
-        var headers = new[] { "Cliente (Nombre)", "Teléfono", "Facebook", "Recolector", "Producto", "Precio", "Notas" };
+        // --- Hoja 1: Captura de compras (la importacion lee la hoja "Compras") ---
+        // Columnas alineadas con el parser de importacion:
+        // 1=Cliente, 2=Producto, 3=Precio, 4=Recolector, 5=Nombre de Facebook, 6=Telefono
+        // Recolector, Facebook y Telefono son OPCIONALES:
+        //  - Si el cliente ya existe y la celda viene en blanco, se conserva el dato registrado.
+        //  - Facebook y Telefono solo se capturan (crean) para clientes NUEVOS.
+        //  - Si el cliente existe y el dato difiere, se solicita confirmacion al validar.
+        var ws = workbook.Worksheets.Add("Compras");
+        var headers = new[] { "Cliente (Nombre)", "Producto", "Precio", "Recolector", "Nombre de Facebook", "TelÃ©fono" };
         for (int i = 0; i < headers.Length; i++)
         {
             ws.Cell(1, i + 1).Value = headers[i];
@@ -36,43 +42,63 @@ public class GetSalesTemplateHandler : IRequestHandler<GetSalesTemplateQuery, Sa
             ws.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightBlue;
         }
 
-        // Pre-llenar con clientes existentes (una fila por cliente para facilitar captura)
+        // --- Hoja oculta con catalogos para las listas desplegables ---
+        // Columna 1 = clientes, Columna 2 = recolectores
+        var catWs = workbook.Worksheets.Add("_Catalogos");
         for (int i = 0; i < customers.Count; i++)
+            catWs.Cell(i + 1, 1).Value = customers[i].Name;
+        for (int i = 0; i < collectors.Count; i++)
+            catWs.Cell(i + 1, 2).Value = collectors[i];
+
+        const int lastDataRow = 1000;
+        const int collectorColumn = 4; // Recolector
+
+        // Lista desplegable de CLIENTES en la columna A.
+        // ErrorStyle = Warning permite escribir clientes nuevos (no bloquea la captura).
+        if (customers.Count > 0)
         {
-            var row = i + 2;
-            ws.Cell(row, 1).Value = customers[i].Name;
-            ws.Cell(row, 2).Value = customers[i].Phone;
-            ws.Cell(row, 3).Value = customers[i].FacebookName ?? "";
-            ws.Cell(row, 4).Value = customers[i].CollectorName;
+            var customerRange = catWs.Range(1, 1, customers.Count, 1);
+            var customerValidation = ws.Range(2, 1, lastDataRow, 1).CreateDataValidation();
+            customerValidation.List(customerRange);
+            customerValidation.IgnoreBlanks = true;
+            customerValidation.InCellDropdown = true;
+            customerValidation.ErrorStyle = XLErrorStyle.Warning;
+            customerValidation.ShowErrorMessage = true;
+            customerValidation.ErrorTitle = "Cliente nuevo";
+            customerValidation.ErrorMessage =
+                "Este cliente no esta en la lista. Si es nuevo, elige \"Si\" para agregarlo; se completaran sus datos al subir el archivo.";
         }
 
-        // Validación de datos: dropdown de recolectores en columna D
+        // Lista desplegable de RECOLECTORES en la columna D (opcional).
         if (collectors.Count > 0)
         {
-            var catWs = workbook.Worksheets.Add("_Catalogos");
-            for (int i = 0; i < collectors.Count; i++)
-                catWs.Cell(i + 1, 1).Value = collectors[i];
-
-            var range = catWs.Range(1, 1, collectors.Count, 1);
-            var validation = ws.Range(2, 4, 500, 4).CreateDataValidation();
-            validation.List(range);
-            catWs.Hide();
+            var collectorRange = catWs.Range(1, 2, collectors.Count, 2);
+            var collectorValidation = ws.Range(2, collectorColumn, lastDataRow, collectorColumn).CreateDataValidation();
+            collectorValidation.List(collectorRange);
+            collectorValidation.IgnoreBlanks = true;
+            collectorValidation.InCellDropdown = true;
+            collectorValidation.ErrorStyle = XLErrorStyle.Warning;
+            collectorValidation.ShowErrorMessage = true;
+            collectorValidation.ErrorTitle = "Recolector nuevo";
+            collectorValidation.ErrorMessage =
+                "Este recolector no esta en la lista. Verifica el nombre o eligelo del listado.";
         }
 
+        catWs.Hide();
         ws.Columns().AdjustToContents();
 
-        // --- Hoja 2: Catálogo de clientes (referencia) ---
+        // --- Hoja 2: Catalogo de clientes registrados (solo referencia) ---
         var refWs = workbook.Worksheets.Add("Clientes Registrados");
-        refWs.Cell(1, 1).Value = "Nombre";
-        refWs.Cell(1, 2).Value = "Teléfono";
-        refWs.Cell(1, 3).Value = "Facebook";
-        refWs.Cell(1, 4).Value = "Recolector";
+        var refHeaders = new[] { "Nombre", "Recolector" };
+        for (int i = 0; i < refHeaders.Length; i++)
+        {
+            refWs.Cell(1, i + 1).Value = refHeaders[i];
+            refWs.Cell(1, i + 1).Style.Font.Bold = true;
+        }
         for (int i = 0; i < customers.Count; i++)
         {
             refWs.Cell(i + 2, 1).Value = customers[i].Name;
-            refWs.Cell(i + 2, 2).Value = customers[i].Phone;
-            refWs.Cell(i + 2, 3).Value = customers[i].FacebookName ?? "";
-            refWs.Cell(i + 2, 4).Value = customers[i].CollectorName;
+            refWs.Cell(i + 2, 2).Value = customers[i].CollectorName;
         }
         refWs.Columns().AdjustToContents();
         refWs.Protect();

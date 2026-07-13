@@ -3,9 +3,9 @@ using BusinessCloud.Domain.Common;
 namespace BusinessCloud.Domain.Bazares.Entities;
 
 /// <summary>
-/// Representa un producto vendido a un cliente dentro de un Evento de Venta.
-/// NO es un catálogo de productos, es un registro de venta individual.
-/// Cada registro pertenece a UN cliente y se vincula a UN evento de venta (BzaSale).
+/// Representa un producto individual perteneciente a una Venta (BzaSale).
+/// NO es un catálogo de productos, es un renglón de la venta.
+/// El cliente y el evento se obtienen a través de la Venta a la que pertenece.
 /// </summary>
 public class BzaSoldProduct : BaseAuditableEntity
 {
@@ -25,14 +25,8 @@ public class BzaSoldProduct : BaseAuditableEntity
     // Relaciones
     // ─────────────────────────────────────────────────────────────────────────
     /// <summary>
-    /// FK al Evento de Venta (Corte/En Vivo/Catálogo) donde se registró esta venta.
+    /// FK a la Venta (Cliente + Evento) a la que pertenece este producto.
     /// </summary>
     public int BzaSaleId { get; set; }
     public BzaSale Sale { get; set; } = null!;
-
-    /// <summary>
-    /// FK al Cliente al que se le vendió el producto.
-    /// </summary>
-    public int BzaCustomerId { get; set; }
-    public BzaCustomer Customer { get; set; } = null!;
 }

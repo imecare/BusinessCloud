@@ -14,7 +14,7 @@ public class RegisterBzaPaymentHandler(IBazaresDbContext context, IMongoContext 
     public async Task<BzaPaymentResultDto> Handle(RegisterBzaPaymentCommand request, CancellationToken ct)
     {
         // 1. Validar que el Evento de Venta exista
-        var saleEvent = await _context.Sales.FirstOrDefaultAsync(s => s.Id == request.BzaSaleId, ct)
+        var saleEvent = await _context.Events.FirstOrDefaultAsync(s => s.Id == request.BzaSaleId, ct)
             ?? throw new KeyNotFoundException("Evento de Venta no encontrado.");
 
         if (saleEvent.Status == 5)
@@ -26,17 +26,17 @@ public class RegisterBzaPaymentHandler(IBazaresDbContext context, IMongoContext 
 
         // 3. Calcular totales del cliente en este evento
         var customerProductsTotal = await _context.SoldProducts
-            .Where(p => p.BzaSaleId == request.BzaSaleId && p.BzaCustomerId == request.BzaCustomerId)
+            .Where(p => p.Sale.BzaEventId == request.BzaSaleId && p.Sale.BzaCustomerId == request.BzaCustomerId)
             .SumAsync(p => p.Price, ct);
 
         var customerPaidAmount = await _context.Payments
-            .Where(p => p.BzaSaleId == request.BzaSaleId && p.BzaCustomerId == request.BzaCustomerId && p.IsVerified)
+            .Where(p => p.BzaEventId == request.BzaSaleId && p.BzaCustomerId == request.BzaCustomerId && p.IsVerified)
             .SumAsync(p => p.Amount, ct);
 
         // 4. Crear el pago
         var payment = new BzaPayment
         {
-            BzaSaleId = request.BzaSaleId,
+            BzaEventId = request.BzaSaleId,
             BzaCustomerId = request.BzaCustomerId,
             Amount = request.Amount,
             Date = DateTime.UtcNow,
@@ -59,7 +59,6 @@ public class RegisterBzaPaymentHandler(IBazaresDbContext context, IMongoContext 
         {
             Event = "Bza_PaymentRegistered",
             SaleEventId = saleEvent.Id,
-            SaleEventDescription = saleEvent.Description,
             CustomerId = customer.Id,
             CustomerName = customer.Name,
             PaymentId = payment.Id,

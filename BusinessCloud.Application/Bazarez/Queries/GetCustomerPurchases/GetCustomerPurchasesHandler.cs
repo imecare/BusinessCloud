@@ -21,31 +21,31 @@ public class GetCustomerPurchasesHandler(IBazaresDbContext context)
         };
 
         var customer = await _context.Customers
-            .Include(c => c.SoldProducts).ThenInclude(p => p.Sale).ThenInclude(s => s.Payments)
+            .Include(c => c.Sales).ThenInclude(s => s.Event)
+            .Include(c => c.Sales).ThenInclude(s => s.Products)
             .Include(c => c.Payments)
             .FirstOrDefaultAsync(c => c.Id == request.BzaCustomerId, cancellationToken)
             ?? throw new KeyNotFoundException("Cliente no encontrado.");
 
-        // Filtrar productos vendidos por fecha (en memoria, ya que tenemos los datos cargados)
-        var filteredProducts = customer.SoldProducts.AsEnumerable();
+        // Filtrar ventas por fecha del evento (en memoria, ya que tenemos los datos cargados)
+        var filteredSales = customer.Sales.AsEnumerable();
 
         if (request.FromDate.HasValue)
-            filteredProducts = filteredProducts.Where(p => p.Sale.CreatedAt >= request.FromDate.Value);
+            filteredSales = filteredSales.Where(s => s.Event.CreatedAt >= request.FromDate.Value);
 
         if (request.ToDate.HasValue)
-            filteredProducts = filteredProducts.Where(p => p.Sale.CreatedAt <= request.ToDate.Value.AddDays(1).AddSeconds(-1));
+            filteredSales = filteredSales.Where(s => s.Event.CreatedAt <= request.ToDate.Value.AddDays(1).AddSeconds(-1));
 
-        // Agrupar productos por evento de venta
-        var salesGrouped = filteredProducts
-            .GroupBy(p => p.Sale)
-            .OrderByDescending(g => g.Key.CreatedAt)
-            .Select(g =>
+        // Cada venta corresponde a un evento (una venta por cliente-evento)
+        var salesGrouped = filteredSales
+            .OrderByDescending(s => s.Event.CreatedAt)
+            .Select(s =>
             {
-                var sale = g.Key;
-                var customerProducts = g.ToList();
+                var sale = s.Event;
+                var customerProducts = s.Products.ToList();
                 var customerTotal = customerProducts.Sum(p => p.Price);
                 var paidAmount = customer.Payments
-                    .Where(pay => pay.BzaSaleId == sale.Id && pay.IsVerified)
+                    .Where(pay => pay.BzaEventId == sale.Id && pay.IsVerified)
                     .Sum(pay => pay.Amount);
 
                 return new CustomerSaleDto

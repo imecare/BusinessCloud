@@ -17,9 +17,4 @@ public record CreateBzaSaleCommand : IRequest<int>
     /// Fecha límite de pago para los clientes que participan en este evento.
     /// </summary>
     public DateTime? PaymentDeadline { get; init; }
-
-    /// <summary>
-    /// Fecha programada de entrega del evento.
-    /// </summary>
-    public DateTime? DeliveryDate { get; init; }
 }

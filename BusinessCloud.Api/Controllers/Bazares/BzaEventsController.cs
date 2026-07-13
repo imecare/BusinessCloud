@@ -1,18 +1,21 @@
 ﻿using BusinessCloud.Application.Bazares.Commands.CreateBzaSale;
 using BusinessCloud.Application.Bazares.Commands.DeleteBzaSale;
-using BusinessCloud.Application.Bazares.Commands.ImportProductsToSale;
+using BusinessCloud.Application.Bazares.Commands.CommitBzaImport;
 using BusinessCloud.Application.Bazares.Commands.RegisterBzaPayment;
 using BusinessCloud.Application.Bazares.Commands.RegisterBzaPaymentWithFile;
 using BusinessCloud.Application.Bazares.Commands.UpdateBzaSale;
 using BusinessCloud.Application.Bazares.Commands.UpdateBzaSaleStatus;
 using BusinessCloud.Application.Bazares.Commands.VerifyBzaPayment;
 using BusinessCloud.Application.Bazares.Queries.GetAllBzaSales;
+using BusinessCloud.Application.Bazares.Queries.GetBzaSaleCustomers;
 using BusinessCloud.Application.Bazares.Queries.GetBzaSaleDetail;
+using BusinessCloud.Application.Bazares.Queries.GetBzaSalePayments;
 using BusinessCloud.Application.Bazares.Queries.GetCustomerEventTicket;
 using BusinessCloud.Application.Bazares.Queries.GetCustomerPackageLabel;
 using BusinessCloud.Application.Bazares.Queries.GetCustomerSalesHistory;
 using BusinessCloud.Application.Bazares.Queries.GetSalesTemplate;
 using BusinessCloud.Application.Bazares.Queries.GetWeeklyTicket;
+using BusinessCloud.Application.Bazares.Queries.ValidateBzaImport;
 using BusinessCloud.Api.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -28,7 +31,7 @@ namespace BusinessCloud.Api.Controllers.Bazares;
 [RequireModule("Bazares")]
 [ApiController]
 [Route("api/bazares/[controller]")]
-public class BzaSalesController(ISender mediator) : ControllerBase
+public class BzaEventsController(ISender mediator) : ControllerBase
 {
     private readonly ISender _mediator = mediator;
 
@@ -46,11 +49,16 @@ public class BzaSalesController(ISender mediator) : ControllerBase
 
     /// <summary>
     /// Obtener todos los Eventos de Venta del tenant.
+    /// Permite filtrar por estado, rango de fechas (creación) y búsqueda por descripción.
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<List<BzaSaleListDto>>> GetAll()
+    public async Task<ActionResult<List<BzaSaleListDto>>> GetAll(
+        [FromQuery] int? status,
+        [FromQuery] DateTime? fromDate,
+        [FromQuery] DateTime? toDate,
+        [FromQuery] string? search)
     {
-        return await _mediator.Send(new GetAllBzaSalesQuery());
+        return await _mediator.Send(new GetAllBzaSalesQuery(status, fromDate, toDate, search));
     }
 
     /// <summary>
@@ -60,6 +68,26 @@ public class BzaSalesController(ISender mediator) : ControllerBase
     public async Task<ActionResult<BzaSaleDetailDto>> GetById(int id)
     {
         return await _mediator.Send(new GetBzaSaleDetailQuery(id));
+    }
+
+    /// <summary>
+    /// Obtener los clientes que participan en un Evento de Venta con su resumen de cobranza
+    /// (total comprado, abonos aprobados y saldo pendiente).
+    /// </summary>
+    [HttpGet("{id}/customers")]
+    public async Task<ActionResult<BzaSaleCustomersDto>> GetCustomers(int id)
+    {
+        return await _mediator.Send(new GetBzaSaleCustomersQuery(id));
+    }
+
+    /// <summary>
+    /// Obtener los pagos/abonos registrados en un Evento de Venta.
+    /// Opcionalmente filtra por estado (1=Preautorizado, 2=Aprobado, 3=Rechazado).
+    /// </summary>
+    [HttpGet("{id}/payments")]
+    public async Task<ActionResult<List<BzaSalePaymentItemDto>>> GetPayments(int id, [FromQuery] int? status)
+    {
+        return await _mediator.Send(new GetBzaSalePaymentsQuery(id, status));
     }
 
     /// <summary>
@@ -108,19 +136,34 @@ public class BzaSalesController(ISender mediator) : ControllerBase
     }
 
     /// <summary>
-    /// Importar compras masivas desde Excel para ESTE Evento de Venta.
-    /// Lee filas con [Cliente, Teléfono, Producto, Precio, Costo]. 
-    /// Crea los clientes si no existen y les asigna los productos bajo este Evento ID.
+    /// PASO 1: Validar (sin guardar) un archivo Excel de compras.
+    /// Analiza clientes (existentes / ambiguos / nuevos) y detecta posibles duplicados
+    /// contra eventos abiertos. Devuelve una vista previa para que el usuario resuelva
+    /// los datos antes de confirmar.
     /// </summary>
-    [HttpPost("{id}/import")]
-    public async Task<ActionResult<ImportProductsResult>> ImportProductsToSale(int id, IFormFile file)
+    [HttpPost("{id}/import/validate")]
+    public async Task<ActionResult<ValidateBzaImportResult>> ValidateImport(int id, IFormFile file)
     {
         if (file is null || file.Length == 0)
             return BadRequest(new { message = "Archivo vacío o no proporcionado." });
 
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms);
-        var command = new ImportProductsToSaleCommand(id, ms.ToArray());
+        var result = await _mediator.Send(new ValidateBzaImportQuery(id, ms.ToArray()));
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// PASO 2: Confirmar y guardar la importación previamente validada.
+    /// Crea los clientes nuevos resueltos por el usuario y registra las ventas
+    /// marcadas con Source = Excel.
+    /// </summary>
+    [HttpPost("{id}/import/commit")]
+    public async Task<ActionResult<CommitBzaImportResult>> CommitImport(int id, [FromBody] CommitBzaImportCommand command)
+    {
+        if (command.EventId != id)
+            command = command with { EventId = id };
+
         var result = await _mediator.Send(command);
         return Ok(result);
     }

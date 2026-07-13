@@ -13,6 +13,7 @@
     <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
     <GenerateAssemblyTitleAttribute>false</GenerateAssemblyTitleAttribute>
     <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
+    <UserSecretsId>bazar-businesscloud-api</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

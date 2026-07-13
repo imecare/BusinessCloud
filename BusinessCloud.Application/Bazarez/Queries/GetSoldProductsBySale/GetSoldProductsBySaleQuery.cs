@@ -15,7 +15,6 @@ public class SoldProductsBySaleDto
 {
     public int BzaSaleId { get; set; }
     public string EventDescription { get; set; } = string.Empty;
-    public DateTime? DeliveryDate { get; set; }
     public List<SoldProductItemDto> Items { get; set; } = [];
 }
 

@@ -12,7 +12,7 @@ public class MarkSaleReadyForDeliveryHandler : IRequestHandler<MarkSaleReadyForD
 
     public async Task Handle(MarkSaleReadyForDeliveryCommand request, CancellationToken ct)
     {
-        var sale = await _context.Sales
+        var sale = await _context.Events
             .FirstOrDefaultAsync(s => s.Id == request.BzaSaleId, ct)
             ?? throw new KeyNotFoundException("Venta no encontrada.");
 

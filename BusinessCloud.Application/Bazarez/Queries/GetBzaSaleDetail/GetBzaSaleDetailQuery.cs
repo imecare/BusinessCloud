@@ -12,7 +12,6 @@ public class BzaSaleDetailDto
     public int Id { get; set; }
     public string Description { get; set; } = string.Empty;
     public DateTime? PaymentDeadline { get; set; }
-    public DateTime? DeliveryDate { get; set; }
     public int Status { get; set; }
     public string StatusName { get; set; } = string.Empty;
 

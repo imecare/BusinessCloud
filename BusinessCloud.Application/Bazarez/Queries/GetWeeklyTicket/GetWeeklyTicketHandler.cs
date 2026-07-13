@@ -22,29 +22,29 @@ public class GetWeeklyTicketHandler(IBazaresDbContext context)
 
         // Obtener productos vendidos al cliente esta semana
         var customerProducts = await _context.SoldProducts
-            .Include(p => p.Sale)
-            .Where(p => p.BzaCustomerId == request.BzaCustomerId
+            .Include(p => p.Sale).ThenInclude(s => s.Event)
+            .Where(p => p.Sale.BzaCustomerId == request.BzaCustomerId
                      && p.CreatedAt >= weekStart
                      && p.CreatedAt < weekEnd)
             .ToListAsync(ct);
 
         // Agrupar por evento de venta
-        var saleEventIds = customerProducts.Select(p => p.BzaSaleId).Distinct().ToList();
+        var saleEventIds = customerProducts.Select(p => p.Sale.BzaEventId).Distinct().ToList();
 
         // Obtener pagos del cliente en esos eventos
         var customerPayments = await _context.Payments
-            .Where(p => saleEventIds.Contains(p.BzaSaleId) && p.BzaCustomerId == request.BzaCustomerId)
+            .Where(p => saleEventIds.Contains(p.BzaEventId) && p.BzaCustomerId == request.BzaCustomerId)
             .ToListAsync(ct);
 
         var events = customerProducts
-            .GroupBy(p => p.Sale)
+            .GroupBy(p => p.Sale.Event)
             .Select(g =>
             {
                 var saleEvent = g.Key;
                 var products = g.ToList();
                 var subtotal = products.Sum(p => p.Price);
                 var paid = customerPayments
-                    .Where(pay => pay.BzaSaleId == saleEvent.Id && pay.IsVerified)
+                    .Where(pay => pay.BzaEventId == saleEvent.Id && pay.IsVerified)
                     .Sum(pay => pay.Amount);
 
                 return new WeeklyEventItemDto
@@ -52,7 +52,6 @@ public class GetWeeklyTicketHandler(IBazaresDbContext context)
                     SaleEventId = saleEvent.Id,
                     EventDescription = saleEvent.Description,
                     PaymentDeadline = saleEvent.PaymentDeadline,
-                    DeliveryDate = saleEvent.DeliveryDate,
                     Products = products.Select(p => new WeeklyProductDto
                     {
                         Id = p.Id,

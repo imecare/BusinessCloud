@@ -32,15 +32,16 @@ public class GetSaleTicketHandler(IBazaresDbContext context)
 
     public async Task<SaleTicketDto> Handle(GetSaleTicketQuery request, CancellationToken cancellationToken)
     {
-        var saleEvent = await _context.Sales
-            .Include(s => s.SoldProducts).ThenInclude(p => p.Customer)
+        var saleEvent = await _context.Events
+            .Include(s => s.Sales).ThenInclude(x => x.Customer)
+            .Include(s => s.Sales).ThenInclude(x => x.Products)
             .Include(s => s.Payments)
             .FirstOrDefaultAsync(s => s.Id == request.BzaSaleId, cancellationToken)
             ?? throw new KeyNotFoundException("Evento de Venta no encontrado.");
 
-        var totalProducts = saleEvent.SoldProducts.Sum(p => p.Price);
+        var totalProducts = saleEvent.Sales.SelectMany(x => x.Products).Sum(p => p.Price);
         var totalPaid = saleEvent.Payments.Where(p => p.IsVerified).Sum(p => p.Amount);
-        var uniqueCustomers = saleEvent.SoldProducts.Select(p => p.BzaCustomerId).Distinct().Count();
+        var uniqueCustomers = saleEvent.Sales.Select(x => x.BzaCustomerId).Distinct().Count();
 
         return new SaleTicketDto
         {
@@ -54,12 +55,12 @@ public class GetSaleTicketHandler(IBazaresDbContext context)
             CustomerAddress = null,
             Status = saleEvent.Status,
             StatusName = StatusNames.GetValueOrDefault(saleEvent.Status, "Desconocido"),
-            Products = saleEvent.SoldProducts.Select(p => new SaleTicketProductDto
+            Products = saleEvent.Sales.SelectMany(x => x.Products.Select(p => new SaleTicketProductDto
             {
                 Id = p.Id,
-                Description = $"{p.Customer.Name}: {p.Description}",
+                Description = $"{x.Customer.Name}: {p.Description}",
                 Price = p.Price
-            }).ToList(),
+            })).ToList(),
             Subtotal = totalProducts,
             TotalPaid = totalPaid,
             PendingAmount = Math.Max(0, totalProducts - totalPaid),

@@ -19,13 +19,13 @@ public class GetCustomerPackageLabelHandler(IBazaresDbContext context)
             ?? throw new KeyNotFoundException("Cliente no encontrado.");
 
         // 2. Validar que el evento de venta exista
-        var saleEvent = await _context.Sales
+        var saleEvent = await _context.Events
             .FirstOrDefaultAsync(s => s.Id == request.SaleId, cancellationToken)
             ?? throw new KeyNotFoundException("Evento de Venta no encontrado.");
 
         // 3. Obtener productos vendidos al cliente en este evento
         var products = await _context.SoldProducts
-            .Where(p => p.BzaSaleId == request.SaleId && p.BzaCustomerId == request.CustomerId)
+            .Where(p => p.Sale.BzaEventId == request.SaleId && p.Sale.BzaCustomerId == request.CustomerId)
             .ToListAsync(cancellationToken);
 
         if (products.Count == 0)
@@ -34,7 +34,7 @@ public class GetCustomerPackageLabelHandler(IBazaresDbContext context)
         // 4. Calcular totales
         var totalAmount = products.Sum(p => p.Price);
         var totalPaid = await _context.Payments
-            .Where(p => p.BzaSaleId == request.SaleId && p.BzaCustomerId == request.CustomerId && p.IsVerified)
+            .Where(p => p.BzaEventId == request.SaleId && p.BzaCustomerId == request.CustomerId && p.IsVerified)
             .SumAsync(p => p.Amount, cancellationToken);
 
         var isPaid = totalPaid >= totalAmount;
@@ -51,7 +51,6 @@ public class GetCustomerPackageLabelHandler(IBazaresDbContext context)
             CustomerAddress = customer.Address,
             SaleEventId = saleEvent.Id,
             EventDescription = saleEvent.Description,
-            DeliveryDate = saleEvent.DeliveryDate,
             CollectorName = customer.Collector.Name,
             CollectorGroupName = customer.Collector.CollectorGroup?.Description ?? string.Empty,
             ProductsCount = products.Count,

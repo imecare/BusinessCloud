@@ -49,10 +49,10 @@ public class BzaCustomer : BaseAuditableEntity
     public BzaCollector Collector { get; set; } = null!;
 
     /// <summary>
-    /// Productos vendidos a este cliente en diferentes Eventos de Venta.
-    /// NO es un catálogo, es el historial de productos vendidos.
+    /// Ventas de este cliente en diferentes Eventos de Venta.
+    /// Cada venta agrupa los productos comprados por el cliente en un evento.
     /// </summary>
-    public ICollection<BzaSoldProduct> SoldProducts { get; set; } = [];
+    public ICollection<BzaSale> Sales { get; set; } = [];
 
     /// <summary>
     /// Pagos realizados por este cliente en diferentes Eventos de Venta.

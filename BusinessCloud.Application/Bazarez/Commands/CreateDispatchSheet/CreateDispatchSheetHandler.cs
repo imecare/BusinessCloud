@@ -18,9 +18,10 @@ public class CreateDispatchSheetHandler(IBazaresDbContext context, IMongoContext
             ?? throw new KeyNotFoundException("Recolector no encontrado.");
 
         // Ventas listas para entrega (status=3) de clientes asignados a este recolector
-        var readySales = await _context.Sales
-            .Include(s => s.SoldProducts).ThenInclude(p => p.Customer)
-            .Where(s => s.Status == 3 && s.SoldProducts.Any(p => p.Customer.BzaCollectorId == request.BzaCollectorId))
+        var readySales = await _context.Events
+            .Include(s => s.Sales).ThenInclude(x => x.Customer)
+            .Include(s => s.Sales).ThenInclude(x => x.Products)
+            .Where(s => s.Status == 3 && s.Sales.Any(x => x.Customer.BzaCollectorId == request.BzaCollectorId))
             .ToListAsync(ct);
 
         if (readySales.Count == 0)
@@ -34,8 +35,8 @@ public class CreateDispatchSheetHandler(IBazaresDbContext context, IMongoContext
             Status = 1,
             Items = readySales.Select(s => new BzaDispatchItem
             {
-                BzaSaleId = s.Id,
-                PieceCount = s.SoldProducts.Count,
+                BzaEventId = s.Id,
+                PieceCount = s.Sales.SelectMany(x => x.Products).Count(),
                 LabelCode = Guid.NewGuid().ToString("N")[..8].ToUpper()
             }).ToList()
         };
@@ -67,15 +68,15 @@ public class CreateDispatchSheetHandler(IBazaresDbContext context, IMongoContext
             TotalPackages = sheet.TotalPackages,
             Items = sheet.Items.Select(i =>
             {
-                var sale = readySales.First(s => s.Id == i.BzaSaleId);
-                var firstCustomer = sale.SoldProducts.FirstOrDefault()?.Customer;
+                var sale = readySales.First(s => s.Id == i.BzaEventId);
+                var firstCustomer = sale.Sales.FirstOrDefault()?.Customer;
                 return new DispatchItemDto
                 {
-                    SaleId = i.BzaSaleId,
+                    SaleId = i.BzaEventId,
                     CustomerName = firstCustomer?.Name ?? "Varios Clientes",
                     PieceCount = i.PieceCount,
                     LabelCode = i.LabelCode ?? "",
-                    Total = sale.SoldProducts.Sum(p => p.Price)
+                    Total = sale.Sales.SelectMany(x => x.Products).Sum(p => p.Price)
                 };
             }).ToList()
         };

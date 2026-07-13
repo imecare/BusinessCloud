@@ -12,7 +12,7 @@ public class UpdateBzaSaleStatusHandler(IBazaresDbContext context, IMongoContext
     public async Task Handle(UpdateBzaSaleStatusCommand request, CancellationToken cancellationToken)
     {
         // 1. Actualizar SQL
-        var saleEvent = await _context.Sales.FindAsync([request.SaleId], cancellationToken)
+        var saleEvent = await _context.Events.FindAsync([request.SaleId], cancellationToken)
             ?? throw new KeyNotFoundException("Evento de Venta no encontrado.");
 
         saleEvent.Status = request.NewStatus;

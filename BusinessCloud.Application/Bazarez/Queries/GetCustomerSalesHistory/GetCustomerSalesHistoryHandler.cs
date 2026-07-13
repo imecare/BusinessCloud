@@ -31,32 +31,43 @@ public class GetCustomerSalesHistoryHandler(IBazaresDbContext context)
             .FirstOrDefaultAsync(c => c.Id == request.BzaCustomerId, cancellationToken)
             ?? throw new KeyNotFoundException("Cliente no encontrado.");
 
-        // Obtener productos vendidos al cliente agrupados por evento
-        var customerProducts = await _context.SoldProducts
-            .Include(p => p.Sale)
-            .Where(p => p.BzaCustomerId == request.BzaCustomerId)
-            .OrderByDescending(p => p.CreatedAt)
+        // Obtener ventas del cliente (una por evento) con sus productos
+        var customerSales = await _context.Sales
+            .Include(s => s.Event)
+            .Include(s => s.Products)
+            .Where(s => s.BzaCustomerId == request.BzaCustomerId)
             .ToListAsync(cancellationToken);
 
-        var saleEventIds = customerProducts.Select(p => p.BzaSaleId).Distinct().ToList();
+        var saleEventIds = customerSales.Select(s => s.BzaEventId).Distinct().ToList();
 
         // Obtener pagos del cliente en esos eventos
         var customerPayments = await _context.Payments
-            .Where(p => saleEventIds.Contains(p.BzaSaleId) && p.BzaCustomerId == request.BzaCustomerId)
+            .Where(p => saleEventIds.Contains(p.BzaEventId) && p.BzaCustomerId == request.BzaCustomerId)
             .OrderByDescending(p => p.Date)
             .ToListAsync(cancellationToken);
 
-        var eventsGroups = customerProducts
-            .GroupBy(p => p.Sale)
-            .OrderByDescending(g => g.Key.CreatedAt)
-            .Select(g =>
+        var eventsGroups = customerSales
+            .OrderByDescending(s => s.Event.CreatedAt)
+            .Select(s =>
             {
-                var saleEvent = g.Key;
-                var products = g.ToList();
-                var payments = customerPayments.Where(pay => pay.BzaSaleId == saleEvent.Id).ToList();
+                var saleEvent = s.Event;
+                var products = s.Products.OrderByDescending(p => p.CreatedAt).ToList();
+                var payments = customerPayments.Where(pay => pay.BzaEventId == saleEvent.Id).ToList();
                 var subtotal = products.Sum(p => p.Price);
                 var paidAmount = payments.Where(p => p.IsVerified).Sum(p => p.Amount);
                 var pendingAmount = Math.Max(0, subtotal - paidAmount);
+
+                // Estado de pago del cliente: si aún hay pendiente, distinguir entre
+                // "pendiente de pago" y "pendiente de validar comprobante" (el cliente
+                // ya envió un comprobante preautorizado que el bazar no ha validado).
+                var hasPendingProof = payments.Any(p => !p.IsVerified && p.PaymentStatus == 1);
+                var paymentState = pendingAmount <= 0 ? 0 : (hasPendingProof ? 2 : 1);
+                var paymentStateName = paymentState switch
+                {
+                    0 => "Pagado",
+                    2 => "Pendiente de validar comprobante",
+                    _ => "Pendiente de pago"
+                };
 
                 return new EventHistoryGroupDto
                 {
@@ -64,10 +75,11 @@ public class GetCustomerSalesHistoryHandler(IBazaresDbContext context)
                     EventDescription = saleEvent.Description,
                     CreatedAt = saleEvent.CreatedAt,
                     PaymentDeadline = saleEvent.PaymentDeadline,
-                    DeliveryDate = saleEvent.DeliveryDate,
                     EventStatus = saleEvent.Status,
                     EventStatusName = EventStatusNames.GetValueOrDefault(saleEvent.Status, "Desconocido"),
                     IsCustomerPaid = pendingAmount <= 0,
+                    PaymentState = paymentState,
+                    PaymentStateName = paymentStateName,
                     Products = products.Select(p => new EventHistoryProductDto
                     {
                         Id = p.Id,

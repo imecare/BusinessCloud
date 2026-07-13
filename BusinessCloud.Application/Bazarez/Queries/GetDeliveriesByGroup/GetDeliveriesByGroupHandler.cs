@@ -20,22 +20,32 @@ public class GetDeliveriesByGroupHandler : IRequestHandler<GetDeliveriesByGroupQ
 
     public async Task<List<BzaDeliveryByGroupDto>> Handle(GetDeliveriesByGroupQuery request, CancellationToken cancellationToken)
     {
-        var deliveries = await _context.Deliveries
+        // Materializar datos primero para evitar memory leak en proyección con Dictionary
+        var rawDeliveries = await _context.Deliveries
             .Include(d => d.Items)
             .Where(d => d.BzaCollectorGroupId == request.BzaCollectorGroupId)
             .OrderByDescending(d => d.DeliveryDate)
-            .Select(d => new BzaDeliveryByGroupDto
+            .Select(d => new
             {
-                Id = d.Id,
-                DeliveryDate = d.DeliveryDate,
-                Status = d.Status,
-                StatusName = StatusNames.ContainsKey(d.Status) ? StatusNames[d.Status] : "Desconocido",
-                Notes = d.Notes,
+                d.Id,
+                d.DeliveryDate,
+                d.Status,
+                d.Notes,
                 ItemCount = d.Items.Count,
-                CreatedAt = d.CreatedAt
+                d.CreatedAt
             })
             .ToListAsync(cancellationToken);
 
-        return deliveries;
+        // Mapear StatusName en memoria (evita EF Core memory leak warning)
+        return rawDeliveries.Select(d => new BzaDeliveryByGroupDto
+        {
+            Id = d.Id,
+            DeliveryDate = d.DeliveryDate,
+            Status = d.Status,
+            StatusName = StatusNames.GetValueOrDefault(d.Status, "Desconocido"),
+            Notes = d.Notes,
+            ItemCount = d.ItemCount,
+            CreatedAt = d.CreatedAt
+        }).ToList();
     }
 }

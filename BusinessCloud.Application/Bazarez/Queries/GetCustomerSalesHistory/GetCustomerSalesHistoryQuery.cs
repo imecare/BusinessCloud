@@ -31,10 +31,18 @@ public class EventHistoryGroupDto
     public string EventDescription { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime? PaymentDeadline { get; set; }
-    public DateTime? DeliveryDate { get; set; }
     public int EventStatus { get; set; }
     public string EventStatusName { get; set; } = string.Empty;
     public bool IsCustomerPaid { get; set; }
+
+    /// <summary>
+    /// Estado de pago del cliente en este evento:
+    /// 0 = Pagado, 1 = Pendiente de pago, 2 = Pendiente de validar comprobante.
+    /// </summary>
+    public int PaymentState { get; set; }
+
+    /// <summary>Nombre legible del estado de pago del cliente.</summary>
+    public string PaymentStateName { get; set; } = string.Empty;
 
     // Productos del cliente en este evento
     public List<EventHistoryProductDto> Products { get; set; } = [];

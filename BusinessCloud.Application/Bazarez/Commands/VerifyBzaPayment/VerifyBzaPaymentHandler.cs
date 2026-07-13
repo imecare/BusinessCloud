@@ -13,7 +13,7 @@ public class VerifyBzaPaymentHandler(IBazaresDbContext context, IMongoContext mo
     public async Task<VerifyBzaPaymentResult> Handle(VerifyBzaPaymentCommand request, CancellationToken ct)
     {
         var payment = await _context.Payments
-            .Include(p => p.Sale)
+            .Include(p => p.Event)
             .Include(p => p.Customer)
             .FirstOrDefaultAsync(p => p.Id == request.PaymentId, ct);
 
@@ -35,11 +35,11 @@ public class VerifyBzaPaymentHandler(IBazaresDbContext context, IMongoContext mo
         if (request.Approved)
         {
             var customerProductsTotal = await _context.SoldProducts
-                .Where(p => p.BzaSaleId == payment.BzaSaleId && p.BzaCustomerId == payment.BzaCustomerId)
+                .Where(p => p.Sale.BzaEventId == payment.BzaEventId && p.Sale.BzaCustomerId == payment.BzaCustomerId)
                 .SumAsync(p => p.Price, ct);
 
             var customerPaidAmount = await _context.Payments
-                .Where(p => p.BzaSaleId == payment.BzaSaleId && p.BzaCustomerId == payment.BzaCustomerId && p.IsVerified)
+                .Where(p => p.BzaEventId == payment.BzaEventId && p.BzaCustomerId == payment.BzaCustomerId && p.IsVerified)
                 .SumAsync(p => p.Amount, ct);
 
             newCustomerStatus = customerPaidAmount >= customerProductsTotal ? "Pagado" : "Pendiente";
@@ -49,7 +49,7 @@ public class VerifyBzaPaymentHandler(IBazaresDbContext context, IMongoContext mo
         {
             Event = request.Approved ? "Bza_PaymentApproved" : "Bza_PaymentRejected",
             PaymentId = payment.Id,
-            SaleEventId = payment.BzaSaleId,
+            SaleEventId = payment.BzaEventId,
             CustomerId = payment.BzaCustomerId,
             CustomerName = payment.Customer.Name,
             Amount = payment.Amount,

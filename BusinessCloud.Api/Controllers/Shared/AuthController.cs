@@ -6,7 +6,9 @@ using BusinessCloud.Infrastructure.Common.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace BusinessCloud.Api.Controllers.Shared;
 
@@ -20,6 +22,10 @@ public class AuthController : ControllerBase
     private readonly JwtTokenService _jwtService;
     private readonly ICurrentUserService _currentUser;
     private readonly IPaymentsDbContext _paymentsDb;
+    private readonly IWhatsAppSender _whatsApp;
+    private readonly IVerificationCodeService _verification;
+    private readonly IBazaresDbContext _bazaresDb;
+    private readonly ILogger<AuthController> _logger;
 
     public AuthController(
         UserManager<ApplicationUser> userManager,
@@ -27,7 +33,11 @@ public class AuthController : ControllerBase
         IdentityDbContext identityContext,
         JwtTokenService jwtService,
         ICurrentUserService currentUser,
-        IPaymentsDbContext paymentsDb)
+        IPaymentsDbContext paymentsDb,
+        IWhatsAppSender whatsApp,
+        IVerificationCodeService verification,
+        IBazaresDbContext bazaresDb,
+        ILogger<AuthController> logger)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -35,9 +45,14 @@ public class AuthController : ControllerBase
         _jwtService = jwtService;
         _currentUser = currentUser;
         _paymentsDb = paymentsDb;
+        _whatsApp = whatsApp;
+        _verification = verification;
+        _bazaresDb = bazaresDb;
+        _logger = logger;
     }
 
     [HttpPost("register-company")]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> Register(RegisterRequest request)
     {
         try
@@ -108,6 +123,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
@@ -121,7 +137,11 @@ public class AuthController : ControllerBase
         if (user.Role == "Commissionist" && !user.SellerId.HasValue)
             return BadRequest(new { success = false, message = "Comisionista sin vendedor asignado. Contacte al administrador." });
 
-        var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, false);
+        // lockoutOnFailure: true -> cuenta los intentos fallidos y bloquea temporalmente (anti fuerza bruta)
+        var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
+
+        if (result.IsLockedOut)
+            return StatusCode(423, new { success = false, message = "Cuenta bloqueada temporalmente por múltiples intentos fallidos. Intenta de nuevo en unos minutos." });
 
         if (!result.Succeeded)
             return Unauthorized(new { success = false, message = "Credenciales inválidas." });
@@ -148,6 +168,9 @@ public class AuthController : ControllerBase
 
         var token = await _jwtService.GenerateTokenAsync(user);
 
+        // El permiso de ocultar totales solo aplica a usuarios del bazar (BazarUser).
+        var effectiveCanViewTotals = user.Role == "BazarUser" ? user.CanViewTotals : true;
+
         var data = new
         {
             Token = token,
@@ -159,6 +182,9 @@ public class AuthController : ControllerBase
             user.SellerId,
             user.TenantId,
             user.IsActive,
+            user.MustChangePassword,
+            CanViewTotals = effectiveCanViewTotals,
+            AllowedModules = SplitModules(user.AllowedModules),
             Modules = modules
         };
         return Ok(data);
@@ -281,6 +307,335 @@ public class AuthController : ControllerBase
     }
 
     // ============================================================
+    // GESTIÓN DE USUARIOS DEL BAZAR (rol "BazarUser")
+    // ============================================================
+
+    /// <summary>
+    /// Obtener el número de WhatsApp del usuario autenticado (para verificación).
+    /// </summary>
+    [Authorize]
+    [HttpGet("me/phone")]
+    public async Task<IActionResult> GetMyPhone()
+    {
+        var me = await _userManager.GetUserAsync(User);
+        if (me is null)
+            return Unauthorized(new { success = false, message = "Sesión no válida." });
+
+        return Ok(new { phoneNumber = me.PhoneNumber });
+    }
+
+    /// <summary>
+    /// Configurar el número de WhatsApp del usuario autenticado.
+    /// El SuperAdmin lo necesita para recibir los códigos de verificación.
+    /// </summary>
+    [Authorize]
+    [HttpPut("me/phone")]
+    public async Task<IActionResult> UpdateMyPhone([FromBody] UpdateMyPhoneRequest request)
+    {
+        var me = await _userManager.GetUserAsync(User);
+        if (me is null)
+            return Unauthorized(new { success = false, message = "Sesión no válida." });
+
+        var digits = string.IsNullOrWhiteSpace(request.PhoneNumber)
+            ? null
+            : new string(request.PhoneNumber.Where(char.IsDigit).ToArray());
+
+        if (!string.IsNullOrEmpty(digits) && (digits.Length < 10 || digits.Length > 15))
+            return BadRequest(new { success = false, message = "El número debe incluir el código de país (10 a 15 dígitos)." });
+
+        me.PhoneNumber = digits;
+        await _userManager.UpdateAsync(me);
+
+        return Ok(new { success = true, phoneNumber = me.PhoneNumber });
+    }
+
+    /// <summary>
+    /// Envía un código de verificación por WhatsApp al número del SuperAdmin
+    /// antes de autorizar una operación sensible (alta/edición/baja/reset).
+    /// Solo SuperAdmin.
+    /// </summary>
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPost("verification/request")]
+    public async Task<IActionResult> RequestVerification([FromBody] RequestVerificationRequest request)
+    {
+        var allowedPurposes = new[] { "user.create", "user.update", "user.status", "user.reset-password", "payment.card.add", "payment.card.update", "payment.card.delete", "customer.block.override", "customer.unblock" };
+        if (string.IsNullOrWhiteSpace(request.Purpose) || !allowedPurposes.Contains(request.Purpose))
+            return BadRequest(new { success = false, message = "Propósito de verificación no válido." });
+
+        var me = await _userManager.GetUserAsync(User);
+        if (me is null)
+            return Unauthorized(new { success = false, message = "Sesión no válida." });
+
+        if (string.IsNullOrWhiteSpace(me.PhoneNumber))
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Tu usuario no tiene un número de WhatsApp registrado. Configúralo para recibir el código de verificación.",
+                code = "NO_PHONE"
+            });
+        }
+
+        var (challengeId, code) = _verification.Create(request.Purpose, me.Id, TimeSpan.FromMinutes(10));
+
+        var sendResult = await _whatsApp.SendOtpWithResultAsync(me.PhoneNumber, code);
+        var delivered = sendResult.Success;
+
+        // Registrar el mensaje para dar seguimiento a su estatus vía webhooks de Meta.
+        try
+        {
+            _bazaresDb.WhatsAppMessages.Add(new Domain.Bazares.Entities.BzaWhatsAppMessage
+            {
+                WaMessageId = sendResult.MessageId,
+                ToPhone = new string(me.PhoneNumber.Where(char.IsDigit).ToArray()),
+                Purpose = "otp",
+                Status = delivered ? "sent" : "failed",
+                ErrorCode = int.TryParse(sendResult.ErrorCode, out var ec) ? ec : null,
+                ErrorMessage = sendResult.ErrorMessage,
+                SentAt = DateTime.UtcNow,
+            });
+            await _bazaresDb.SaveChangesAsync(default);
+        }
+        catch (Exception logEx)
+        {
+            _logger.LogWarning(logEx, "No se pudo registrar el mensaje de WhatsApp para seguimiento.");
+        }
+
+        // En desarrollo, registrar el código para poder probar aunque el envío no llegue.
+        _logger.LogInformation(
+            "OTP {Purpose} para {UserId} (tel {Phone}): {Code} | entregado={Delivered}",
+            request.Purpose, me.Id, MaskPhone(me.PhoneNumber), code, delivered);
+
+        return Ok(new
+        {
+            success = true,
+            challengeId,
+            expiresInSeconds = 600,
+            sentTo = MaskPhone(me.PhoneNumber),
+            delivered,
+            message = delivered
+                ? "Te enviamos un código de verificación por WhatsApp."
+                : "No se pudo entregar el WhatsApp (revisa la configuración/lista de destinatarios). El código quedó registrado en el servidor."
+        });
+    }
+
+    /// <summary>
+    /// Crear un usuario del bazar con permisos por módulo y contraseña temporal.
+    /// El usuario deberá cambiar la contraseña en su primer inicio de sesión.
+    /// Solo SuperAdmin.
+    /// </summary>
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPost("users")]
+    public async Task<IActionResult> CreateBazarUser([FromBody] CreateBazarUserRequest request)
+    {
+        var tenantId = _currentUser.TenantId;
+        if (string.IsNullOrEmpty(tenantId))
+            return Unauthorized(new { success = false, message = "No se pudo determinar la empresa." });
+
+        var challenge = await ValidateChallengeAsync("user.create", request.ChallengeId, request.VerificationCode);
+        if (challenge is not null)
+            return challenge;
+
+        if (string.IsNullOrWhiteSpace(request.Email))
+            return BadRequest(new { success = false, message = "El email es obligatorio." });
+
+        if (string.IsNullOrWhiteSpace(request.TemporaryPassword) || request.TemporaryPassword.Length < 6)
+            return BadRequest(new { success = false, message = "La contraseña temporal debe tener al menos 6 caracteres." });
+
+        var emailExists = await _userManager.FindByEmailAsync(request.Email);
+        if (emailExists is not null)
+            return BadRequest(new { success = false, message = "El email ya está registrado." });
+
+        var user = new ApplicationUser
+        {
+            UserName = request.Email,
+            Email = request.Email,
+            FirstName = request.FirstName?.Trim() ?? string.Empty,
+            LastName = request.LastName?.Trim() ?? string.Empty,
+            PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim(),
+            TenantId = tenantId,
+            Role = "BazarUser",
+            IsActive = true,
+            MustChangePassword = true,
+            PasswordChangedAt = null,
+            CanViewTotals = request.CanViewTotals,
+            AllowedModules = JoinModules(request.AllowedModules)
+        };
+
+        var result = await _userManager.CreateAsync(user, request.TemporaryPassword);
+
+        if (!result.Succeeded)
+            return BadRequest(result.Errors);
+
+        return CreatedAtAction(nameof(GetBazarUsers), null, MapUser(user));
+    }
+
+    /// <summary>
+    /// Listar los usuarios del bazar del tenant.
+    /// Solo SuperAdmin.
+    /// </summary>
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpGet("users")]
+    public async Task<IActionResult> GetBazarUsers()
+    {
+        var tenantId = _currentUser.TenantId;
+
+        var users = await _userManager.Users
+            .Where(u => u.TenantId == tenantId && u.Role == "BazarUser")
+            .OrderBy(u => u.FirstName)
+            .ToListAsync();
+
+        return Ok(users.Select(MapUser));
+    }
+
+    /// <summary>
+    /// Actualizar datos y permisos de un usuario del bazar.
+    /// Solo SuperAdmin.
+    /// </summary>
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPut("users/{id}")]
+    public async Task<IActionResult> UpdateBazarUser(string id, [FromBody] UpdateBazarUserRequest request)
+    {
+        var tenantId = _currentUser.TenantId;
+
+        var challenge = await ValidateChallengeAsync("user.update", request.ChallengeId, request.VerificationCode);
+        if (challenge is not null)
+            return challenge;
+
+        var user = await _userManager.Users
+            .FirstOrDefaultAsync(u => u.Id == id && u.TenantId == tenantId && u.Role == "BazarUser");
+
+        if (user is null)
+            return NotFound(new { success = false, message = "Usuario no encontrado." });
+
+        user.FirstName = request.FirstName?.Trim() ?? user.FirstName;
+        user.LastName = request.LastName?.Trim() ?? user.LastName;
+        user.PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim();
+        user.AllowedModules = JoinModules(request.AllowedModules);
+        user.CanViewTotals = request.CanViewTotals;
+        user.IsActive = request.IsActive;
+
+        var result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+            return BadRequest(result.Errors);
+
+        return Ok(MapUser(user));
+    }
+
+    /// <summary>
+    /// Activar/deshabilitar (cancelar) un usuario del bazar.
+    /// Solo SuperAdmin.
+    /// </summary>
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPut("users/{id}/status")]
+    public async Task<IActionResult> SetBazarUserStatus(string id, [FromBody] SetUserStatusRequest request)
+    {
+        var tenantId = _currentUser.TenantId;
+
+        var challenge = await ValidateChallengeAsync("user.status", request.ChallengeId, request.VerificationCode);
+        if (challenge is not null)
+            return challenge;
+
+        var user = await _userManager.Users
+            .FirstOrDefaultAsync(u => u.Id == id && u.TenantId == tenantId && u.Role == "BazarUser");
+
+        if (user is null)
+            return NotFound(new { success = false, message = "Usuario no encontrado." });
+
+        user.IsActive = request.IsActive;
+        await _userManager.UpdateAsync(user);
+
+        return Ok(new
+        {
+            Message = request.IsActive ? "Usuario habilitado." : "Usuario deshabilitado.",
+            UserId = user.Id,
+            user.IsActive
+        });
+    }
+
+    /// <summary>
+    /// Asignar una nueva contraseña temporal a un usuario (reset por parte del SuperAdmin).
+    /// El usuario deberá cambiarla en su próximo inicio de sesión.
+    /// Solo SuperAdmin.
+    /// </summary>
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPost("users/{id}/reset-password")]
+    public async Task<IActionResult> ResetUserPassword(string id, [FromBody] ResetUserPasswordRequest request)
+    {
+        var tenantId = _currentUser.TenantId;
+
+        if (string.IsNullOrWhiteSpace(request.TemporaryPassword) || request.TemporaryPassword.Length < 6)
+            return BadRequest(new { success = false, message = "La contraseña temporal debe tener al menos 6 caracteres." });
+
+        var challenge = await ValidateChallengeAsync("user.reset-password", request.ChallengeId, request.VerificationCode);
+        if (challenge is not null)
+            return challenge;
+
+        var user = await _userManager.Users
+            .FirstOrDefaultAsync(u => u.Id == id && u.TenantId == tenantId && u.Role == "BazarUser");
+
+        if (user is null)
+            return NotFound(new { success = false, message = "Usuario no encontrado." });
+
+        // Reemplazar la contraseña sin requerir token providers.
+        await _userManager.RemovePasswordAsync(user);
+        var result = await _userManager.AddPasswordAsync(user, request.TemporaryPassword);
+
+        if (!result.Succeeded)
+            return BadRequest(result.Errors);
+
+        user.MustChangePassword = true;
+        await _userManager.UpdateAsync(user);
+
+        return Ok(new { success = true, message = "Contraseña temporal asignada. El usuario deberá cambiarla al iniciar sesión." });
+    }
+
+    /// <summary>
+    /// Cambiar la propia contraseña (contraseña actual + nueva).
+    /// Sirve tanto para el cambio forzado de la contraseña temporal como para el
+    /// cambio voluntario del usuario. Cualquier usuario autenticado.
+    /// </summary>
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
+            return BadRequest(new { success = false, message = "La nueva contraseña debe tener al menos 6 caracteres." });
+
+        if (request.CurrentPassword == request.NewPassword)
+            return BadRequest(new { success = false, message = "La nueva contraseña debe ser distinta a la actual." });
+
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null)
+            return Unauthorized(new { success = false, message = "Sesión no válida." });
+
+        var result = await _userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
+        if (!result.Succeeded)
+        {
+            var message = result.Errors.Any(e => e.Code == "PasswordMismatch")
+                ? "La contraseña actual es incorrecta."
+                : string.Join(" ", result.Errors.Select(e => e.Description));
+            return BadRequest(new { success = false, message });
+        }
+
+        // Registrar que ya cambió la contraseña temporal.
+        user.MustChangePassword = false;
+        user.PasswordChangedAt = DateTime.UtcNow;
+        await _userManager.UpdateAsync(user);
+
+        // Emitir un nuevo token con los claims actualizados.
+        var token = await _jwtService.GenerateTokenAsync(user);
+
+        return Ok(new
+        {
+            success = true,
+            message = "Contraseña actualizada correctamente.",
+            token,
+            mustChangePassword = false
+        });
+    }
+
+    // ============================================================
     // GESTIÓN DE MÓDULOS DEL TENANT
     // ============================================================
 
@@ -366,6 +721,93 @@ public class AuthController : ControllerBase
             isActive = request.IsActive
         });
     }
+
+    // ============================================================
+    // HELPERS
+    // ============================================================
+
+    /// <summary>
+    /// Valida el código OTP del desafío para el propósito indicado.
+    /// Devuelve null si es válido, o un IActionResult de error si no lo es.
+    /// </summary>
+    private async Task<IActionResult?> ValidateChallengeAsync(string purpose, string? challengeId, string? code)
+    {
+        var me = await _userManager.GetUserAsync(User);
+        if (me is null)
+            return Unauthorized(new { success = false, message = "Sesión no válida." });
+
+        if (string.IsNullOrWhiteSpace(challengeId) || string.IsNullOrWhiteSpace(code))
+        {
+            return StatusCode(403, new
+            {
+                success = false,
+                message = "Esta operación requiere verificación por WhatsApp.",
+                code = "VERIFICATION_REQUIRED"
+            });
+        }
+
+        if (!_verification.Validate(challengeId, code, purpose, me.Id))
+        {
+            return StatusCode(403, new
+            {
+                success = false,
+                message = "El código de verificación es inválido o expiró.",
+                code = "VERIFICATION_INVALID"
+            });
+        }
+
+        return null;
+    }
+
+    private static string MaskPhone(string? phone)
+    {
+        if (string.IsNullOrWhiteSpace(phone))
+            return string.Empty;
+
+        var digits = new string(phone.Where(char.IsDigit).ToArray());
+        if (digits.Length <= 4)
+            return new string('•', digits.Length);
+
+        return new string('•', digits.Length - 4) + digits[^4..];
+    }
+
+    private static string? JoinModules(string[]? modules)
+    {
+        if (modules is null || modules.Length == 0)
+            return null;
+
+        var cleaned = modules
+            .Where(m => !string.IsNullOrWhiteSpace(m))
+            .Select(m => m.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        var joined = string.Join(",", cleaned);
+        return string.IsNullOrWhiteSpace(joined) ? null : joined;
+    }
+
+    private static string[] SplitModules(string? modules)
+    {
+        if (string.IsNullOrWhiteSpace(modules))
+            return Array.Empty<string>();
+
+        return modules
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
+    private static object MapUser(ApplicationUser user) => new
+    {
+        user.Id,
+        user.Email,
+        user.FirstName,
+        user.LastName,
+        PhoneNumber = user.PhoneNumber,
+        user.Role,
+        user.IsActive,
+        user.MustChangePassword,
+        user.PasswordChangedAt,
+        user.CanViewTotals,
+        AllowedModules = SplitModules(user.AllowedModules)
+    };
 }
 
 public class ToggleModuleRequest

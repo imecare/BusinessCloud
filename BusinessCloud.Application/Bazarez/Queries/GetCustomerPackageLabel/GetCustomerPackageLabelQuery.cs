@@ -19,7 +19,6 @@ public class CustomerPackageLabelDto
     public string? CustomerAddress { get; set; }
     public int SaleEventId { get; set; }
     public string EventDescription { get; set; } = string.Empty;
-    public DateTime? DeliveryDate { get; set; }
     public string CollectorName { get; set; } = string.Empty;
     public string CollectorGroupName { get; set; } = string.Empty;
     public int ProductsCount { get; set; }

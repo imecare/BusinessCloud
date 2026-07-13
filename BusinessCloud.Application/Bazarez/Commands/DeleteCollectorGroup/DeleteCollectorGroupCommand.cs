@@ -6,7 +6,7 @@ namespace BusinessCloud.Application.Bazares.Commands.DeleteCollectorGroup;
 
 public record DeleteCollectorGroupCommand(int Id) : IRequest;
 
-public class DeleteCollectorGroupHandler(IBazaresDbContext context) 
+public class DeleteCollectorGroupHandler(IBazaresDbContext context)
     : IRequestHandler<DeleteCollectorGroupCommand>
 {
     public async Task Handle(DeleteCollectorGroupCommand request, CancellationToken ct)
@@ -20,15 +20,13 @@ public class DeleteCollectorGroupHandler(IBazaresDbContext context)
 
         if (hasCollectors)
         {
-            // Soft delete: desactivar en lugar de eliminar
-            entity.IsActive = false;
-        }
-        else
-        {
-            // Hard delete: eliminar físicamente si no tiene recolectores
-            context.CollectorGroups.Remove(entity);
+            // No se puede eliminar un grupo con recolectores. Debe desactivarse.
+            throw new InvalidOperationException(
+                "No se puede eliminar un grupo que tiene recolectores. Reasigna o elimina sus recolectores, o desactiva el grupo.");
         }
 
+        // Solo se elimina físicamente si no tiene ningún recolector.
+        context.CollectorGroups.Remove(entity);
         await context.SaveChangesAsync(ct);
     }
 }

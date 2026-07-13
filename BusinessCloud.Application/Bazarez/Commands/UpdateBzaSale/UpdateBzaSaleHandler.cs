@@ -12,12 +12,11 @@ public class UpdateBzaSaleHandler(IBazaresDbContext context, IMongoContext mongo
 
     public async Task<bool> Handle(UpdateBzaSaleCommand request, CancellationToken cancellationToken)
     {
-        var saleEvent = await _context.Sales.FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
+        var saleEvent = await _context.Events.FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
         if (saleEvent is null) return false;
 
         saleEvent.Description = request.Description;
         saleEvent.PaymentDeadline = request.PaymentDeadline;
-        saleEvent.DeliveryDate = request.DeliveryDate;
         saleEvent.Status = request.Status;
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -28,7 +27,6 @@ public class UpdateBzaSaleHandler(IBazaresDbContext context, IMongoContext mongo
             SaleEventId = saleEvent.Id,
             Description = saleEvent.Description,
             PaymentDeadline = saleEvent.PaymentDeadline,
-            DeliveryDate = saleEvent.DeliveryDate,
             Status = saleEvent.Status,
             Timestamp = DateTime.UtcNow,
             Details = "Evento de Venta actualizado."

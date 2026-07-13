@@ -22,16 +22,16 @@ public class GetBzaSaleDetailHandler(IBazaresDbContext context, IMongoContext mo
     public async Task<BzaSaleDetailDto> Handle(GetBzaSaleDetailQuery request, CancellationToken cancellationToken)
     {
         // 1. Consultar SQL Server (Datos relacionales)
-        var saleEvent = await _context.Sales
-            .Include(s => s.SoldProducts)
+        var saleEvent = await _context.Events
+            .Include(s => s.Sales).ThenInclude(s => s.Products)
             .Include(s => s.Payments)
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken)
             ?? throw new KeyNotFoundException("Evento de Venta no encontrado.");
 
         // 2. Calcular métricas
-        var totalRevenue = saleEvent.SoldProducts.Sum(p => p.Price);
-        var productsCount = saleEvent.SoldProducts.Count;
-        var uniqueCustomersCount = saleEvent.SoldProducts.Select(p => p.BzaCustomerId).Distinct().Count();
+        var totalRevenue = saleEvent.Sales.SelectMany(s => s.Products).Sum(p => p.Price);
+        var productsCount = saleEvent.Sales.SelectMany(s => s.Products).Count();
+        var uniqueCustomersCount = saleEvent.Sales.Select(s => s.BzaCustomerId).Distinct().Count();
         var totalPaid = saleEvent.Payments.Where(p => p.IsVerified).Sum(p => p.Amount);
         var pendingAmount = Math.Max(0, totalRevenue - totalPaid);
 
@@ -44,7 +44,6 @@ public class GetBzaSaleDetailHandler(IBazaresDbContext context, IMongoContext mo
             Id = saleEvent.Id,
             Description = saleEvent.Description,
             PaymentDeadline = saleEvent.PaymentDeadline,
-            DeliveryDate = saleEvent.DeliveryDate,
             Status = saleEvent.Status,
             StatusName = StatusNames.GetValueOrDefault(saleEvent.Status, "Desconocido"),
             TotalRevenue = totalRevenue,

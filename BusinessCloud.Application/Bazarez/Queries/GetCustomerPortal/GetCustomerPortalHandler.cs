@@ -14,7 +14,8 @@ public class GetCustomerPortalHandler(IBazaresDbContext context)
         var customer = await _context.Customers
             .IgnoreQueryFilters() // Portal público, no requiere tenant filter por token
             .Include(c => c.Collector).ThenInclude(c => c.CollectorGroup)
-            .Include(c => c.SoldProducts).ThenInclude(p => p.Sale).ThenInclude(s => s.Payments)
+            .Include(c => c.Sales).ThenInclude(s => s.Event)
+            .Include(c => c.Sales).ThenInclude(s => s.Products)
             .Include(c => c.Payments)
             .FirstOrDefaultAsync(c => c.PortalToken == request.PortalToken, ct)
             ?? throw new KeyNotFoundException("Token de portal inválido.");
@@ -25,17 +26,16 @@ public class GetCustomerPortalHandler(IBazaresDbContext context)
             { 4, "Finalizado" }, { 5, "Cancelado" }
         };
 
-        // Agrupar productos vendidos al cliente por evento de venta
-        var salesGrouped = customer.SoldProducts
-            .GroupBy(p => p.Sale)
-            .OrderByDescending(g => g.Key.CreatedAt)
-            .Select(g =>
+        // Cada venta del cliente corresponde a un evento
+        var salesGrouped = customer.Sales
+            .OrderByDescending(s => s.Event.CreatedAt)
+            .Select(s =>
             {
-                var sale = g.Key;
-                var customerProducts = g.ToList();
+                var sale = s.Event;
+                var customerProducts = s.Products.ToList();
                 var customerTotal = customerProducts.Sum(p => p.Price);
                 var customerPaid = customer.Payments
-                    .Where(pay => pay.BzaSaleId == sale.Id && pay.IsVerified)
+                    .Where(pay => pay.BzaEventId == sale.Id && pay.IsVerified)
                     .Sum(pay => pay.Amount);
 
                 return new CustomerPortalSaleDto

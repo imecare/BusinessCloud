@@ -20,24 +20,36 @@ public class GetAllBzaDeliveriesHandler : IRequestHandler<GetAllBzaDeliveriesQue
 
     public async Task<List<BzaDeliveryListDto>> Handle(GetAllBzaDeliveriesQuery request, CancellationToken cancellationToken)
     {
-        var deliveries = await _context.Deliveries
+        // Materializar datos primero para evitar memory leak en proyección con Dictionary
+        var rawDeliveries = await _context.Deliveries
             .Include(d => d.CollectorGroup)
             .Include(d => d.Items)
             .OrderByDescending(d => d.DeliveryDate)
-            .Select(d => new BzaDeliveryListDto
+            .Select(d => new
             {
-                Id = d.Id,
+                d.Id,
                 GroupId = d.BzaCollectorGroupId,
                 GroupDescription = d.CollectorGroup.Description,
-                DeliveryDate = d.DeliveryDate,
-                Status = d.Status,
-                StatusName = StatusNames.ContainsKey(d.Status) ? StatusNames[d.Status] : "Desconocido",
-                Notes = d.Notes,
+                d.DeliveryDate,
+                d.Status,
+                d.Notes,
                 ItemCount = d.Items.Count,
-                CreatedAt = d.CreatedAt
+                d.CreatedAt
             })
             .ToListAsync(cancellationToken);
 
-        return deliveries;
+        // Mapear StatusName en memoria (evita EF Core memory leak warning)
+        return rawDeliveries.Select(d => new BzaDeliveryListDto
+        {
+            Id = d.Id,
+            GroupId = d.GroupId,
+            GroupDescription = d.GroupDescription,
+            DeliveryDate = d.DeliveryDate,
+            Status = d.Status,
+            StatusName = StatusNames.GetValueOrDefault(d.Status, "Desconocido"),
+            Notes = d.Notes,
+            ItemCount = d.ItemCount,
+            CreatedAt = d.CreatedAt
+        }).ToList();
     }
 }

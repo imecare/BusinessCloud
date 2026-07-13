@@ -33,7 +33,6 @@ public class WeeklyEventItemDto
     public int SaleEventId { get; set; }
     public string EventDescription { get; set; } = string.Empty;
     public DateTime? PaymentDeadline { get; set; }
-    public DateTime? DeliveryDate { get; set; }
     public List<WeeklyProductDto> Products { get; set; } = [];
     public decimal Subtotal { get; set; }
     public decimal Paid { get; set; }

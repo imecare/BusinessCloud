@@ -1,5 +1,6 @@
 ﻿using MediatR;
 using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Application.Bazares.Commands.CreateCollector;
 
 namespace BusinessCloud.Application.Bazares.Commands.UpdateCollector;
 
@@ -14,16 +15,23 @@ public class UpdateCollectorHandler : IRequestHandler<UpdateCollectorCommand>
 
     public async Task Handle(UpdateCollectorCommand request, CancellationToken cancellationToken)
     {
+        var name = request.Name?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("El nombre del recolector es obligatorio.");
+
         var entity = await _context.Collectors
             .FindAsync(new object[] { request.Id }, cancellationToken);
 
         if (entity == null)
         {
-            // Aquí podrías lanzar tu ExceptionMiddleware personalizado
-            throw new Exception($"El recolector con ID {request.Id} no existe.");
+            throw new KeyNotFoundException($"El recolector con ID {request.Id} no existe.");
         }
 
-        entity.Name = request.Name;
+        // Mismas reglas de nombre único (case-insensitive), excluyendo al propio recolector.
+        await CreateCollectorHandler.EnsureNameAllowedAsync(_context, name, request.BzaCollectorGroupId,
+            request.Id, request.AllowDuplicateNameInOtherGroup, cancellationToken);
+
+        entity.Name = name;
         entity.FacebookName = request.FacebookName;
         entity.BzaCollectorGroupId = request.BzaCollectorGroupId;
 

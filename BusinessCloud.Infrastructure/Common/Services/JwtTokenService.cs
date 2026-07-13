@@ -30,8 +30,15 @@ public class JwtTokenService
             new(ClaimTypes.Role, user.Role),
             new("tenant_id", user.TenantId),
             new("first_name", user.FirstName),
-            new("last_name", user.LastName)
+            new("last_name", user.LastName),
+            new("must_change_password", user.MustChangePassword ? "true" : "false"),
+            new("can_view_totals", (user.Role == "BazarUser" ? user.CanViewTotals : true) ? "true" : "false")
         };
+
+        if (!string.IsNullOrWhiteSpace(user.AllowedModules))
+        {
+            claims.Add(new Claim("allowed_modules", user.AllowedModules));
+        }
 
         if (user.SellerId.HasValue)
         {

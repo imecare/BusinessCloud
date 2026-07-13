@@ -13,15 +13,14 @@ public class CreateBzaSaleHandler(IBazaresDbContext context, IMongoContext mongo
     public async Task<int> Handle(CreateBzaSaleCommand request, CancellationToken cancellationToken)
     {
         // 1. Crear el Evento de Venta (Corte/Catálogo/En Vivo)
-        var saleEvent = new BzaSale
+        var saleEvent = new BzaEvent
         {
             Description = request.Description,
             PaymentDeadline = request.PaymentDeadline,
-            DeliveryDate = request.DeliveryDate,
             Status = 1 // 1=Abierto (Activo)
         };
 
-        _context.Sales.Add(saleEvent);
+        _context.Events.Add(saleEvent);
         await _context.SaveChangesAsync(cancellationToken);
 
         // 2. Auditoría en MongoDB para el histórico NoSQL
@@ -31,7 +30,6 @@ public class CreateBzaSaleHandler(IBazaresDbContext context, IMongoContext mongo
             SaleId = saleEvent.Id,
             Description = saleEvent.Description,
             PaymentDeadline = saleEvent.PaymentDeadline,
-            DeliveryDate = saleEvent.DeliveryDate,
             Timestamp = DateTime.UtcNow,
             Details = "Evento de Venta creado."
         }, cancellationToken);

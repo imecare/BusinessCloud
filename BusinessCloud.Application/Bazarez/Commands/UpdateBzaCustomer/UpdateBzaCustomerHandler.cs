@@ -31,12 +31,28 @@ public class UpdateBzaCustomerHandler : IRequestHandler<UpdateBzaCustomerCommand
             throw new Exception($"El recolector con ID {request.BzaCollectorId} no existe.");
         }
 
+        // El teléfono es la llave para el envío de totales: se normaliza y debe ser único entre clientes.
+        var phone = NormalizePhone(request.Phone);
+
+        var duplicate = await _context.Customers
+            .AnyAsync(c => c.Phone == phone && c.Id != request.Id, cancellationToken);
+
+        if (duplicate)
+        {
+            throw new InvalidOperationException(
+                $"Ya existe otro cliente registrado con el teléfono {phone}. El teléfono debe ser único.");
+        }
+
         entity.Name = request.Name;
         entity.FacebookName = request.FacebookName;
-        entity.Phone = request.Phone;
+        entity.Phone = phone;
         entity.Status = request.Status;
         entity.BzaCollectorId = request.BzaCollectorId;
 
         await _context.SaveChangesAsync(cancellationToken);
     }
+
+    /// <summary>Deja solo los dígitos del teléfono para usarlo como llave única.</summary>
+    private static string NormalizePhone(string? phone)
+        => new string((phone ?? string.Empty).Where(char.IsDigit).ToArray());
 }

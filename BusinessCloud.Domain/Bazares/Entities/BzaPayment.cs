@@ -61,8 +61,8 @@ public class BzaPayment : BaseAuditableEntity
     /// <summary>
     /// FK al Evento de Venta donde se registra este pago.
     /// </summary>
-    public int BzaSaleId { get; set; }
-    public BzaSale Sale { get; set; } = null!;
+    public int BzaEventId { get; set; }
+    public BzaEvent Event { get; set; } = null!;
 
     /// <summary>
     /// FK al Cliente que realiza el pago.

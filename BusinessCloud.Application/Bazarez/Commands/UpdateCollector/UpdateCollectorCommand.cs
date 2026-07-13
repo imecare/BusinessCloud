@@ -8,4 +8,7 @@ public record UpdateCollectorCommand : IRequest
     public string Name { get; init; } = string.Empty;
     public string? FacebookName { get; init; }
     public int? BzaCollectorGroupId { get; init; }
+
+    /// <summary>Permite renombrar a un nombre repetido si ya existe en OTRO grupo (bajo confirmación del usuario).</summary>
+    public bool AllowDuplicateNameInOtherGroup { get; init; }
 }

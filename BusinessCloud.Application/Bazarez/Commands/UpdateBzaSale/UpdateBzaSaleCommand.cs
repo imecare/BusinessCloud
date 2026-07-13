@@ -10,6 +10,5 @@ public record UpdateBzaSaleCommand : IRequest<bool>
     public int Id { get; init; }
     public string Description { get; init; } = string.Empty;
     public DateTime? PaymentDeadline { get; init; }
-    public DateTime? DeliveryDate { get; init; }
     public int Status { get; init; }
 }

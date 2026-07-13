@@ -8,28 +8,33 @@ public class IdentityDbContextFactory : IDesignTimeDbContextFactory<IdentityDbCo
 {
     public IdentityDbContext CreateDbContext(string[] args)
     {
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(Path.Combine(Directory.GetCurrentDirectory(), "../BusinessCloud.Api"))
-            .AddJsonFile("appsettings.json", optional: false)
-            .Build();
+        var configuration = BuildConfiguration();
 
         var optionsBuilder = new DbContextOptionsBuilder<IdentityDbContext>();
         optionsBuilder.UseSqlServer(configuration.GetConnectionString("PaymentsConnection"));
         return new IdentityDbContext(optionsBuilder.Options);
     }
+
+    internal static IConfiguration BuildConfiguration() =>
+        new ConfigurationBuilder()
+            .SetBasePath(Path.Combine(Directory.GetCurrentDirectory(), "../BusinessCloud.Api"))
+            .AddJsonFile("appsettings.json", optional: false)
+            .AddJsonFile("appsettings.Development.json", optional: true)
+            .AddEnvironmentVariables()
+            .Build();
 }
 
 public class BazaresDbContextFactory : IDesignTimeDbContextFactory<BazaresDbContext>
 {
     public BazaresDbContext CreateDbContext(string[] args)
     {
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(Path.Combine(Directory.GetCurrentDirectory(), "../BusinessCloud.Api"))
-            .AddJsonFile("appsettings.json", optional: false)
-            .Build();
+        var configuration = IdentityDbContextFactory.BuildConfiguration();
+
+        var connectionString = configuration.GetConnectionString("BazaresConnection")
+            ?? configuration.GetConnectionString("PaymentsConnection");
 
         var optionsBuilder = new DbContextOptionsBuilder<BazaresDbContext>();
-        optionsBuilder.UseSqlServer(configuration.GetConnectionString("BazaresConnection"));
+        optionsBuilder.UseSqlServer(connectionString);
         return new BazaresDbContext(optionsBuilder.Options, new DummyCurrentUserService());
     }
 }

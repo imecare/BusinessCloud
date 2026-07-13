@@ -22,8 +22,8 @@ public class GetBzaDeliveryDetailHandler(IBazaresDbContext context)
         var delivery = await _context.Deliveries
             .Include(d => d.CollectorGroup)
             .Include(d => d.Items)
-                .ThenInclude(i => i.Sale)
-                    .ThenInclude(s => s.SoldProducts)
+                .ThenInclude(i => i.Event)
+                    .ThenInclude(s => s.Sales)
                         .ThenInclude(p => p.Customer)
             .FirstOrDefaultAsync(d => d.Id == request.Id, cancellationToken)
             ?? throw new KeyNotFoundException("Entrega no encontrada.");
@@ -40,12 +40,12 @@ public class GetBzaDeliveryDetailHandler(IBazaresDbContext context)
             CreatedAt = delivery.CreatedAt,
             Items = delivery.Items.Select(i =>
             {
-                var firstCustomer = i.Sale.SoldProducts.FirstOrDefault()?.Customer;
+                var firstCustomer = i.Event.Sales.FirstOrDefault()?.Customer;
                 return new BzaDeliveryItemDto
                 {
                     Id = i.Id,
-                    SaleId = i.BzaSaleId,
-                    SaleDescription = i.Sale.Description,
+                    SaleId = i.BzaEventId,
+                    SaleDescription = i.Event.Description,
                     CustomerName = firstCustomer?.Name ?? "Varios Clientes",
                     Delivered = i.Delivered,
                     DeliveredAt = i.DeliveredAt,

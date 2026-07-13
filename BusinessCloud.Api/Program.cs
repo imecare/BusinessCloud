@@ -41,6 +41,9 @@ try
     builder.Services.AddSwaggerGen(c =>
     {
         c.SwaggerDoc("v1", new() { Title = "BusinessCloud API", Version = "v1" });
+        // Evita colisiones de schemaId cuando existen DTOs con el mismo nombre
+        // en distintos espacios de nombres (p. ej. ImportCollectorDto).
+        c.CustomSchemaIds(t => t.FullName);
         c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
         {
             Description = "JWT Authorization header usando el esquema Bearer. Ejemplo: 'Bearer 12345abcdef'",
@@ -81,6 +84,14 @@ try
     {
         options.Password.RequireDigit = false;
         options.Password.RequiredLength = 6;
+
+        // Bloqueo de cuenta ante intentos fallidos (mitiga fuerza bruta / robo de credenciales)
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+        options.Lockout.AllowedForNewUsers = true;
+
+        // Evita revelar si un email existe y exige emails únicos
+        options.User.RequireUniqueEmail = true;
     })
     .AddEntityFrameworkStores<IdentityDbContext>();
 
@@ -124,6 +135,14 @@ try
 
     builder.Services.AddScoped<JwtTokenService>();
 
+    // WhatsApp Cloud API (Meta) + verificación OTP para operaciones sensibles de usuarios
+    builder.Services.Configure<BusinessCloud.Infrastructure.Common.Options.WhatsAppOptions>(
+        builder.Configuration.GetSection(BusinessCloud.Infrastructure.Common.Options.WhatsAppOptions.SectionName));
+    builder.Services.AddHttpClient<BusinessCloud.Application.Common.Interfaces.IWhatsAppSender,
+        BusinessCloud.Infrastructure.Common.Services.WhatsAppSender>();
+    builder.Services.AddSingleton<BusinessCloud.Application.Common.Interfaces.IVerificationCodeService,
+        BusinessCloud.Infrastructure.Common.Services.VerificationCodeService>();
+
     // Configuraci�n de MongoDB (opcional)
     var mongoConnectionString = builder.Configuration.GetConnectionString("MongoDb");
     if (!string.IsNullOrWhiteSpace(mongoConnectionString) && !mongoConnectionString.Contains("localhost"))
@@ -140,7 +159,13 @@ try
 
     // Configuración de Azure Blob Storage
     var blobConnectionString = builder.Configuration.GetConnectionString("AzureBlobStorage");
-    if (!string.IsNullOrWhiteSpace(blobConnectionString))
+    if (string.Equals(blobConnectionString, "Local", StringComparison.OrdinalIgnoreCase))
+    {
+        // Modo desarrollo: guarda los archivos en disco y los sirve en /uploads.
+        builder.Services.AddScoped<IBlobStorageService, BusinessCloud.Api.Common.LocalFileBlobStorageService>();
+        Log.Information("Almacenamiento local de archivos habilitado (uploads en disco, ruta /uploads).");
+    }
+    else if (!string.IsNullOrWhiteSpace(blobConnectionString))
     {
         builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
         Log.Information("Azure Blob Storage configurado correctamente.");
@@ -157,9 +182,10 @@ try
         options.AddPolicy("AllowFrontend", policy =>
         {
             policy.WithOrigins(
-                    "http://localhost:5173",
+                    "http://localhost:5136",
                     "http://localhost:4200",
                     "http://localhost:53517",
+                    "http://localhost:4200",
                     "https://bcloud.com.mx",
                     "https://payments.bcloud.com.mx",
                     "https://stapp-bcloud-payments.azurestaticapps.net",
@@ -184,12 +210,26 @@ try
             opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
             opt.QueueLimit = 2;
         });
+
+        // Anti fuerza bruta en autenticaci�n: l�mite por IP en login/registro.
+        options.AddPolicy("auth", httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 10,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = 0,
+                }));
+
         options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     });
 
     // --- CONFIGURACI�N JWT ---
-    var jwtKey = builder.Configuration["Jwt:Key"]
-        ?? throw new InvalidOperationException("La clave JWT no est� configurada en 'Jwt:Key'.");
+    var jwtKey = builder.Configuration["Jwt:Key"];
+    if (string.IsNullOrWhiteSpace(jwtKey))
+        throw new InvalidOperationException("La clave JWT no está configurada en 'Jwt:Key'. Configúrala vía user-secrets (desarrollo) o variable de entorno 'Jwt__Key' (producción).");
     var key = Encoding.UTF8.GetBytes(jwtKey);
 
     builder.Services.AddAuthentication(options =>
@@ -207,7 +247,8 @@ try
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(key)
+            IssuerSigningKey = new SymmetricSecurityKey(key),
+            ClockSkew = TimeSpan.FromMinutes(1)
         };
     });
 
@@ -229,18 +270,44 @@ try
     var app = builder.Build();
 
     // --- 2. Middleware ---
-    //if (app.Environment.IsDevelopment())
-    //{
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
+
+    // Cabeceras de seguridad HTTP (defensa ante clickjacking, MIME sniffing y fuga de referrer)
+    app.Use(async (context, next) =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "BusinessCloud API v1");
-        c.RoutePrefix = string.Empty; // Esto hace que Swagger salga en la ra�z de la URL
+        var headers = context.Response.Headers;
+        headers["X-Content-Type-Options"] = "nosniff";
+        headers["X-Frame-Options"] = "DENY";
+        headers["Referrer-Policy"] = "no-referrer";
+        headers["X-Permitted-Cross-Domain-Policies"] = "none";
+        headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+        await next();
     });
-    //}
+
+    // Swagger solo en desarrollo (no exponer la superficie de la API en producción)
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI(c =>
+        {
+            c.SwaggerEndpoint("/swagger/v1/swagger.json", "BusinessCloud API v1");
+            c.RoutePrefix = string.Empty; // Esto hace que Swagger salga en la raíz de la URL
+        });
+    }
+
     app.UseCors("AllowFrontend");
     // REGISTRA TU MIDDLEWARE AQU� PARA QUE sea EL QUE DICTA EL FORMATO
     app.UseMiddleware<ExceptionMiddleware>();
+
+    // Sirve los archivos subidos localmente (comprobantes, logos) en la ruta /uploads.
+    // Solo tiene efecto cuando el almacenamiento local está habilitado; la carpeta se
+    // crea siempre para evitar errores si aún no existe.
+    var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
+    Directory.CreateDirectory(uploadsPath);
+    app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsPath),
+        RequestPath = "/uploads"
+    });
 
     app.UseHttpsRedirection();
     app.UseRouting();

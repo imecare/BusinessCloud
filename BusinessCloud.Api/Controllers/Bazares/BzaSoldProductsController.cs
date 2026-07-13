@@ -1,3 +1,4 @@
+using BusinessCloud.Application.Bazares.Commands.CreateBzaSaleWithProducts;
 using BusinessCloud.Application.Bazares.Commands.CreateBzaSoldProduct;
 using BusinessCloud.Application.Bazares.Commands.DeleteBzaSoldProduct;
 using BusinessCloud.Application.Bazares.Commands.UpdateBzaSoldProduct;
@@ -31,6 +32,18 @@ public class BzaSoldProductsController(ISender mediator) : ControllerBase
     {
         var soldProductId = await _mediator.Send(command);
         return CreatedAtAction(nameof(GetBySale), new { saleId = command.BzaSaleId }, soldProductId);
+    }
+
+    /// <summary>
+    /// Registrar una Venta completa (Cliente + Evento) con uno o varios productos en una
+    /// sola operación. Si la venta ya existe para ese cliente-evento, se le agregan los productos.
+    /// Devuelve el ID de la venta y el total calculado (no persistido).
+    /// </summary>
+    [HttpPost("sale")]
+    public async Task<ActionResult<CreateBzaSaleWithProductsResult>> CreateSale(CreateBzaSaleWithProductsCommand command)
+    {
+        var result = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetBySale), new { saleId = command.BzaEventId }, result);
     }
 
     /// <summary>

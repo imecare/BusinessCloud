@@ -19,6 +19,7 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
     public DbSet<BzaCollector> Collectors => Set<BzaCollector>();
     public DbSet<BzaCustomer> Customers => Set<BzaCustomer>();
     public DbSet<BzaDate> Dates => Set<BzaDate>();
+    public DbSet<BzaEvent> Events => Set<BzaEvent>();
     public DbSet<BzaSale> Sales => Set<BzaSale>();
     public DbSet<BzaSoldProduct> SoldProducts => Set<BzaSoldProduct>();
     public DbSet<BzaPayment> Payments => Set<BzaPayment>();
@@ -26,6 +27,20 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
     public DbSet<BzaDispatchItem> DispatchItems => Set<BzaDispatchItem>();
     public DbSet<BzaDelivery> Deliveries => Set<BzaDelivery>();
     public DbSet<BzaDeliveryItem> DeliveryItems => Set<BzaDeliveryItem>();
+    public DbSet<BzaNotificationSettings> NotificationSettings => Set<BzaNotificationSettings>();
+    public DbSet<BzaPaymentCard> PaymentCards => Set<BzaPaymentCard>();
+    public DbSet<BzaBazarSettings> BazarSettings => Set<BzaBazarSettings>();
+    public DbSet<BzaContactPhone> ContactPhones => Set<BzaContactPhone>();
+    public DbSet<BzaFacebookProfile> FacebookProfiles => Set<BzaFacebookProfile>();
+    public DbSet<BzaClosureEvent> ClosureEvents => Set<BzaClosureEvent>();
+    public DbSet<BzaClosureEventItem> ClosureEventItems => Set<BzaClosureEventItem>();
+    public DbSet<BzaClosureGroupDelivery> ClosureGroupDeliveries => Set<BzaClosureGroupDelivery>();
+    public DbSet<BzaClosureCustomerTotal> ClosureCustomerTotals => Set<BzaClosureCustomerTotal>();
+    public DbSet<BzaClosureProof> ClosureProofs => Set<BzaClosureProof>();
+    public DbSet<BzaProofRejection> ProofRejections => Set<BzaProofRejection>();
+    public DbSet<BzaSaleCancellation> SaleCancellations => Set<BzaSaleCancellation>();
+    public DbSet<BzaBlockedCustomer> BlockedCustomers => Set<BzaBlockedCustomer>();
+    public DbSet<BzaWhatsAppMessage> WhatsAppMessages => Set<BzaWhatsAppMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -38,6 +53,7 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         modelBuilder.Entity<BzaCollector>().ToTable("Bza_Collectors");
         modelBuilder.Entity<BzaCustomer>().ToTable("Bza_Customers");
         modelBuilder.Entity<BzaDate>().ToTable("Bza_Dates");
+        modelBuilder.Entity<BzaEvent>().ToTable("Bza_Events");
         modelBuilder.Entity<BzaSale>().ToTable("Bza_Sales");
         modelBuilder.Entity<BzaSoldProduct>().ToTable("Bza_SoldProducts");
         modelBuilder.Entity<BzaPayment>().ToTable("Bza_Payments");
@@ -45,35 +61,76 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         modelBuilder.Entity<BzaDispatchItem>().ToTable("Bza_DispatchItems");
         modelBuilder.Entity<BzaDelivery>().ToTable("Bza_Deliveries");
         modelBuilder.Entity<BzaDeliveryItem>().ToTable("Bza_DeliveryItems");
+        modelBuilder.Entity<BzaNotificationSettings>().ToTable("Bza_NotificationSettings");
+        modelBuilder.Entity<BzaPaymentCard>().ToTable("Bza_PaymentCards");
+        modelBuilder.Entity<BzaBazarSettings>().ToTable("Bza_BazarSettings");
+        modelBuilder.Entity<BzaContactPhone>().ToTable("Bza_ContactPhones");
+        modelBuilder.Entity<BzaFacebookProfile>().ToTable("Bza_FacebookProfiles");
+        modelBuilder.Entity<BzaClosureEvent>().ToTable("Bza_ClosureEvents");
+        modelBuilder.Entity<BzaClosureEventItem>().ToTable("Bza_ClosureEventItems");
+        modelBuilder.Entity<BzaClosureGroupDelivery>().ToTable("Bza_ClosureGroupDeliveries");
+        modelBuilder.Entity<BzaClosureCustomerTotal>().ToTable("Bza_ClosureCustomerTotals");
+        modelBuilder.Entity<BzaClosureProof>().ToTable("Bza_ClosureProofs");
+        modelBuilder.Entity<BzaProofRejection>().ToTable("Bza_ProofRejections");
+        modelBuilder.Entity<BzaSaleCancellation>().ToTable("Bza_SaleCancellations");
+        modelBuilder.Entity<BzaBlockedCustomer>().ToTable("Bza_BlockedCustomers");
+        modelBuilder.Entity<BzaWhatsAppMessage>().ToTable("Bza_WhatsAppMessages");
+        modelBuilder.Entity<BzaWhatsAppMessage>().HasIndex(m => m.WaMessageId);
 
         // ─────────────────────────────────────────────────────────────────────
         // Precisión de decimales
         // ─────────────────────────────────────────────────────────────────────
         modelBuilder.Entity<BzaPayment>().Property(p => p.Amount).HasPrecision(18, 2);
         modelBuilder.Entity<BzaSoldProduct>().Property(p => p.Price).HasPrecision(18, 2);
+        modelBuilder.Entity<BzaClosureCustomerTotal>().Property(p => p.TotalAmount).HasPrecision(18, 2);
+        modelBuilder.Entity<BzaProofRejection>().Property(p => p.TotalAmount).HasPrecision(18, 2);
+        modelBuilder.Entity<BzaSaleCancellation>().Property(p => p.TotalAmount).HasPrecision(18, 2);
 
         // ─────────────────────────────────────────────────────────────────────────────
-        // Relaciones de BzaSoldProduct (Producto vendido a Cliente en un Evento de Venta)
+        // Relaciones de BzaSoldProduct (Producto perteneciente a una Venta)
         // ─────────────────────────────────────────────────────────────────────────────
         modelBuilder.Entity<BzaSoldProduct>()
             .HasOne(p => p.Sale)
-            .WithMany(s => s.SoldProducts)
+            .WithMany(s => s.Products)
             .HasForeignKey(p => p.BzaSaleId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<BzaSoldProduct>()
-            .HasOne(p => p.Customer)
-            .WithMany(c => c.SoldProducts)
-            .HasForeignKey(p => p.BzaCustomerId)
+        // ─────────────────────────────────────────────────────────────────────────────
+        // Relaciones de BzaSale (Venta = Cliente + Evento, con N productos)
+        // ─────────────────────────────────────────────────────────────────────────────
+        modelBuilder.Entity<BzaSale>()
+            .HasOne(s => s.Event)
+            .WithMany(e => e.Sales)
+            .HasForeignKey(s => s.BzaEventId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<BzaSale>()
+            .HasOne(s => s.Customer)
+            .WithMany(c => c.Sales)
+            .HasForeignKey(s => s.BzaCustomerId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // Origen de la venta (1 = Captura directa, 2 = Excel). Por defecto: captura directa.
+        modelBuilder.Entity<BzaSale>()
+            .Property(s => s.Source)
+            .HasDefaultValue(1);
+
+        // Vínculo opcional Venta -> Evento de Cierre (Envío de Totales).
+        // Una venta solo puede estar en un evento de pago. Si el cierre se elimina,
+        // la venta se libera (SetNull) para poder volver a enviarse.
+        modelBuilder.Entity<BzaSale>()
+            .HasOne<BzaClosureEvent>()
+            .WithMany()
+            .HasForeignKey(s => s.BzaClosureEventId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         // ─────────────────────────────────────────────────────────────────────
         // Relaciones de BzaPayment (Pago de Cliente en un Evento de Venta)
         // ─────────────────────────────────────────────────────────────────────
         modelBuilder.Entity<BzaPayment>()
-            .HasOne(p => p.Sale)
-            .WithMany(s => s.Payments)
-            .HasForeignKey(p => p.BzaSaleId)
+            .HasOne(p => p.Event)
+            .WithMany(e => e.Payments)
+            .HasForeignKey(p => p.BzaEventId)
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<BzaPayment>()
@@ -86,16 +143,108 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         // Relaciones de BzaDispatchItem (Evitar cascade cycles)
         // ─────────────────────────────────────────────────────────────────────
         modelBuilder.Entity<BzaDispatchItem>()
-            .HasOne(d => d.Sale)
+            .HasOne(d => d.Event)
             .WithMany()
-            .HasForeignKey(d => d.BzaSaleId)
+            .HasForeignKey(d => d.BzaEventId)
             .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<BzaDeliveryItem>()
-            .HasOne(d => d.Sale)
+            .HasOne(d => d.Event)
             .WithMany()
-            .HasForeignKey(d => d.BzaSaleId)
+            .HasForeignKey(d => d.BzaEventId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Relaciones del Cierre de Venta (Envío de Totales)
+        // ─────────────────────────────────────────────────────────────────────
+        modelBuilder.Entity<BzaClosureEventItem>()
+            .HasOne(i => i.ClosureEvent)
+            .WithMany(c => c.Items)
+            .HasForeignKey(i => i.BzaClosureEventId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<BzaClosureEventItem>()
+            .HasOne(i => i.Event)
+            .WithMany()
+            .HasForeignKey(i => i.BzaEventId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<BzaClosureGroupDelivery>()
+            .HasOne(g => g.ClosureEvent)
+            .WithMany(c => c.GroupDeliveries)
+            .HasForeignKey(g => g.BzaClosureEventId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<BzaClosureGroupDelivery>()
+            .HasOne(g => g.CollectorGroup)
+            .WithMany()
+            .HasForeignKey(g => g.BzaCollectorGroupId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<BzaClosureCustomerTotal>()
+            .HasOne(t => t.ClosureEvent)
+            .WithMany(c => c.CustomerTotals)
+            .HasForeignKey(t => t.BzaClosureEventId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<BzaClosureCustomerTotal>()
+            .HasOne(t => t.Customer)
+            .WithMany()
+            .HasForeignKey(t => t.BzaCustomerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<BzaClosureCustomerTotal>()
+            .HasIndex(t => t.UploadToken)
+            .IsUnique();
+
+        modelBuilder.Entity<BzaClosureProof>()
+            .HasOne(p => p.Total)
+            .WithMany(t => t.Proofs)
+            .HasForeignKey(p => p.BzaClosureCustomerTotalId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<BzaClosureCustomerTotal>()
+            .Property(t => t.RejectionReason)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<BzaClosureCustomerTotal>()
+            .Property(t => t.CustomerJustification)
+            .HasMaxLength(500);
+
+        // ───────────────────────────────────────────────
+        // El teléfono es la llave del cliente para el envío de totales: único por tenant.
+        // ───────────────────────────────────────────────
+        modelBuilder.Entity<BzaCustomer>()
+            .HasIndex(c => new { c.TenantId, c.Phone })
+            .IsUnique()
+            .HasDatabaseName("UX_Bza_Customers_TenantId_Phone")
+            .HasFilter("[Phone] IS NOT NULL AND [Phone] <> ''");
+
+        // ───────────────────────────────────────────────
+        // Configuración general del bazar (identidad, contacto y redes)
+        // ───────────────────────────────────────────────
+        modelBuilder.Entity<BzaBazarSettings>().Property(s => s.BazarName).HasMaxLength(150);
+        modelBuilder.Entity<BzaBazarSettings>().Property(s => s.LogoUrl).HasMaxLength(500);
+        modelBuilder.Entity<BzaBazarSettings>().Property(s => s.PhysicalAddress).HasMaxLength(300);
+        modelBuilder.Entity<BzaBazarSettings>().Property(s => s.FacebookPageUrl).HasMaxLength(300);
+
+        modelBuilder.Entity<BzaContactPhone>().Property(p => p.PhoneNumber).HasMaxLength(30);
+        modelBuilder.Entity<BzaContactPhone>().Property(p => p.Label).HasMaxLength(80);
+
+        modelBuilder.Entity<BzaFacebookProfile>().Property(p => p.Name).HasMaxLength(120);
+        modelBuilder.Entity<BzaFacebookProfile>().Property(p => p.ProfileUrl).HasMaxLength(300);
+
+        modelBuilder.Entity<BzaContactPhone>()
+            .HasOne(p => p.BazarSettings)
+            .WithMany(s => s.ContactPhones)
+            .HasForeignKey(p => p.BzaBazarSettingsId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<BzaFacebookProfile>()
+            .HasOne(p => p.BazarSettings)
+            .WithMany(s => s.FacebookProfiles)
+            .HasForeignKey(p => p.BzaBazarSettingsId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         // ─────────────────────────────────────────────────────────────────────
         // Multi-tenant Query Filters
@@ -104,6 +253,7 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         modelBuilder.Entity<BzaCollector>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaCustomer>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaDate>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaEvent>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaSale>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaSoldProduct>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaPayment>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
@@ -111,6 +261,18 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         modelBuilder.Entity<BzaDispatchItem>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaDelivery>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaDeliveryItem>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaNotificationSettings>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaPaymentCard>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaBazarSettings>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaContactPhone>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaFacebookProfile>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaClosureEvent>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaClosureEventItem>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaClosureGroupDelivery>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaClosureCustomerTotal>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaClosureProof>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaProofRejection>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaSaleCancellation>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -119,7 +281,12 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         {
             if (entry.State == EntityState.Added)
             {
-                entry.Entity.TenantId = _userService.TenantId ?? "";
+                // No sobrescribir el TenantId si ya fue asignado explícitamente
+                // (necesario para escrituras desde el portal público por token).
+                if (string.IsNullOrEmpty(entry.Entity.TenantId))
+                {
+                    entry.Entity.TenantId = _userService.TenantId ?? "";
+                }
                 entry.Entity.CreatedAt = DateTime.UtcNow;
                 entry.Entity.CreatedBy = _userService.UserId;
             }

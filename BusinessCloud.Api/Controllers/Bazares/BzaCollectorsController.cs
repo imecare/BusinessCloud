@@ -6,6 +6,7 @@ using BusinessCloud.Application.Bazares.Commands.CreateCollector;
 using BusinessCloud.Application.Bazares.Commands.UpdateCollector;
 using BusinessCloud.Application.Bazares.Commands.DeleteCollector;
 using BusinessCloud.Application.Bazares.Commands.ActivateCollector;
+using BusinessCloud.Application.Bazares.Commands.DeactivateCollector;
 using BusinessCloud.Application.Bazares.Queries.GetCollectors;
 
 namespace BusinessCloud.Api.Controllers.Bazares;
@@ -47,6 +48,13 @@ public class BzaCollectorsController(ISender mediator) : ControllerBase
     public async Task<ActionResult> Activate(int id)
     {
         await mediator.Send(new ActivateCollectorCommand(id));
+        return NoContent();
+    }
+
+    [HttpPatch("{id}/deactivate")]
+    public async Task<ActionResult> Deactivate(int id)
+    {
+        await mediator.Send(new DeactivateCollectorCommand(id));
         return NoContent();
     }
 }

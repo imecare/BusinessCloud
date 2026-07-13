@@ -29,22 +29,34 @@ public class GetDeliveriesByDateRangeHandler : IRequestHandler<GetDeliveriesByDa
         if (request.BzaCollectorGroupId.HasValue)
             query = query.Where(d => d.BzaCollectorGroupId == request.BzaCollectorGroupId.Value);
 
-        var deliveries = await query
+        // Materializar datos primero para evitar memory leak en proyección con Dictionary
+        var rawDeliveries = await query
             .OrderByDescending(d => d.DeliveryDate)
-            .Select(d => new BzaDeliveryByDateDto
+            .Select(d => new
             {
-                Id = d.Id,
+                d.Id,
                 GroupId = d.BzaCollectorGroupId,
                 GroupDescription = d.CollectorGroup.Description,
-                DeliveryDate = d.DeliveryDate,
-                Status = d.Status,
-                StatusName = StatusNames.ContainsKey(d.Status) ? StatusNames[d.Status] : "Desconocido",
-                Notes = d.Notes,
+                d.DeliveryDate,
+                d.Status,
+                d.Notes,
                 ItemCount = d.Items.Count,
-                CreatedAt = d.CreatedAt
+                d.CreatedAt
             })
             .ToListAsync(cancellationToken);
 
-        return deliveries;
+        // Mapear StatusName en memoria (evita EF Core memory leak warning)
+        return rawDeliveries.Select(d => new BzaDeliveryByDateDto
+        {
+            Id = d.Id,
+            GroupId = d.GroupId,
+            GroupDescription = d.GroupDescription,
+            DeliveryDate = d.DeliveryDate,
+            Status = d.Status,
+            StatusName = StatusNames.GetValueOrDefault(d.Status, "Desconocido"),
+            Notes = d.Notes,
+            ItemCount = d.ItemCount,
+            CreatedAt = d.CreatedAt
+        }).ToList();
     }
 }

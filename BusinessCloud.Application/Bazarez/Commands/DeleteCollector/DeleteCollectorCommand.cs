@@ -6,7 +6,7 @@ namespace BusinessCloud.Application.Bazares.Commands.DeleteCollector;
 
 public record DeleteCollectorCommand(int Id) : IRequest;
 
-public class DeleteCollectorHandler(IBazaresDbContext context) 
+public class DeleteCollectorHandler(IBazaresDbContext context)
     : IRequestHandler<DeleteCollectorCommand>
 {
     public async Task Handle(DeleteCollectorCommand request, CancellationToken ct)
@@ -22,17 +22,21 @@ public class DeleteCollectorHandler(IBazaresDbContext context)
         var hasDispatchSheets = await context.DispatchSheets
             .AnyAsync(d => d.BzaCollectorId == request.Id, ct);
 
-        if (hasCustomers || hasDispatchSheets)
+        if (hasCustomers)
         {
-            // Soft delete: desactivar en lugar de eliminar
-            entity.IsActive = false;
-        }
-        else
-        {
-            // Hard delete: eliminar físicamente si no tiene dependencias
-            context.Collectors.Remove(entity);
+            // No se puede eliminar un recolector con clientes relacionados. Debe desactivarse.
+            throw new InvalidOperationException(
+                "No se puede eliminar un recolector que tiene clientes relacionados. Reasigna sus clientes o desactívalo.");
         }
 
+        if (hasDispatchSheets)
+        {
+            throw new InvalidOperationException(
+                "No se puede eliminar un recolector con hojas de despacho asociadas. Desactívalo en su lugar.");
+        }
+
+        // Solo se elimina físicamente si no tiene ninguna dependencia.
+        context.Collectors.Remove(entity);
         await context.SaveChangesAsync(ct);
     }
 }

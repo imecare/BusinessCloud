@@ -11,29 +11,29 @@ public class GetSoldProductsBySaleHandler(IBazaresDbContext context)
 
     public async Task<SoldProductsBySaleDto> Handle(GetSoldProductsBySaleQuery request, CancellationToken cancellationToken)
     {
-        var saleEvent = await _context.Sales
+        var saleEvent = await _context.Events
             .FirstOrDefaultAsync(s => s.Id == request.BzaSaleId, cancellationToken)
             ?? throw new KeyNotFoundException("Evento de Venta no encontrado.");
 
         var soldProductsQuery = _context.SoldProducts
-            .Include(p => p.Customer)
-            .Where(p => p.BzaSaleId == request.BzaSaleId);
+            .Include(p => p.Sale).ThenInclude(s => s.Customer)
+            .Where(p => p.Sale.BzaEventId == request.BzaSaleId);
 
         // Filtrar por cliente si se especifica
         if (request.CustomerId.HasValue)
         {
-            soldProductsQuery = soldProductsQuery.Where(p => p.BzaCustomerId == request.CustomerId.Value);
+            soldProductsQuery = soldProductsQuery.Where(p => p.Sale.BzaCustomerId == request.CustomerId.Value);
         }
 
         var soldProducts = await soldProductsQuery
-            .OrderBy(p => p.Customer.Name)
+            .OrderBy(p => p.Sale.Customer.Name)
             .ThenBy(p => p.CreatedAt)
             .Select(p => new SoldProductItemDto
             {
                 Id = p.Id,
-                CustomerId = p.BzaCustomerId,
-                CustomerName = p.Customer.Name,
-                CustomerPhone = p.Customer.Phone ?? string.Empty,
+                CustomerId = p.Sale.BzaCustomerId,
+                CustomerName = p.Sale.Customer.Name,
+                CustomerPhone = p.Sale.Customer.Phone ?? string.Empty,
                 Description = p.Description,
                 Price = p.Price,
                 CreatedAt = p.CreatedAt
@@ -44,7 +44,6 @@ public class GetSoldProductsBySaleHandler(IBazaresDbContext context)
         {
             BzaSaleId = saleEvent.Id,
             EventDescription = saleEvent.Description,
-            DeliveryDate = saleEvent.DeliveryDate,
             Items = soldProducts
         };
     }
