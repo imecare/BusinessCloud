@@ -20,6 +20,7 @@ public class IdentityDbContextFactory : IDesignTimeDbContextFactory<IdentityDbCo
             .SetBasePath(Path.Combine(Directory.GetCurrentDirectory(), "../BusinessCloud.Api"))
             .AddJsonFile("appsettings.json", optional: false)
             .AddJsonFile("appsettings.Development.json", optional: true)
+            .AddUserSecrets("bazar-businesscloud-api")
             .AddEnvironmentVariables()
             .Build();
 }

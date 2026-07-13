@@ -4,6 +4,7 @@ using BusinessCloud.Domain.Common.Entities;
 using BusinessCloud.Domain.Payments.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.Extensions.Configuration;
 
 namespace BusinessCloud.Infrastructure.Data;
 
@@ -87,8 +88,10 @@ public class PaymentsDbContextFactory : IDesignTimeDbContextFactory<PaymentsDbCo
 {
     public PaymentsDbContext CreateDbContext(string[] args)
     {
+        var configuration = IdentityDbContextFactory.BuildConfiguration();
+
         var optionsBuilder = new DbContextOptionsBuilder<PaymentsDbContext>();
-        optionsBuilder.UseSqlServer("Server=tcp:sql-server-bcloud.database.windows.net,1433;Initial Catalog=bcloudMain;Persist Security Info=False;User ID=bcloud_admin;Password=BCServicesCarelia123+;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;");
+        optionsBuilder.UseSqlServer(configuration.GetConnectionString("PaymentsConnection"));
 
         return new PaymentsDbContext(optionsBuilder.Options, new DummyCurrentUserService());
     }
