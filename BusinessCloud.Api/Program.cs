@@ -189,7 +189,9 @@ try
                     "https://bcloud.com.mx",
                     "https://payments.bcloud.com.mx",
                     "https://stapp-bcloud-payments.azurestaticapps.net",
-                    "https://jolly-sky-02a51ec10.7.azurestaticapps.net")
+                    "https://jolly-sky-02a51ec10.7.azurestaticapps.net",
+                    "https://bazares.bcloud.com.mx",
+                    "https://white-dune-081b9a710.7.azurestaticapps.net")
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials();
