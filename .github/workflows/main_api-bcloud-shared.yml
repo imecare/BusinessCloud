@@ -62,3 +62,6 @@ jobs:
           app-name: "api-bcloud-shared"
           slot-name: "Production"
           package: .
+          clean: true
+          restart: true
+          type: zip

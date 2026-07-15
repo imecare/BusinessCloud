@@ -70,7 +70,7 @@ public class CreateBzaCustomerHandler : IRequestHandler<CreateBzaCustomerCommand
 
         var entity = new BzaCustomer
         {
-            Name = request.Name,
+            Name = request.Name ?? string.Empty,
             FacebookName = request.FacebookName,
             Phone = phone,
             BzaCollectorId = request.BzaCollectorId,
