@@ -64,4 +64,3 @@ jobs:
           package: .
           clean: true
           restart: true
-          type: zip
