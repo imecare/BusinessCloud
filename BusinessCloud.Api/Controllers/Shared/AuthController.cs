@@ -465,7 +465,7 @@ public class AuthController : ControllerBase
         var result = await _userManager.CreateAsync(user, request.TemporaryPassword);
 
         if (!result.Succeeded)
-            return BadRequest(result.Errors);
+            return BadRequest(new { success = false, message = string.Join(" ", result.Errors.Select(e => e.Description)) });
 
         return CreatedAtAction(nameof(GetBazarUsers), null, MapUser(user));
     }
@@ -517,7 +517,7 @@ public class AuthController : ControllerBase
 
         var result = await _userManager.UpdateAsync(user);
         if (!result.Succeeded)
-            return BadRequest(result.Errors);
+            return BadRequest(new { success = false, message = string.Join(" ", result.Errors.Select(e => e.Description)) });
 
         return Ok(MapUser(user));
     }
@@ -582,7 +582,7 @@ public class AuthController : ControllerBase
         var result = await _userManager.AddPasswordAsync(user, request.TemporaryPassword);
 
         if (!result.Succeeded)
-            return BadRequest(result.Errors);
+            return BadRequest(new { success = false, message = string.Join(" ", result.Errors.Select(e => e.Description)) });
 
         user.MustChangePassword = true;
         await _userManager.UpdateAsync(user);

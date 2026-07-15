@@ -1,5 +1,6 @@
 using BusinessCloud.Api.Authorization;
 using BusinessCloud.Application.Bazares.Queries.GetCancelledSalesReport;
+using BusinessCloud.Application.Bazares.Queries.GetPendingWithdrawalsReport;
 using BusinessCloud.Application.Bazares.Queries.GetRejectedProofsReport;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -33,4 +34,14 @@ public class BzaReportsController(ISender mediator) : ControllerBase
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null)
         => await mediator.Send(new GetCancelledSalesReportQuery(from, to));
+
+    /// <summary>
+    /// Reporte de retiros sin tarjeta pendientes de validar: cliente, monto, banco,
+    /// venta asociada y enlaces a las imágenes de los comprobantes.
+    /// </summary>
+    [HttpGet("pending-withdrawals")]
+    public async Task<ActionResult<PendingWithdrawalsReportDto>> PendingWithdrawals(
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null)
+        => await mediator.Send(new GetPendingWithdrawalsReportQuery(from, to));
 }

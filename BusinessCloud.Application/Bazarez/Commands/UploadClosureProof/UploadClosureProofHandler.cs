@@ -71,6 +71,20 @@ public class UploadClosureProofHandler(IBazaresDbContext context, IBlobStorageSe
             total.PaymentMethod = request.PaymentMethod.Value;
         }
 
+        // Banco del retiro sin tarjeta: solo aplica cuando el método es "retiro sin tarjeta" (3).
+        // Si el cliente cambia a otro método, se limpia el banco previamente capturado.
+        if (total.PaymentMethod == 3)
+        {
+            if (!string.IsNullOrWhiteSpace(request.WithdrawalBank))
+            {
+                total.WithdrawalBank = request.WithdrawalBank.Trim();
+            }
+        }
+        else
+        {
+            total.WithdrawalBank = null;
+        }
+
         // Referencia o aclaración opcional del cliente (se conserva si no se envía una nueva).
         if (!string.IsNullOrWhiteSpace(request.Reference))
         {

@@ -31,7 +31,8 @@ public class BzaComprobantesController(ISender mediator) : ControllerBase
         [FromForm] List<IFormFile> files,
         [FromForm] string? justification = null,
         [FromForm] int? paymentMethod = null,
-        [FromForm] string? reference = null)
+        [FromForm] string? reference = null,
+        [FromForm] string? withdrawalBank = null)
     {
         // Compatibilidad: aceptar también el campo antiguo "file" (un solo archivo).
         var incoming = (files ?? new List<IFormFile>())
@@ -56,7 +57,7 @@ public class BzaComprobantesController(ISender mediator) : ControllerBase
                 inputs.Add(new ClosureProofFileInput(stream, f.FileName, f.ContentType));
             }
 
-            var result = await mediator.Send(new UploadClosureProofCommand(token, inputs, justification, paymentMethod, reference));
+            var result = await mediator.Send(new UploadClosureProofCommand(token, inputs, justification, paymentMethod, reference, withdrawalBank));
             return Ok(result);
         }
         finally

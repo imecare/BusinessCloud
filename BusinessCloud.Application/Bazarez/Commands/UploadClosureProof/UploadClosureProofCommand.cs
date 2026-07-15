@@ -15,7 +15,8 @@ public record UploadClosureProofCommand(
     IReadOnlyList<ClosureProofFileInput> Files,
     string? Justification = null,
     int? PaymentMethod = null,
-    string? Reference = null) : IRequest<UploadClosureProofResultDto>;
+    string? Reference = null,
+    string? WithdrawalBank = null) : IRequest<UploadClosureProofResultDto>;
 
 public class UploadClosureProofResultDto
 {

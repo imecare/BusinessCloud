@@ -68,6 +68,9 @@ public class BzaClosureCustomerTotal : BaseAuditableEntity
     /// <summary>Referencia o aclaración opcional que el cliente agrega al subir su comprobante (p. ej. número de referencia de la transferencia).</summary>
     public string? CustomerReference { get; set; }
 
+    /// <summary>Banco desde el que el cliente realizó el retiro sin tarjeta (solo aplica cuando PaymentMethod = 3).</summary>
+    public string? WithdrawalBank { get; set; }
+
     /// <summary>Indica que el comprobante fue subido por el bazar en nombre del cliente (no por el cliente).</summary>
     public bool ProofUploadedByBazar { get; set; }
 

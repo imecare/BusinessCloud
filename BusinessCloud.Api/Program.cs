@@ -93,6 +93,7 @@ try
         // Evita revelar si un email existe y exige emails únicos
         options.User.RequireUniqueEmail = true;
     })
+    .AddErrorDescriber<BusinessCloud.Api.Common.SpanishIdentityErrorDescriber>()
     .AddEntityFrameworkStores<IdentityDbContext>();
 
     // Registro del Contexto de Bazares (SQL Server)
@@ -188,6 +189,7 @@ try
                     "http://localhost:4200",
                     "https://bcloud.com.mx",
                     "https://payments.bcloud.com.mx",
+                    "https://bazares.bcloud.com.mx/",
                     "https://stapp-bcloud-payments.azurestaticapps.net",
                     "https://jolly-sky-02a51ec10.7.azurestaticapps.net",
                     "https://bazares.bcloud.com.mx",

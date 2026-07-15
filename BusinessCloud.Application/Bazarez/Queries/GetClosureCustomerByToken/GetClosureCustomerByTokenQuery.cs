@@ -37,6 +37,9 @@ public class ClosureCustomerPublicDto
     /// <summary>Referencia o aclaración que el cliente agregó previamente.</summary>
     public string? CustomerReference { get; set; }
 
+    /// <summary>Banco del retiro sin tarjeta capturado previamente por el cliente (si aplica).</summary>
+    public string? WithdrawalBank { get; set; }
+
     /// <summary>Método de pago declarado: 0=No especificado, 1=Transferencia, 2=Depósito, 3=Retiro sin tarjeta.</summary>
     public int PaymentMethod { get; set; }
     /// <summary>Nombre del bazar (para saludos y enlaces).</summary>
@@ -137,6 +140,7 @@ public class GetClosureCustomerByTokenHandler(IBazaresDbContext context)
             RejectionReason = total.RejectionReason,
             CancellationReason = total.CancellationReason,
             CustomerReference = total.CustomerReference,
+            WithdrawalBank = total.WithdrawalBank,
             PaymentMethod = total.PaymentMethod,
             BazarName = settings?.BazarName,
             BazarLogoUrl = settings?.LogoUrl,
