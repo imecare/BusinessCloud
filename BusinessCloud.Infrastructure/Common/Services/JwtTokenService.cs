@@ -28,7 +28,7 @@ public class JwtTokenService
             new(ClaimTypes.Email, user.Email!),
             new(ClaimTypes.Name, $"{user.FirstName} {user.LastName}"),
             new(ClaimTypes.Role, user.Role),
-            new("tenant_id", user.TenantId),
+            new("tenant_id", user.TenantId ?? string.Empty),
             new("first_name", user.FirstName),
             new("last_name", user.LastName),
             new("must_change_password", user.MustChangePassword ? "true" : "false"),

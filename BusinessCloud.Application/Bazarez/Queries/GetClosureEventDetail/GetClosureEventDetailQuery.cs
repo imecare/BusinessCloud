@@ -80,6 +80,7 @@ public class GetClosureEventDetailHandler(IBazaresDbContext context)
 
         var bazarSettings = await _context.BazarSettings.FirstOrDefaultAsync(cancellationToken);
         var bazarName = bazarSettings?.BazarName;
+        var salesWhatsApp = bazarSettings?.SalesWhatsApp;
 
         var deliveryByGroup = closure.GroupDeliveries
             .GroupBy(g => g.BzaCollectorGroupId)
@@ -95,7 +96,7 @@ public class GetClosureEventDetailHandler(IBazaresDbContext context)
                     : closure.OfficialDeliveryDate;
 
             return ClosureMessageBuilder.Build(
-                bazarName, customerName, t.TotalAmount, deliveryDate, closure.PaymentDeadline);
+                bazarName, customerName, t.TotalAmount, deliveryDate, closure.PaymentDeadline, salesWhatsApp);
         }
 
         var customers = closure.CustomerTotals

@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Application.Bazares.Common;
 using BusinessCloud.Domain.Bazares.Entities;
 
 namespace BusinessCloud.Application.Bazares.Commands.UpdateBazarSettings;
@@ -49,7 +50,7 @@ public class UpdateBazarSettingsHandler(IBazaresDbContext context)
 
         settings.BazarName = Clean(request.BazarName);
         settings.PhysicalAddress = Clean(request.PhysicalAddress);
-        settings.FacebookPageUrl = Clean(request.FacebookPageUrl);
+        settings.FacebookPageUrl = FacebookMessengerProfile.NormalizeUrl(request.FacebookPageUrl);
         settings.PrimaryColor = CleanColor(request.PrimaryColor);
         settings.SecondaryColor = CleanColor(request.SecondaryColor);
         settings.LabelTagline = CleanTagline(request.LabelTagline);
@@ -83,7 +84,7 @@ public class UpdateBazarSettingsHandler(IBazaresDbContext context)
             .Select(p => new BzaFacebookProfile
             {
                 Name = Clean(p.Name),
-                ProfileUrl = p.ProfileUrl.Trim(),
+                ProfileUrl = FacebookMessengerProfile.NormalizeUrl(p.ProfileUrl)!,
             })
             .ToList();
 

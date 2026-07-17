@@ -1,7 +1,10 @@
 using BusinessCloud.Application.Bazares.Queries.GetBzaDashboard;
+using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Domain.Bazares.Entities;
 using BusinessCloud.Infrastructure.Data;
 using BusinessCloud.Tests.TestSupport;
+using Microsoft.EntityFrameworkCore;
+using Moq;
 using Xunit;
 
 namespace BusinessCloud.Tests.Application.Reports;
@@ -13,6 +16,20 @@ namespace BusinessCloud.Tests.Application.Reports;
 public class GetBzaDashboardHandlerTests
 {
     private const string Tenant = BazaresContextFactory.TenantId;
+
+    /// <summary>Construye el handler del dashboard con un IdentityDbContext InMemory vacío y el tenant de prueba.</summary>
+    private static GetBzaDashboardHandler CreateHandler(BazaresDbContext ctx)
+    {
+        var identityOptions = new DbContextOptionsBuilder<IdentityDbContext>()
+            .UseInMemoryDatabase($"identity-{Guid.NewGuid():N}")
+            .Options;
+        var identity = new IdentityDbContext(identityOptions);
+
+        var currentUser = new Mock<ICurrentUserService>();
+        currentUser.SetupGet(u => u.TenantId).Returns(Tenant);
+
+        return new GetBzaDashboardHandler(ctx, identity, currentUser.Object);
+    }
 
     private static async Task SeedAsync(BazaresDbContext ctx)
     {
@@ -65,7 +82,7 @@ public class GetBzaDashboardHandlerTests
         using var ctx = BazaresContextFactory.Create();
         await SeedAsync(ctx);
 
-        var dto = await new GetBzaDashboardHandler(ctx).Handle(new GetBzaDashboardQuery(), default);
+        var dto = await CreateHandler(ctx).Handle(new GetBzaDashboardQuery(), default);
 
         Assert.Equal(2, dto.TotalCustomers);
         Assert.Equal(1, dto.TotalCollectors);
@@ -80,7 +97,7 @@ public class GetBzaDashboardHandlerTests
         using var ctx = BazaresContextFactory.Create();
         await SeedAsync(ctx);
 
-        var dto = await new GetBzaDashboardHandler(ctx).Handle(new GetBzaDashboardQuery(), default);
+        var dto = await CreateHandler(ctx).Handle(new GetBzaDashboardQuery(), default);
 
         var vol = Assert.Single(dto.CollectorVolumes);
         Assert.Equal(1, vol.CollectorId);
@@ -95,7 +112,7 @@ public class GetBzaDashboardHandlerTests
         using var ctx = BazaresContextFactory.Create();
         await SeedAsync(ctx);
 
-        var dto = await new GetBzaDashboardHandler(ctx).Handle(new GetBzaDashboardQuery(), default);
+        var dto = await CreateHandler(ctx).Handle(new GetBzaDashboardQuery(), default);
 
         Assert.Equal(2, dto.DelinquentsCount);
         // Ordenados por saldo descendente: Beto (200) antes que Ana (50).

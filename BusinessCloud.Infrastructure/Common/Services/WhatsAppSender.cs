@@ -58,7 +58,7 @@ public class WhatsAppSender : IWhatsAppSender
             messaging_product = "whatsapp",
             to,
             type = "text",
-            text = new { body = message },
+            text = new { preview_url = true, body = message },
         };
         return await PostAsync(payload, cancellationToken);
     }
@@ -77,7 +77,7 @@ public class WhatsAppSender : IWhatsAppSender
             messaging_product = "whatsapp",
             to,
             type = "text",
-            text = new { body = message },
+            text = new { preview_url = true, body = message },
         };
 
         var result = await PostAsync(payload, cancellationToken);

@@ -48,6 +48,7 @@ public class SendTotalsHandler(IBazaresDbContext context)
 
         var bazarSettings = await _context.BazarSettings.FirstOrDefaultAsync(cancellationToken);
         var bazarName = bazarSettings?.BazarName;
+        var salesWhatsApp = bazarSettings?.SalesWhatsApp;
 
         decimal PendingForSale(BzaSale sale)
         {
@@ -133,7 +134,8 @@ public class SendTotalsHandler(IBazaresDbContext context)
                 customer?.Name ?? "Cliente",
                 total,
                 deliveryDate,
-                request.PaymentDeadline);
+                request.PaymentDeadline,
+                salesWhatsApp);
             messages.Add(new CustomerTotalMessageDto
             {
                 CustomerId = customerGroup.Key,

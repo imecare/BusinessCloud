@@ -4,10 +4,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BusinessCloud.Application.Bazares.Queries.GetBzaDashboard;
 
-public class GetBzaDashboardHandler(IBazaresDbContext context)
+public class GetBzaDashboardHandler(
+    IBazaresDbContext context,
+    IIdentityDbContext identityContext,
+    ICurrentUserService currentUser)
     : IRequestHandler<GetBzaDashboardQuery, BzaDashboardDto>
 {
     private readonly IBazaresDbContext _context = context;
+    private readonly IIdentityDbContext _identityContext = identityContext;
+    private readonly ICurrentUserService _currentUser = currentUser;
 
     public async Task<BzaDashboardDto> Handle(GetBzaDashboardQuery request, CancellationToken ct)
     {
@@ -95,6 +100,16 @@ public class GetBzaDashboardHandler(IBazaresDbContext context)
         var weeklyCollected = sales.SelectMany(s => s.Payments).Where(p => p.IsVerified).Sum(p => p.Amount);
         var weeklySales = sales.Where(s => s.Status != 5).SelectMany(s => s.Sales).SelectMany(x => x.Products).Sum(p => p.Price);
 
+        // Saldo de mensajes de WhatsApp disponibles de la empresa (paquetes acumulables).
+        var tenantId = _currentUser.TenantId;
+        var messagesAvailable = string.IsNullOrEmpty(tenantId)
+            ? 0
+            : await _identityContext.TenantMessageBalances
+                .AsNoTracking()
+                .Where(b => b.TenantId == tenantId)
+                .Select(b => (int?)b.Available)
+                .FirstOrDefaultAsync(ct) ?? 0;
+
         return new BzaDashboardDto
         {
             TotalCustomers = totalCustomers,
@@ -106,6 +121,7 @@ public class GetBzaDashboardHandler(IBazaresDbContext context)
             PaidSales = sales.Count(s => s.Status == 2),
             DeliveredSales = sales.Count(s => s.Status == 4),
             DelinquentsCount = delinquents.Count,
+            MessagesAvailable = messagesAvailable,
             CollectorVolumes = collectorVolume,
             Delinquents = delinquents
         };

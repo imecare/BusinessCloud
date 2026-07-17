@@ -107,6 +107,9 @@ try
     builder.Services.AddScoped<IPaymentsDbContext>(provider =>
         provider.GetRequiredService<PaymentsDbContext>());
 
+    builder.Services.AddScoped<IIdentityDbContext>(provider =>
+        provider.GetRequiredService<IdentityDbContext>());
+
     // MediatR (Solo un registro)
     builder.Services.AddMediatR(cfg =>
         cfg.RegisterServicesFromAssemblies(
@@ -185,8 +188,8 @@ try
             policy.WithOrigins(
                     "http://localhost:5136",
                     "http://localhost:4200",
+                    "http://localhost:4300",
                     "http://localhost:53517",
-                    "http://localhost:4200",
                     "https://bcloud.com.mx",
                     "https://payments.bcloud.com.mx",
                     "https://bazares.bcloud.com.mx/",
@@ -258,6 +261,7 @@ try
 
     builder.Services.AddAuthorizationBuilder()
         .AddPolicy("SuperAdmin", policy => policy.RequireRole("SuperAdmin"))
+        .AddPolicy("PlatformAdmin", policy => policy.RequireRole("PlatformAdmin"))
         .AddPolicy("Commissionist", policy => policy.RequireRole("Commissionist"))
         .AddPolicy("SuperAdminOrCommissionist", policy =>
             policy.RequireRole("SuperAdmin", "Commissionist"))
@@ -321,6 +325,51 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
     app.MapControllers();
+
+    // --- Seeding del administrador global del SaaS (PlatformAdmin) ---
+    // Las credenciales se leen de configuración segura (user-secrets / variables de entorno):
+    //   PlatformAdmin:Email, PlatformAdmin:Password, PlatformAdmin:FirstName, PlatformAdmin:LastName
+    // Nunca se guardan en el control de versiones.
+    try
+    {
+        using var seedScope = app.Services.CreateScope();
+        var seedServices = seedScope.ServiceProvider;
+        var seedConfig = seedServices.GetRequiredService<IConfiguration>();
+        var seedEmail = seedConfig["PlatformAdmin:Email"];
+        var seedPassword = seedConfig["PlatformAdmin:Password"];
+
+        if (!string.IsNullOrWhiteSpace(seedEmail) && !string.IsNullOrWhiteSpace(seedPassword))
+        {
+            var userMgr = seedServices.GetRequiredService<UserManager<ApplicationUser>>();
+            var existing = await userMgr.FindByEmailAsync(seedEmail);
+            if (existing is null)
+            {
+                var platformAdmin = new ApplicationUser
+                {
+                    UserName = seedEmail,
+                    Email = seedEmail,
+                    FirstName = seedConfig["PlatformAdmin:FirstName"] ?? "Platform",
+                    LastName = seedConfig["PlatformAdmin:LastName"] ?? "Admin",
+                    TenantId = string.Empty,
+                    Role = BusinessCloud.Domain.Common.Entities.SystemRoles.PlatformAdmin,
+                    IsActive = true,
+                    EmailConfirmed = true
+                };
+                var seedResult = await userMgr.CreateAsync(platformAdmin, seedPassword);
+                if (seedResult.Succeeded)
+                    Log.Information("PlatformAdmin sembrado correctamente: {Email}", seedEmail);
+                else
+                    Log.Warning("No se pudo sembrar el PlatformAdmin: {Errors}",
+                        string.Join("; ", seedResult.Errors.Select(e => e.Description)));
+            }
+        }
+    }
+    catch (Exception seedEx)
+    {
+        // El seeding es best-effort: si la base de datos no está disponible (p. ej. Azure SQL
+        // en pausa), no debe impedir el arranque de la API. Reintentar al reiniciar.
+        Log.Warning(seedEx, "No se pudo sembrar el PlatformAdmin (¿base de datos no disponible?). La API continúa el arranque.");
+    }
 
     app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 

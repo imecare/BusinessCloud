@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using Microsoft.EntityFrameworkCore;
 using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Application.Bazares.Common;
 using BusinessCloud.Domain.Bazares.Entities;
 
 namespace BusinessCloud.Application.Bazares.Commands.CreateBzaCustomer;
@@ -25,11 +26,12 @@ public class CreateBzaCustomerHandler : IRequestHandler<CreateBzaCustomerCommand
     {
         // El teléfono es la llave para el envío de totales: se normaliza a solo dígitos y debe ser único.
         var phone = NormalizePhone(request.Phone);
+        var facebookName = FacebookMessengerProfile.Normalize(request.FacebookName);
 
         // Validación de lista de bloqueo: si el nombre o el Facebook coinciden con un
         // cliente bloqueado activo, no se permite el alta salvo autorización del SuperAdmin (OTP).
         var nameLower = (request.Name ?? string.Empty).Trim().ToLower();
-        var fbLower = string.IsNullOrWhiteSpace(request.FacebookName) ? null : request.FacebookName.Trim().ToLower();
+        var fbLower = string.IsNullOrWhiteSpace(facebookName) ? null : facebookName.Trim().ToLower();
 
         var block = await _context.BlockedCustomers
             .AsNoTracking()
@@ -71,7 +73,7 @@ public class CreateBzaCustomerHandler : IRequestHandler<CreateBzaCustomerCommand
         var entity = new BzaCustomer
         {
             Name = request.Name ?? string.Empty,
-            FacebookName = request.FacebookName,
+            FacebookName = facebookName,
             Phone = phone,
             BzaCollectorId = request.BzaCollectorId,
             Status = 1

@@ -152,8 +152,15 @@ public class AuthController : ControllerBase
             .Select(tm => tm.Module)
             .ToListAsync();
 
-        // Si el SPA envía Module, validar que el tenant lo tenga activo
-        if (!string.IsNullOrEmpty(request.Module))
+        var isPlatformAdmin = user.Role == SystemRoles.PlatformAdmin;
+
+        // El PlatformAdmin es el administrador global del SaaS (cross-tenant): no pertenece a
+        // ninguna empresa ni valida módulos de tenant; opera exclusivamente el panel Admin.
+        if (isPlatformAdmin)
+        {
+            modules = new List<string> { AdminModule.Name };
+        }
+        else if (!string.IsNullOrEmpty(request.Module))
         {
             if (!modules.Contains(request.Module))
             {
@@ -167,6 +174,34 @@ public class AuthController : ControllerBase
         }
 
         var token = await _jwtService.GenerateTokenAsync(user);
+
+        // Suscripción de la empresa: bloquea el acceso si está suspendida y expone el estado
+        // para que el frontend muestre la etiqueta de vencimiento/prórroga.
+        object? subscriptionInfo = null;
+        if (!isPlatformAdmin && !string.IsNullOrEmpty(user.TenantId))
+        {
+            var subscription = await _identityContext.TenantSubscriptions
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.TenantId == user.TenantId);
+
+            if (subscription is not null)
+            {
+                var nowUtc = DateTime.UtcNow;
+                var subStatus = subscription.EvaluateStatus(nowUtc);
+
+                if (subStatus == SubscriptionStatus.Suspended)
+                {
+                    return StatusCode(403, new
+                    {
+                        success = false,
+                        message = "La suscripción de tu empresa está suspendida por falta de pago. Contacta al administrador para reactivar el servicio.",
+                        code = "SUBSCRIPTION_SUSPENDED"
+                    });
+                }
+
+                subscriptionInfo = BuildSubscriptionInfo(subscription, subStatus, nowUtc);
+            }
+        }
 
         // El permiso de ocultar totales solo aplica a usuarios del bazar (BazarUser).
         var effectiveCanViewTotals = user.Role == "BazarUser" ? user.CanViewTotals : true;
@@ -185,9 +220,112 @@ public class AuthController : ControllerBase
             user.MustChangePassword,
             CanViewTotals = effectiveCanViewTotals,
             AllowedModules = SplitModules(user.AllowedModules),
-            Modules = modules
+            Modules = modules,
+            Subscription = subscriptionInfo
         };
         return Ok(data);
+    }
+
+    /// <summary>
+    /// Devuelve el estado actual de la suscripción del tenant autenticado.
+    /// Se usa para refrescar avisos de vencimiento sin cerrar sesión.
+    /// </summary>
+    [Authorize]
+    [HttpGet("subscription-status")]
+    public async Task<IActionResult> GetSubscriptionStatus()
+    {
+        var tenantId = _currentUser.TenantId;
+        if (string.IsNullOrWhiteSpace(tenantId))
+            return Ok(new { success = true, data = (object?)null });
+
+        var subscription = await _identityContext.TenantSubscriptions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.TenantId == tenantId);
+
+        if (subscription is null)
+            return Ok(new { success = true, data = (object?)null });
+
+        var nowUtc = DateTime.UtcNow;
+        var status = subscription.EvaluateStatus(nowUtc);
+
+        // Si llegó aquí estando suspendida, se devuelve el estado para UI; el bloqueo real
+        // de acceso ocurre al iniciar sesión.
+        var data = BuildSubscriptionInfo(subscription, status, nowUtc);
+        return Ok(new { success = true, data });
+    }
+
+    private static object BuildSubscriptionInfo(
+        TenantSubscription subscription,
+        SubscriptionStatus status,
+        DateTime nowUtc)
+    {
+        return new
+        {
+            status = status.ToString(),
+            paidUntil = subscription.PaidUntil,
+            graceEndsOn = subscription.GraceEndsOn,
+            daysUntilExpiration = subscription.DaysUntilExpiration(nowUtc),
+            isInGrace = status == SubscriptionStatus.Grace
+        };
+    }
+
+    /// <summary>
+    /// Solicitud pública desde el login: contratar o reactivar una cuenta. Guarda la solicitud
+    /// y avisa por WhatsApp al super administrador. No requiere autenticación.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("contact-request")]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> ContactRequest([FromBody] ContactRequestBody body)
+    {
+        const string defaultSuperAdminPhone = "3121232192";
+
+        var phone = new string((body.Phone ?? string.Empty).Where(char.IsDigit).ToArray());
+        if (phone.Length is < 10 or > 15)
+            return BadRequest(new { success = false, message = "El número debe tener entre 10 y 15 dígitos." });
+
+        var type = body.Type == "Reactivate" ? "Reactivate" : "Contract";
+
+        _identityContext.ContactRequests.Add(new Domain.Common.Entities.ContactRequest
+        {
+            Phone = phone,
+            Type = type,
+            Message = body.Message?.Trim(),
+            Status = Domain.Common.Entities.RequestStatus.Pending,
+            CreatedAt = DateTime.UtcNow,
+        });
+        await _identityContext.SaveChangesAsync();
+
+        var superAdminPhone = (await _identityContext.PlatformSettings
+            .AsNoTracking()
+            .Select(s => s.SuperAdminPhone)
+            .FirstOrDefaultAsync()) ?? defaultSuperAdminPhone;
+
+        var label = type == "Reactivate" ? "Reactivar cuenta" : "Contratar cuenta";
+        var waMessage =
+            $"📲 Nueva solicitud desde el login\n" +
+            $"Tipo: {label}\n" +
+            $"Teléfono: {phone}\n" +
+            (string.IsNullOrWhiteSpace(body.Message) ? "" : $"Mensaje: {body.Message}\n") +
+            "Revisa las solicitudes en el panel de administración.";
+
+        try
+        {
+            await _whatsApp.SendTextAsync(superAdminPhone, waMessage);
+        }
+        catch
+        {
+            // Best-effort: la solicitud ya quedó registrada.
+        }
+
+        return Ok(new { success = true, message = "Solicitud enviada. Te contactaremos pronto." });
+    }
+
+    public class ContactRequestBody
+    {
+        public string Phone { get; set; } = null!;
+        public string Type { get; set; } = "Contract";
+        public string? Message { get; set; }
     }
 
     /// <summary>

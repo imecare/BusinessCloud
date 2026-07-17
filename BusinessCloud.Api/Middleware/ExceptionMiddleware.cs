@@ -59,6 +59,19 @@ namespace BusinessCloud.Api.Middleware
                 // Captura fallos de Base de Datos como FK incorrecta.
                 await HandleExceptionAsync(context, "Error de base de datos: Conflicto de relación. Es posible que estés intentando usar un registro (ej. SellerId) que no existe. Error que regresa " + ex.Message, HttpStatusCode.Conflict);
             }
+            catch (FluentValidation.ValidationException ex)
+            {
+                // Errores de validación de FluentValidation → 400 con el detalle por campo.
+                var errors = ex.Errors
+                    .GroupBy(e => e.PropertyName)
+                    .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
+                var message = ex.Errors.FirstOrDefault()?.ErrorMessage ?? "Datos inválidos.";
+                await HandleExceptionAsync(context, message, HttpStatusCode.BadRequest, errors);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                await HandleExceptionAsync(context, ex.Message, HttpStatusCode.NotFound);
+            }
             catch (InvalidOperationException ex)
             {
                 await HandleExceptionAsync(context, ex.Message, HttpStatusCode.Conflict);

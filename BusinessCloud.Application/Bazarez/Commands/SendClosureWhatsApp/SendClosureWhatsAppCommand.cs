@@ -29,7 +29,7 @@ public record SendClosureWhatsAppItemDto(
     bool Sent,
     string? Error);
 
-public class SendClosureWhatsAppHandler(IBazaresDbContext context, IWhatsAppSender whatsApp)
+public class SendClosureWhatsAppHandler(IBazaresDbContext context, IWhatsAppSender whatsApp, IIdentityDbContext identityContext, ICurrentUserService currentUser)
     : IRequestHandler<SendClosureWhatsAppCommand, SendClosureWhatsAppResultDto>
 {
     public async Task<SendClosureWhatsAppResultDto> Handle(SendClosureWhatsAppCommand request, CancellationToken ct)
@@ -43,6 +43,7 @@ public class SendClosureWhatsAppHandler(IBazaresDbContext context, IWhatsAppSend
 
         var settings = await context.BazarSettings.FirstOrDefaultAsync(ct);
         var bazarName = settings?.BazarName;
+        var salesWhatsApp = settings?.SalesWhatsApp;
 
         var deliveryByGroup = closure.GroupDeliveries
             .GroupBy(g => g.BzaCollectorGroupId)
@@ -66,7 +67,7 @@ public class SendClosureWhatsAppHandler(IBazaresDbContext context, IWhatsAppSend
                     : closure.OfficialDeliveryDate;
 
             var message = ClosureMessageBuilder
-                .Build(bazarName, name, total.TotalAmount, deliveryDate, closure.PaymentDeadline)
+                .Build(bazarName, name, total.TotalAmount, deliveryDate, closure.PaymentDeadline, salesWhatsApp)
                 .Replace(ClosureMessageBuilder.UploadLinkPlaceholder, $"{baseUrl}/comprobante/{total.UploadToken}");
 
             WhatsAppSendResult send;
@@ -103,6 +104,26 @@ public class SendClosureWhatsAppHandler(IBazaresDbContext context, IWhatsAppSend
         }
 
         await context.SaveChangesAsync(ct);
+
+        // Contabiliza los mensajes enviados en el saldo de la empresa (mensajes acumulables).
+        if (result.Sent > 0)
+        {
+            var tenantId = currentUser.TenantId;
+            if (!string.IsNullOrEmpty(tenantId))
+            {
+                var balance = await identityContext.TenantMessageBalances
+                    .FirstOrDefaultAsync(b => b.TenantId == tenantId, ct);
+
+                if (balance is not null)
+                {
+                    balance.Available = Math.Max(0, balance.Available - result.Sent);
+                    balance.TotalUsed += result.Sent;
+                    balance.UpdatedAt = DateTime.UtcNow;
+                    await identityContext.SaveChangesAsync(ct);
+                }
+            }
+        }
+
         return result;
     }
 }

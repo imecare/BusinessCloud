@@ -15,6 +15,7 @@ public class BzaDashboardDto
     public int PaidSales { get; set; }
     public int DeliveredSales { get; set; }
     public int DelinquentsCount { get; set; }
+    public int MessagesAvailable { get; set; }
     public List<CollectorVolumeDto> CollectorVolumes { get; set; } = new();
     public List<DelinquentCustomerDto> Delinquents { get; set; } = new();
 }

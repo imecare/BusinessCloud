@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using Microsoft.EntityFrameworkCore;
 using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Application.Bazares.Common;
 
 namespace BusinessCloud.Application.Bazares.Commands.UpdateBzaCustomer;
 
@@ -33,6 +34,7 @@ public class UpdateBzaCustomerHandler : IRequestHandler<UpdateBzaCustomerCommand
 
         // El teléfono es la llave para el envío de totales: se normaliza y debe ser único entre clientes.
         var phone = NormalizePhone(request.Phone);
+        var facebookName = FacebookMessengerProfile.Normalize(request.FacebookName);
 
         var duplicate = await _context.Customers
             .AnyAsync(c => c.Phone == phone && c.Id != request.Id, cancellationToken);
@@ -44,7 +46,7 @@ public class UpdateBzaCustomerHandler : IRequestHandler<UpdateBzaCustomerCommand
         }
 
         entity.Name = request.Name;
-        entity.FacebookName = request.FacebookName;
+        entity.FacebookName = facebookName;
         entity.Phone = phone;
         entity.Status = request.Status;
         entity.BzaCollectorId = request.BzaCollectorId;

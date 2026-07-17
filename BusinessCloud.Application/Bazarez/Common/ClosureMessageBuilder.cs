@@ -33,7 +33,8 @@ public static class ClosureMessageBuilder
         string customerName,
         decimal total,
         DateTime? deliveryDate,
-        DateTime paymentDeadline)
+        DateTime paymentDeadline,
+        string? salesWhatsApp)
     {
         var sb = new StringBuilder();
 
@@ -53,10 +54,34 @@ public static class ClosureMessageBuilder
 
         sb.Append("📅 *Fecha límite de pago: ").Append(FormatLongDate(paymentDeadline)).AppendLine("*");
         sb.AppendLine();
-        sb.AppendLine("Para consultar las tarjetas de pago, subir tu comprobante y ver el detalle de tu pedido, entra aquí:");
+        sb.AppendLine("🔘 *Sube tu comprobante aquí:*");
         sb.AppendLine(UploadLinkPlaceholder);
 
+        var salesLink = BuildWhatsAppLink(salesWhatsApp);
+        if (!string.IsNullOrWhiteSpace(salesLink))
+        {
+            sb.AppendLine();
+            sb.AppendLine("💬 *Hablar con el bazar:*");
+            sb.AppendLine(salesLink);
+        }
+
         return sb.ToString().TrimEnd();
+    }
+
+    private static string? BuildWhatsAppLink(string? phone)
+    {
+        if (string.IsNullOrWhiteSpace(phone)) return null;
+
+        var digits = new string(phone.Where(char.IsDigit).ToArray());
+        if (digits.Length == 0) return null;
+
+        // Si llega en formato nacional (10 dígitos), asumir MX para wa.me.
+        if (digits.Length == 10)
+        {
+            digits = "52" + digits;
+        }
+
+        return $"https://wa.me/{digits}";
     }
 
     private static string FormatLongDate(DateTime date)
