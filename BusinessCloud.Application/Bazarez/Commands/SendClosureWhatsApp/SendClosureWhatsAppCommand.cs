@@ -3,6 +3,8 @@ using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Domain.Bazares.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using System.Globalization;
 
 namespace BusinessCloud.Application.Bazares.Commands.SendClosureWhatsApp;
 
@@ -29,9 +31,17 @@ public record SendClosureWhatsAppItemDto(
     bool Sent,
     string? Error);
 
-public class SendClosureWhatsAppHandler(IBazaresDbContext context, IWhatsAppSender whatsApp, IIdentityDbContext identityContext, ICurrentUserService currentUser)
+public class SendClosureWhatsAppHandler(
+    IBazaresDbContext context,
+    IWhatsAppSender whatsApp,
+    IIdentityDbContext identityContext,
+    ICurrentUserService currentUser,
+    IConfiguration configuration)
     : IRequestHandler<SendClosureWhatsAppCommand, SendClosureWhatsAppResultDto>
 {
+    private static readonly CultureInfo Culture = new("es-MX");
+    private readonly IConfiguration _configuration = configuration;
+
     public async Task<SendClosureWhatsAppResultDto> Handle(SendClosureWhatsAppCommand request, CancellationToken ct)
     {
         var closure = await context.ClosureEvents
@@ -66,10 +76,6 @@ public class SendClosureWhatsAppHandler(IBazaresDbContext context, IWhatsAppSend
                     ? d
                     : closure.OfficialDeliveryDate;
 
-            var message = ClosureMessageBuilder
-                .Build(bazarName, name, total.TotalAmount, deliveryDate, closure.PaymentDeadline, salesWhatsApp)
-                .Replace(ClosureMessageBuilder.UploadLinkPlaceholder, $"{baseUrl}/comprobante/{total.UploadToken}");
-
             WhatsAppSendResult send;
             if (string.IsNullOrEmpty(phone))
             {
@@ -77,7 +83,36 @@ public class SendClosureWhatsAppHandler(IBazaresDbContext context, IWhatsAppSend
             }
             else
             {
-                send = await whatsApp.SendTextWithResultAsync(phone, message, ct);
+                var closureTotalsTemplateName = _configuration["WhatsApp:ClosureTotalsTemplateName"];
+                if (!string.IsNullOrWhiteSpace(closureTotalsTemplateName))
+                {
+                    var templateParams = new[]
+                    {
+                        string.IsNullOrWhiteSpace(bazarName) ? "Bazar" : bazarName.Trim(),
+                        name,
+                        total.TotalAmount.ToString("C", Culture),
+                        FormatLongDate(deliveryDate ?? closure.PaymentDeadline),
+                        FormatLongDate(closure.PaymentDeadline),
+                        $"{baseUrl}/comprobante/{total.UploadToken}",
+                    };
+
+                    send = await whatsApp.SendTemplateWithResultAsync(
+                        phone,
+                        closureTotalsTemplateName,
+                        string.IsNullOrWhiteSpace(_configuration["WhatsApp:ClosureTotalsTemplateLang"])
+                            ? "es"
+                            : _configuration["WhatsApp:ClosureTotalsTemplateLang"]!,
+                        templateParams,
+                        ct);
+                }
+                else
+                {
+                    var message = ClosureMessageBuilder
+                        .Build(bazarName, name, total.TotalAmount, deliveryDate, closure.PaymentDeadline, salesWhatsApp)
+                        .Replace(ClosureMessageBuilder.UploadLinkPlaceholder, $"{baseUrl}/comprobante/{total.UploadToken}");
+
+                    send = await whatsApp.SendTextWithResultAsync(phone, message, ct);
+                }
             }
 
             context.WhatsAppMessages.Add(new BzaWhatsAppMessage
@@ -125,5 +160,11 @@ public class SendClosureWhatsAppHandler(IBazaresDbContext context, IWhatsAppSend
         }
 
         return result;
+    }
+
+    private static string FormatLongDate(DateTime date)
+    {
+        var text = date.ToString("dddd dd 'de' MMMM", Culture);
+        return text.Length > 0 ? char.ToUpper(text[0], Culture) + text[1..] : text;
     }
 }

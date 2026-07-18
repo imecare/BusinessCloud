@@ -39,6 +39,17 @@ public class WhatsAppSender : IWhatsAppSender
         return SendTextAsync(toPhone, message, cancellationToken);
     }
 
+    public Task<bool> SendTemplateAsync(
+        string toPhone,
+        string templateName,
+        string languageCode,
+        IReadOnlyList<string> bodyParameters,
+        CancellationToken cancellationToken = default)
+    {
+        return SendTemplateWithResultAsync(toPhone, templateName, languageCode, bodyParameters, cancellationToken)
+            .ContinueWith(t => t.Result.Success, cancellationToken);
+    }
+
     public async Task<WhatsAppSendResult> SendOtpWithResultAsync(string toPhone, string code, CancellationToken cancellationToken = default)
     {
         if (!string.IsNullOrWhiteSpace(_options.OtpTemplateName))
@@ -122,6 +133,43 @@ public class WhatsAppSender : IWhatsAppSender
                     {
                         type = "body",
                         parameters = new object[] { new { type = "text", text = code } },
+                    },
+                },
+            },
+        };
+
+        return await PostAsync(payload, cancellationToken);
+    }
+
+    public async Task<WhatsAppSendResult> SendTemplateWithResultAsync(
+        string toPhone,
+        string templateName,
+        string languageCode,
+        IReadOnlyList<string> bodyParameters,
+        CancellationToken cancellationToken = default)
+    {
+        var to = NormalizePhone(toPhone, _options.DefaultCountryCode);
+        if (!IsConfigured || string.IsNullOrWhiteSpace(to))
+            return new WhatsAppSendResult(false, null, null, "WhatsApp no configurado o número inválido.");
+
+        if (string.IsNullOrWhiteSpace(templateName))
+            return new WhatsAppSendResult(false, null, null, "Nombre de plantilla no configurado.");
+
+        var payload = new
+        {
+            messaging_product = "whatsapp",
+            to,
+            type = "template",
+            template = new
+            {
+                name = templateName,
+                language = new { code = string.IsNullOrWhiteSpace(languageCode) ? "es" : languageCode },
+                components = new object[]
+                {
+                    new
+                    {
+                        type = "body",
+                        parameters = bodyParameters.Select(text => new { type = "text", text }).ToArray(),
                     },
                 },
             },

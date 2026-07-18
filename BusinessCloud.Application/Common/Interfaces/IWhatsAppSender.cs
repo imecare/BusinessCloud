@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace BusinessCloud.Application.Common.Interfaces;
 
 /// <summary>Resultado del envío de un mensaje de WhatsApp por la Cloud API.</summary>
@@ -16,6 +18,22 @@ public interface IWhatsAppSender
 
     /// <summary>Envía un OTP y devuelve el detalle (id del mensaje / error) para registrar su estatus.</summary>
     Task<WhatsAppSendResult> SendOtpWithResultAsync(string toPhone, string code, CancellationToken cancellationToken = default);
+
+    /// <summary>Envía una plantilla aprobada de WhatsApp y devuelve el detalle del envío.</summary>
+    Task<WhatsAppSendResult> SendTemplateWithResultAsync(
+        string toPhone,
+        string templateName,
+        string languageCode,
+        IReadOnlyList<string> bodyParameters,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Envía una plantilla aprobada de WhatsApp.</summary>
+    Task<bool> SendTemplateAsync(
+        string toPhone,
+        string templateName,
+        string languageCode,
+        IReadOnlyList<string> bodyParameters,
+        CancellationToken cancellationToken = default);
 
     /// <summary>Envía un mensaje de texto simple.</summary>
     Task<bool> SendTextAsync(string toPhone, string message, CancellationToken cancellationToken = default);

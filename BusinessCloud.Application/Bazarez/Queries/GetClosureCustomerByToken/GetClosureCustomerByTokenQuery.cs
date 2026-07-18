@@ -1,6 +1,7 @@
 using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Application.Bazares.Common;
 using MediatR;
+using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
 
 namespace BusinessCloud.Application.Bazares.Queries.GetClosureCustomerByToken;
@@ -15,6 +16,8 @@ public record PublicPaymentCardDto(string CardNumber, string CardHolderName, str
 
 /// <summary>Producto comprado por el cliente en este cierre.</summary>
 public record PublicProductDto(string Description, decimal Price);
+
+public record OtherPendingAccountDto(string BazarName, string? BazarLogoUrl, string UploadToken);
 
 public class ClosureCustomerPublicDto
 {
@@ -66,12 +69,22 @@ public class ClosureCustomerPublicDto
 
     /// <summary>Mensaje adicional en el cobro (configurado por el bazar), a mostrar al pie del comprobante.</summary>
     public string? ChargeMessage { get; set; }
+
+    /// <summary>Indica si Web Push esta habilitado para suscripcion desde el navegador.</summary>
+    public bool WebPushEnabled { get; set; }
+
+    /// <summary>Llave publica VAPID para registrar la suscripcion Web Push en el navegador.</summary>
+    public string? WebPushPublicKey { get; set; }
+
+    /// <summary>Otras cuentas del mismo telefono en bazares distintos con saldo pendiente o rechazado.</summary>
+    public List<OtherPendingAccountDto> OtherPendingAccounts { get; set; } = new();
 }
 
-public class GetClosureCustomerByTokenHandler(IBazaresDbContext context)
+public class GetClosureCustomerByTokenHandler(IBazaresDbContext context, IConfiguration configuration)
     : IRequestHandler<GetClosureCustomerByTokenQuery, ClosureCustomerPublicDto>
 {
     private readonly IBazaresDbContext _context = context;
+    private readonly IConfiguration _configuration = configuration;
 
     public async Task<ClosureCustomerPublicDto> Handle(GetClosureCustomerByTokenQuery request, CancellationToken cancellationToken)
     {
@@ -91,6 +104,8 @@ public class GetClosureCustomerByTokenHandler(IBazaresDbContext context)
                 .FirstOrDefault(g => g.BzaCollectorGroupId == total.BzaCollectorGroupId.Value)?.DeliveryDate
                 ?? total.ClosureEvent.OfficialDeliveryDate
             : total.ClosureEvent.OfficialDeliveryDate;
+
+        var phone = new string((total.Customer?.Phone ?? string.Empty).Where(char.IsDigit).ToArray());
 
         // Configuración del bazar (para WhatsApp, retiro sin tarjeta, nombre).
         var settings = await _context.BazarSettings
@@ -122,9 +137,50 @@ public class GetClosureCustomerByTokenHandler(IBazaresDbContext context)
             .Select(p => new PublicProductDto(p.Description, p.Price))
             .ToListAsync(cancellationToken);
 
+        var otherPendingAccounts = new List<OtherPendingAccountDto>();
+        if (!string.IsNullOrWhiteSpace(phone))
+        {
+            var crossTenantTotals = await _context.ClosureCustomerTotals
+                .IgnoreQueryFilters()
+                .Include(t => t.Customer)
+                .Where(t => t.BzaCustomerId != total.BzaCustomerId
+                            && t.Customer.Phone == phone
+                            && t.TenantId != total.TenantId
+                            && (t.Status == Domain.Bazares.Entities.BzaClosureCustomerTotalStatus.Pending
+                                || t.Status == Domain.Bazares.Entities.BzaClosureCustomerTotalStatus.Rejected)
+                            && t.ClosureEvent.Status != Domain.Bazares.Entities.BzaClosureEventStatus.Cancelled)
+                .Select(t => new
+                {
+                    t.UploadToken,
+                    TenantId = t.TenantId
+                })
+                .ToListAsync(cancellationToken);
+
+            var tenantIds = crossTenantTotals.Select(x => x.TenantId).Distinct().ToList();
+            var bazarInfo = await _context.BazarSettings
+                .IgnoreQueryFilters()
+                .Where(s => tenantIds.Contains(s.TenantId))
+                .Select(s => new { s.TenantId, s.BazarName, s.LogoUrl })
+                .ToListAsync(cancellationToken);
+
+            var bazarInfoByTenant = bazarInfo.ToDictionary(x => x.TenantId, x => x);
+
+            otherPendingAccounts = crossTenantTotals
+                .Select(x =>
+                {
+                    bazarInfoByTenant.TryGetValue(x.TenantId, out var info);
+                    return new OtherPendingAccountDto(
+                        info?.BazarName ?? "Bazar",
+                        info?.LogoUrl,
+                        x.UploadToken);
+                })
+                .DistinctBy(x => x.UploadToken)
+                .ToList();
+        }
+
         return new ClosureCustomerPublicDto
         {
-            CustomerName = total.Customer.Name,
+            CustomerName = total.Customer?.Name ?? "Cliente",
             TotalAmount = total.TotalAmount,
             PaymentDeadline = total.ClosureEvent.PaymentDeadline,
             DeliveryDate = deliveryDate,
@@ -152,7 +208,10 @@ public class GetClosureCustomerByTokenHandler(IBazaresDbContext context)
             SecondaryWhatsApp = settings?.SecondaryWhatsAppShowInProof == true ? settings?.SecondaryWhatsApp : null,
             SecondaryWhatsAppDescription = settings?.SecondaryWhatsAppShowInProof == true ? settings?.SecondaryWhatsAppDescription : null,
             PaymentCutoffTime = settings?.PaymentCutoffTime,
-            ChargeMessage = notif?.ChargeMessage
+            ChargeMessage = notif?.ChargeMessage,
+            WebPushPublicKey = _configuration["WebPush:PublicKey"],
+            WebPushEnabled = !string.IsNullOrWhiteSpace(_configuration["WebPush:PublicKey"]),
+            OtherPendingAccounts = otherPendingAccounts
         };
     }
 }

@@ -31,6 +31,8 @@ public interface IBazaresDbContext
     DbSet<BzaSaleCancellation> SaleCancellations { get; }
     DbSet<BzaBlockedCustomer> BlockedCustomers { get; }
     DbSet<BzaWhatsAppMessage> WhatsAppMessages { get; }
+    DbSet<BzaCustomerNotificationSubscription> CustomerNotificationSubscriptions { get; }
+    DbSet<BzaNotificationLog> NotificationLogs { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

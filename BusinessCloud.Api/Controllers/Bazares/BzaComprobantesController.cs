@@ -1,5 +1,6 @@
 using BusinessCloud.Application.Bazares.Commands.UploadClosureProof;
 using BusinessCloud.Application.Bazares.Commands.DeleteClosureProof;
+using BusinessCloud.Application.Bazares.Commands.Notifications;
 using BusinessCloud.Application.Bazares.Queries.GetClosureCustomerByToken;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -78,4 +79,31 @@ public class BzaComprobantesController(ISender mediator) : ControllerBase
         var result = await mediator.Send(new DeleteClosureProofCommand(token, proofId));
         return Ok(result);
     }
+
+    /// <summary>
+    /// Registra o actualiza la suscripción Web Push del navegador del cliente.
+    /// </summary>
+    [HttpPost("{token}/subscribe")]
+    public async Task<ActionResult<SubscribeToWebPushResultDto>> Subscribe(string token, [FromBody] SubscribeWebPushRequest body)
+    {
+        var result = await mediator.Send(new SubscribeToWebPushCommand(
+            token,
+            body.Endpoint ?? string.Empty,
+            body.Keys?.P256dh ?? string.Empty,
+            body.Keys?.Auth ?? string.Empty));
+
+        return Ok(result);
+    }
+}
+
+public class SubscribeWebPushRequest
+{
+    public string? Endpoint { get; set; }
+    public SubscribeWebPushKeys? Keys { get; set; }
+}
+
+public class SubscribeWebPushKeys
+{
+    public string? P256dh { get; set; }
+    public string? Auth { get; set; }
 }

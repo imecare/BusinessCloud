@@ -41,6 +41,8 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
     public DbSet<BzaSaleCancellation> SaleCancellations => Set<BzaSaleCancellation>();
     public DbSet<BzaBlockedCustomer> BlockedCustomers => Set<BzaBlockedCustomer>();
     public DbSet<BzaWhatsAppMessage> WhatsAppMessages => Set<BzaWhatsAppMessage>();
+    public DbSet<BzaCustomerNotificationSubscription> CustomerNotificationSubscriptions => Set<BzaCustomerNotificationSubscription>();
+    public DbSet<BzaNotificationLog> NotificationLogs => Set<BzaNotificationLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -75,7 +77,11 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         modelBuilder.Entity<BzaSaleCancellation>().ToTable("Bza_SaleCancellations");
         modelBuilder.Entity<BzaBlockedCustomer>().ToTable("Bza_BlockedCustomers");
         modelBuilder.Entity<BzaWhatsAppMessage>().ToTable("Bza_WhatsAppMessages");
+        modelBuilder.Entity<BzaCustomerNotificationSubscription>().ToTable("Bza_CustomerNotificationSubscriptions");
+        modelBuilder.Entity<BzaNotificationLog>().ToTable("Bza_NotificationLogs");
         modelBuilder.Entity<BzaWhatsAppMessage>().HasIndex(m => m.WaMessageId);
+        modelBuilder.Entity<BzaCustomerNotificationSubscription>().HasIndex(x => new { x.TenantId, x.BzaCustomerId, x.Endpoint }).IsUnique();
+        modelBuilder.Entity<BzaNotificationLog>().HasIndex(x => new { x.TenantId, x.BzaClosureEventId, x.BzaClosureCustomerTotalId, x.SentAt });
 
         // ─────────────────────────────────────────────────────────────────────
         // Precisión de decimales
@@ -203,6 +209,52 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
             .HasForeignKey(p => p.BzaClosureCustomerTotalId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        modelBuilder.Entity<BzaCustomerNotificationSubscription>()
+            .HasOne(s => s.Customer)
+            .WithMany()
+            .HasForeignKey(s => s.BzaCustomerId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<BzaCustomerNotificationSubscription>()
+            .HasOne(s => s.ClosureCustomerTotal)
+            .WithMany()
+            .HasForeignKey(s => s.BzaClosureCustomerTotalId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<BzaCustomerNotificationSubscription>()
+            .Property(s => s.Endpoint)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<BzaCustomerNotificationSubscription>()
+            .Property(s => s.P256dh)
+            .HasMaxLength(300);
+
+        modelBuilder.Entity<BzaCustomerNotificationSubscription>()
+            .Property(s => s.Auth)
+            .HasMaxLength(200);
+
+        modelBuilder.Entity<BzaNotificationLog>()
+            .HasOne(l => l.ClosureEvent)
+            .WithMany()
+            .HasForeignKey(l => l.BzaClosureEventId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<BzaNotificationLog>()
+            .HasOne(l => l.ClosureCustomerTotal)
+            .WithMany()
+            .HasForeignKey(l => l.BzaClosureCustomerTotalId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<BzaNotificationLog>()
+            .HasOne(l => l.Customer)
+            .WithMany()
+            .HasForeignKey(l => l.BzaCustomerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<BzaNotificationLog>()
+            .Property(l => l.ErrorMessage)
+            .HasMaxLength(500);
+
         modelBuilder.Entity<BzaClosureCustomerTotal>()
             .Property(t => t.RejectionReason)
             .HasMaxLength(500);
@@ -273,6 +325,8 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         modelBuilder.Entity<BzaClosureProof>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaProofRejection>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaSaleCancellation>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaCustomerNotificationSubscription>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaNotificationLog>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

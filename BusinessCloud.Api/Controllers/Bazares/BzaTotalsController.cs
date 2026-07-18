@@ -1,6 +1,7 @@
 using BusinessCloud.Api.Authorization;
 using BusinessCloud.Application.Bazares.Commands.CancelClosureSale;
 using BusinessCloud.Application.Bazares.Commands.ManualValidateClosureTotal;
+using BusinessCloud.Application.Bazares.Commands.Notifications;
 using BusinessCloud.Application.Bazares.Commands.ReactivateClosureSale;
 using BusinessCloud.Application.Bazares.Commands.RejectClosureProof;
 using BusinessCloud.Application.Bazares.Commands.ResyncClosureGroups;
@@ -49,6 +50,17 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
     [HttpPost("{id:int}/send-whatsapp")]
     public async Task<ActionResult<SendClosureWhatsAppResultDto>> SendWhatsApp(int id, [FromBody] SendWhatsAppRequest body)
         => await mediator.Send(new SendClosureWhatsAppCommand(id, body?.PortalBaseUrl ?? string.Empty));
+
+    /// <summary>
+    /// Envia notificaciones masivas para clientes seleccionados usando el canal elegido.
+    /// </summary>
+    [HttpPost("notifications/bulk")]
+    public async Task<ActionResult<SendBulkNotificationsResultDto>> SendBulkNotifications([FromBody] SendBulkNotificationsRequest body)
+        => await mediator.Send(new SendBulkNotificationsCommand(
+            body.CustomerTotalIds ?? new List<int>(),
+            body.NotificationType,
+            body.ChannelStrategy,
+            body.PortalBaseUrl));
 
     /// <summary>
     /// Historial de cierres de venta (envíos de totales).
@@ -179,6 +191,14 @@ public class RejectProofRequest
 /// <summary>Cuerpo de la petición para enviar los mensajes del cierre por WhatsApp.</summary>
 public class SendWhatsAppRequest
 {
+    public string? PortalBaseUrl { get; set; }
+}
+
+public class SendBulkNotificationsRequest
+{
+    public List<int>? CustomerTotalIds { get; set; }
+    public int NotificationType { get; set; }
+    public int ChannelStrategy { get; set; }
     public string? PortalBaseUrl { get; set; }
 }
 

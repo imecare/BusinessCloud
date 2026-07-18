@@ -12,6 +12,7 @@ public class WhatsAppOptions
     public string ApiVersion { get; set; } = "v21.0";
     public string PhoneNumberId { get; set; } = string.Empty;
     public string AccessToken { get; set; } = string.Empty;
+    public string AppSecret { get; set; } = string.Empty;
 
     /// <summary>
     /// Código de país por defecto (solo dígitos, sin '+') que se antepone a los números
@@ -28,8 +29,17 @@ public class WhatsAppOptions
     /// <summary>Idioma de la plantilla OTP (por ejemplo "es" o "es_MX").</summary>
     public string OtpTemplateLang { get; set; } = "es";
 
+    /// <summary>Nombre de la plantilla aprobada para enviar los totales de compra.</summary>
+    public string? ClosureTotalsTemplateName { get; set; }
+
+    /// <summary>Idioma de la plantilla de totales (por ejemplo "es" o "es_MX").</summary>
+    public string ClosureTotalsTemplateLang { get; set; } = "es";
+
     /// <summary>Token de verificación del webhook de Meta (hub.verify_token). Debe coincidir con el configurado en Meta.</summary>
     public string? WebhookVerifyToken { get; set; }
+
+    /// <summary>Base pública del portal para construir enlaces a /comprobante/{token}.</summary>
+    public string PublicPortalBaseUrl { get; set; } = "https://bazares.bcloud.com.mx";
 
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(PhoneNumberId) && !string.IsNullOrWhiteSpace(AccessToken);

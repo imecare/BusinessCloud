@@ -40,6 +40,7 @@
     <PackageReference Include="MongoDB.Driver" Version="3.7.1" />
     <!-- Polly para políticas de resiliencia (retry, circuit breaker) en MongoDB -->
     <PackageReference Include="Polly" Version="8.5.2" />
+    <PackageReference Include="WebPush" Version="1.0.13" />
   </ItemGroup>
 
 </Project>

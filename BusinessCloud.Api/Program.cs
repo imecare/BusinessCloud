@@ -1,5 +1,6 @@
 using BusinessCloud.Api.Middleware;
 using BusinessCloud.Application;
+using BusinessCloud.Api.Common;
 using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Domain.Common.Entities;
 using BusinessCloud.Infrastructure.Common.Services;
@@ -133,8 +134,8 @@ try
     else
     {
         builder.Services.AddDistributedMemoryCache();
-        builder.Services.AddScoped<ICacheService, NoOpCacheService>();
-        Log.Warning("Redis no configurado. Usando cach� en memoria (no-op).");
+        builder.Services.AddScoped<ICacheService, RedisCacheService>();
+        Log.Warning("Redis no configurado. Usando caché distribuida en memoria.");
     }
 
     builder.Services.AddScoped<JwtTokenService>();
@@ -144,6 +145,14 @@ try
         builder.Configuration.GetSection(BusinessCloud.Infrastructure.Common.Options.WhatsAppOptions.SectionName));
     builder.Services.AddHttpClient<BusinessCloud.Application.Common.Interfaces.IWhatsAppSender,
         BusinessCloud.Infrastructure.Common.Services.WhatsAppSender>();
+    builder.Services.AddScoped<BusinessCloud.Application.Common.Interfaces.IWhatsAppNotificationService,
+        BusinessCloud.Infrastructure.Common.Services.WhatsAppNotificationService>();
+    builder.Services.AddSingleton<IWhatsAppWebhookCommandQueue, WhatsAppWebhookCommandQueue>();
+    builder.Services.AddHostedService<WhatsAppWebhookBackgroundService>();
+    builder.Services.Configure<BusinessCloud.Infrastructure.Common.Options.WebPushOptions>(
+        builder.Configuration.GetSection(BusinessCloud.Infrastructure.Common.Options.WebPushOptions.SectionName));
+    builder.Services.AddScoped<BusinessCloud.Application.Common.Interfaces.IWebPushService,
+        BusinessCloud.Infrastructure.Common.Services.WebPushService>();
     builder.Services.AddSingleton<BusinessCloud.Application.Common.Interfaces.IVerificationCodeService,
         BusinessCloud.Infrastructure.Common.Services.VerificationCodeService>();
 
@@ -303,6 +312,7 @@ try
     }
 
     app.UseCors("AllowFrontend");
+    app.UseMiddleware<WhatsAppWebhookSignatureMiddleware>();
     // REGISTRA TU MIDDLEWARE AQU� PARA QUE sea EL QUE DICTA EL FORMATO
     app.UseMiddleware<ExceptionMiddleware>();
 
