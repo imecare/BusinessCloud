@@ -2,6 +2,7 @@ using BusinessCloud.Application.Bazares.Commands.UploadClosureProof;
 using BusinessCloud.Application.Bazares.Commands.DeleteClosureProof;
 using BusinessCloud.Application.Bazares.Commands.Notifications;
 using BusinessCloud.Application.Bazares.Queries.GetClosureCustomerByToken;
+using BusinessCloud.Application.Bazares.Common;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,10 +18,57 @@ public class BzaComprobantesController(ISender mediator) : ControllerBase
 {
     /// <summary>
     /// Obtiene el total a pagar y datos de entrega del cliente por su token.
+    /// Construye URLs completas para el logo y otras imágenes usando la URL del servidor actual.
     /// </summary>
     [HttpGet("{token}")]
     public async Task<ActionResult<ClosureCustomerPublicDto>> GetByToken(string token)
-        => await mediator.Send(new GetClosureCustomerByTokenQuery(token));
+    {
+        var result = await mediator.Send(new GetClosureCustomerByTokenQuery(token));
+
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+
+        // Construir URL completa del logo si es relativa
+        if (!string.IsNullOrEmpty(result.BazarLogoUrl) && !result.BazarLogoUrl.StartsWith("http"))
+        {
+            result.BazarLogoUrl = result.BazarLogoUrl.StartsWith("/")
+                ? $"{baseUrl}{result.BazarLogoUrl}"
+                : $"{baseUrl}/{result.BazarLogoUrl}";
+        }
+
+        // Construir URLs completas para imágenes de comprobantes (ClosureProofDto es un record, crear nuevas instancias)
+        if (result.Proofs != null && result.Proofs.Count > 0)
+        {
+            result.Proofs = result.Proofs
+                .Select(proof =>
+                {
+                    var url = proof.Url;
+                    if (!string.IsNullOrEmpty(url) && !url.StartsWith("http"))
+                    {
+                        url = url.StartsWith("/") ? $"{baseUrl}{url}" : $"{baseUrl}/{url}";
+                    }
+                    return new ClosureProofDto(proof.Id, url, proof.UploadedAt);
+                })
+                .ToList();
+        }
+
+        // Construir URLs para otros bazares pendientes
+        if (result.OtherPendingAccounts != null && result.OtherPendingAccounts.Count > 0)
+        {
+            result.OtherPendingAccounts = result.OtherPendingAccounts
+                .Select(account =>
+                {
+                    var logoUrl = account.BazarLogoUrl;
+                    if (!string.IsNullOrEmpty(logoUrl) && !logoUrl.StartsWith("http"))
+                    {
+                        logoUrl = logoUrl.StartsWith("/") ? $"{baseUrl}{logoUrl}" : $"{baseUrl}/{logoUrl}";
+                    }
+                    return new OtherPendingAccountDto(account.BazarName, logoUrl, account.UploadToken);
+                })
+                .ToList();
+        }
+
+        return result;
+    }
 
     /// <summary>
     /// Sube uno o varios comprobantes de pago del cliente.
