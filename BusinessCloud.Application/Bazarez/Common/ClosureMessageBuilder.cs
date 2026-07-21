@@ -45,25 +45,17 @@ public static class ClosureMessageBuilder
 
         sb.Append("Hola ").Append(customerName).AppendLine(" 👋");
         sb.AppendLine();
-        sb.Append("💰 *Total a pagar: ").Append(Money(total)).AppendLine("*");
+        sb.Append("💰 Total a pagar: ").Append(Money(total)).AppendLine();
 
         if (deliveryDate.HasValue)
         {
-            sb.Append("🚚 Entrega: ").AppendLine(FormatLongDate(deliveryDate.Value));
+            sb.Append("🚚 Fecha de entrega: ").AppendLine(FormatLongDate(deliveryDate.Value));
         }
 
-        sb.Append("📅 *Fecha límite de pago: ").Append(FormatLongDate(paymentDeadline)).AppendLine("*");
+        sb.Append("📅 Fecha límite de pago: ").AppendLine(FormatLongDate(paymentDeadline));
         sb.AppendLine();
-        sb.AppendLine("🔘 *Sube tu comprobante aquí:*");
+        sb.AppendLine("Para consultar las tarjetas de pago, subir tu comprobante y ver el detalle de tu pedido, entra aquí:");
         sb.AppendLine(UploadLinkPlaceholder);
-
-        var salesLink = BuildWhatsAppLink(salesWhatsApp);
-        if (!string.IsNullOrWhiteSpace(salesLink))
-        {
-            sb.AppendLine();
-            sb.AppendLine("💬 *Hablar con el bazar:*");
-            sb.AppendLine(salesLink);
-        }
 
         return sb.ToString().TrimEnd();
     }
