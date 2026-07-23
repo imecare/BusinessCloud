@@ -20,11 +20,25 @@ public class MongoContext : IMongoContext
         _db = client.GetDatabase(databaseName);
     }
 
-    public async Task InsertAuditLogAsync(object logEntry, CancellationToken cancellationToken)
+    public Task InsertAuditLogAsync(object logEntry, CancellationToken cancellationToken)
     {
-        var collection = _db.GetCollection<BsonDocument>("AuditLogs");
-        var document = logEntry.ToBsonDocument();
-        await collection.InsertOneAsync(document, null, cancellationToken);
+        // Fire-and-forget: los fallos de MongoDB NUNCA deben bloquear ni revertir transacciones SQL.
+        // Se usa CancellationToken.None para que cancelar el request HTTP no cancele el log de auditoría.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var collection = _db.GetCollection<BsonDocument>("AuditLogs");
+                var document = logEntry.ToBsonDocument();
+                await collection.InsertOneAsync(document, null, CancellationToken.None);
+            }
+            catch
+            {
+                // Intencional: los logs de auditoría son best-effort. El fallo no se propaga.
+            }
+        }, CancellationToken.None);
+
+        return Task.CompletedTask;
     }
 
     public async Task UpdateCustomerReadModelAsync(int saleId, decimal amount, string reference, CancellationToken ct)
