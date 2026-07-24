@@ -52,6 +52,14 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
         => await mediator.Send(new SendClosureWhatsAppCommand(id, body?.PortalBaseUrl ?? string.Empty));
 
     /// <summary>
+    /// Reintenta el envÃ­o por WhatsApp del mensaje de cobro solo para los clientes indicados
+    /// (tÃ­picamente aquellos cuyo envÃ­o inicial fallÃ³).
+    /// </summary>
+    [HttpPost("{id:int}/send-whatsapp-retry")]
+    public async Task<ActionResult<SendClosureWhatsAppResultDto>> RetryWhatsApp(int id, [FromBody] RetryWhatsAppRequest body)
+        => await mediator.Send(new SendClosureWhatsAppCommand(id, body?.PortalBaseUrl ?? string.Empty, body?.CustomerIds));
+
+    /// <summary>
     /// Envia notificaciones masivas para clientes seleccionados usando el canal elegido.
     /// </summary>
     [HttpPost("notifications/bulk")]
@@ -191,6 +199,13 @@ public class RejectProofRequest
 /// <summary>Cuerpo de la petición para enviar los mensajes del cierre por WhatsApp.</summary>
 public class SendWhatsAppRequest
 {
+    public string? PortalBaseUrl { get; set; }
+}
+
+/// <summary>Cuerpo de la peticiÃ³n de reintento de envÃ­o por WhatsApp a clientes especÃ­ficos.</summary>
+public class RetryWhatsAppRequest
+{
+    public List<int>? CustomerIds { get; set; }
     public string? PortalBaseUrl { get; set; }
 }
 

@@ -2,6 +2,7 @@ using BusinessCloud.Application.Bazares.Common;
 using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Domain.Bazares.Entities;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 namespace BusinessCloud.Application.Bazares.Commands.Notifications;
@@ -33,7 +34,8 @@ public class SendBulkNotificationsResultDto
 public class SendBulkNotificationsHandler(
     IBazaresDbContext context,
     IWebPushService webPushService,
-    IWhatsAppNotificationService whatsAppNotificationService)
+    IWhatsAppNotificationService whatsAppNotificationService,
+    IHttpContextAccessor httpContextAccessor)
     : IRequestHandler<SendBulkNotificationsCommand, SendBulkNotificationsResultDto>
 {
     public async Task<SendBulkNotificationsResultDto> Handle(SendBulkNotificationsCommand request, CancellationToken cancellationToken)
@@ -58,6 +60,12 @@ public class SendBulkNotificationsHandler(
             .Where(s => customerIds.Contains(s.BzaCustomerId) && s.IsActive)
             .ToListAsync(cancellationToken);
 
+        var tenantIds = totals.Select(t => t.TenantId).Distinct().ToList();
+        var bazarSettingsByTenant = await context.BazarSettings
+            .IgnoreQueryFilters()
+            .Where(s => tenantIds.Contains(s.TenantId))
+            .ToDictionaryAsync(s => s.TenantId, cancellationToken);
+
         var subscriptionsByCustomer = subscriptions
             .GroupBy(s => s.BzaCustomerId)
             .ToDictionary(g => g.Key, g => g.ToList());
@@ -72,6 +80,7 @@ public class SendBulkNotificationsHandler(
             string? error = null;
 
             var template = BuildTemplateData(total, request.NotificationType, request.PortalBaseUrl);
+            var iconUrl = BuildIconUrl(bazarSettingsByTenant.GetValueOrDefault(total.TenantId));
             var hasPush = subscriptionsByCustomer.TryGetValue(total.BzaCustomerId, out var customerSubs) && customerSubs is { Count: > 0 };
 
             async Task<(bool Ok, string? Err)> TrySendPushAsync()
@@ -88,7 +97,7 @@ public class SendBulkNotificationsHandler(
                         sub.Endpoint,
                         sub.P256dh,
                         sub.Auth,
-                        new WebPushMessage(template.Title, template.Body, template.ActionUrl),
+                        new WebPushMessage(template.Title, template.Body, template.ActionUrl, iconUrl),
                         cancellationToken);
 
                     if (pushResult.Success)
@@ -182,6 +191,23 @@ public class SendBulkNotificationsHandler(
         return result;
     }
 
+    private string? BuildIconUrl(BzaBazarSettings? settings)
+    {
+        var logoUrl = settings?.LogoUrl;
+        if (string.IsNullOrWhiteSpace(logoUrl))
+            return null;
+
+        if (logoUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            return logoUrl;
+
+        var request = httpContextAccessor.HttpContext?.Request;
+        if (request is null)
+            return logoUrl;
+
+        var baseUrl = $"{request.Scheme}://{request.Host}";
+        return logoUrl.StartsWith('/') ? $"{baseUrl}{logoUrl}" : $"{baseUrl}/{logoUrl}";
+    }
+
     private static NotificationTemplateData BuildTemplateData(BzaClosureCustomerTotal total, int notificationType, string? portalBaseUrl)
     {
         var baseUrl = (portalBaseUrl ?? string.Empty).TrimEnd('/');
@@ -205,10 +231,17 @@ public class SendBulkNotificationsHandler(
                 $"{customerName}, tu comprobante ya fue aprobado. Gracias por tu pago.",
                 actionUrl),
 
-            _ => new NotificationTemplateData(
-                "Recordatorio de pago",
-                ClosureMessageBuilder.Build(null, customerName, total.TotalAmount, null, total.ClosureEvent.PaymentDeadline, null),
-                actionUrl),
+            _ => BuildReminderTemplate(customerName, total, actionUrl),
         };
+    }
+
+    private static NotificationTemplateData BuildReminderTemplate(string customerName, BzaClosureCustomerTotal total, string? actionUrl)
+    {
+        var body = ClosureMessageBuilder.Build(null, customerName, total.TotalAmount, null, total.ClosureEvent.PaymentDeadline, null);
+        body = string.IsNullOrWhiteSpace(actionUrl)
+            ? body.Replace(ClosureMessageBuilder.UploadLinkPlaceholder, string.Empty)
+            : body.Replace(ClosureMessageBuilder.UploadLinkPlaceholder, actionUrl);
+
+        return new NotificationTemplateData("Recordatorio de pago", body, actionUrl);
     }
 }

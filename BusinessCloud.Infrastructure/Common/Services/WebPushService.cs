@@ -47,7 +47,8 @@ public class WebPushService : IWebPushService
             {
                 title = message.Title,
                 body = message.Body,
-                url = message.Url
+                url = message.Url,
+                icon = message.Icon
             });
 
             await _client.SendNotificationAsync(subscription, payload, _vapidDetails, cancellationToken: cancellationToken);

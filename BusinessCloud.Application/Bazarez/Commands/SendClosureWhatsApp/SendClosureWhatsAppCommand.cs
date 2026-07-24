@@ -9,10 +9,13 @@ using System.Globalization;
 namespace BusinessCloud.Application.Bazares.Commands.SendClosureWhatsApp;
 
 /// <summary>
-/// Envía por WhatsApp (Cloud API) el mensaje de cobro a cada cliente del cierre y registra
-/// cada envío para dar seguimiento a su entrega vía los webhooks de Meta.
+/// EnvÃƒÂ­a por WhatsApp (Cloud API) el mensaje de cobro a cada cliente del cierre y registra
+/// cada envÃƒÂ­o para dar seguimiento a su entrega vÃƒÂ­a los webhooks de Meta.
 /// </summary>
-public record SendClosureWhatsAppCommand(int ClosureEventId, string PortalBaseUrl) : IRequest<SendClosureWhatsAppResultDto>;
+public record SendClosureWhatsAppCommand(
+    int ClosureEventId,
+    string PortalBaseUrl,
+    IReadOnlyList<int>? CustomerIds = null) : IRequest<SendClosureWhatsAppResultDto>;
 
 public class SendClosureWhatsAppResultDto
 {
@@ -63,7 +66,11 @@ public class SendClosureWhatsAppHandler(
         var now = DateTime.UtcNow;
         var result = new SendClosureWhatsAppResultDto { ClosureEventId = closure.Id };
 
-        foreach (var total in closure.CustomerTotals)
+        var targets = request.CustomerIds is { Count: > 0 } customerIds
+            ? closure.CustomerTotals.Where(t => customerIds.Contains(t.BzaCustomerId)).ToList()
+            : closure.CustomerTotals.ToList();
+
+        foreach (var total in targets)
         {
             var customer = total.Customer;
             var phone = new string((customer?.Phone ?? string.Empty).Where(char.IsDigit).ToArray());
@@ -79,7 +86,7 @@ public class SendClosureWhatsAppHandler(
             WhatsAppSendResult send;
             if (string.IsNullOrEmpty(phone))
             {
-                send = new WhatsAppSendResult(false, null, null, "El cliente no tiene teléfono registrado.");
+                send = new WhatsAppSendResult(false, null, null, "El cliente no tiene telÃƒÂ©fono registrado.");
             }
             else
             {

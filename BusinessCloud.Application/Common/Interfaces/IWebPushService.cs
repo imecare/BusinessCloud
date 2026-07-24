@@ -1,6 +1,6 @@
 namespace BusinessCloud.Application.Common.Interfaces;
 
-public record WebPushMessage(string Title, string Body, string? Url);
+public record WebPushMessage(string Title, string Body, string? Url, string? Icon = null);
 public record WebPushSendResult(bool Success, string? ErrorMessage = null);
 
 /// <summary>
