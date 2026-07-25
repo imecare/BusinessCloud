@@ -22,6 +22,7 @@ public class ClosureEventDetailDto
     public DateTime CreatedAt { get; set; }
     public List<string> EventNames { get; set; } = new();
     public decimal TotalAmount { get; set; }
+    public string? BazarMessengerUsername { get; set; }
     public List<ClosureCustomerTotalDto> Customers { get; set; } = new();
 }
 
@@ -142,6 +143,7 @@ public class GetClosureEventDetailHandler(IBazaresDbContext context)
                 .Select(i => i.Event.Description)
                 .ToList(),
             TotalAmount = closure.CustomerTotals.Sum(t => t.TotalAmount),
+            BazarMessengerUsername = FacebookMessengerProfile.Normalize(bazarSettings?.FacebookPageUrl),
             Customers = customers
         };
     }
