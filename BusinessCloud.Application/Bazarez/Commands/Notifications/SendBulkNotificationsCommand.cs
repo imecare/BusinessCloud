@@ -66,6 +66,11 @@ public class SendBulkNotificationsHandler(
             .Where(s => tenantIds.Contains(s.TenantId))
             .ToDictionaryAsync(s => s.TenantId, cancellationToken);
 
+        var notificationSettingsByTenant = await context.NotificationSettings
+            .IgnoreQueryFilters()
+            .Where(s => tenantIds.Contains(s.TenantId))
+            .ToDictionaryAsync(s => s.TenantId, cancellationToken);
+
         var subscriptionsByCustomer = subscriptions
             .GroupBy(s => s.BzaCustomerId)
             .ToDictionary(g => g.Key, g => g.ToList());
@@ -79,7 +84,7 @@ public class SendBulkNotificationsHandler(
             var success = false;
             string? error = null;
 
-            var template = BuildTemplateData(total, request.NotificationType, request.PortalBaseUrl);
+            var template = BuildTemplateData(total, request.NotificationType, request.PortalBaseUrl, notificationSettingsByTenant.GetValueOrDefault(total.TenantId));
             var iconUrl = BuildIconUrl(bazarSettingsByTenant.GetValueOrDefault(total.TenantId));
             var hasPush = subscriptionsByCustomer.TryGetValue(total.BzaCustomerId, out var customerSubs) && customerSubs is { Count: > 0 };
 
@@ -208,7 +213,11 @@ public class SendBulkNotificationsHandler(
         return logoUrl.StartsWith('/') ? $"{baseUrl}{logoUrl}" : $"{baseUrl}/{logoUrl}";
     }
 
-    private static NotificationTemplateData BuildTemplateData(BzaClosureCustomerTotal total, int notificationType, string? portalBaseUrl)
+    private static NotificationTemplateData BuildTemplateData(
+        BzaClosureCustomerTotal total,
+        int notificationType,
+        string? portalBaseUrl,
+        BzaNotificationSettings? settings)
     {
         var baseUrl = (portalBaseUrl ?? string.Empty).TrimEnd('/');
         var actionUrl = string.IsNullOrWhiteSpace(baseUrl) ? null : $"{baseUrl}/comprobante/{total.UploadToken}";
@@ -216,32 +225,90 @@ public class SendBulkNotificationsHandler(
 
         return notificationType switch
         {
-            NotificationType.DueToday => new NotificationTemplateData(
-                "Tu fecha de pago es hoy",
-                $"{customerName}, tu pago vence hoy. Evita retrasos subiendo tu comprobante.",
-                actionUrl),
+            NotificationType.DueToday => BuildDueDateTemplate(customerName, total, actionUrl, settings),
 
             NotificationType.SaleCancelled => new NotificationTemplateData(
                 "Venta cancelada",
-                $"{customerName}, tu venta ha sido cancelada. Si tienes dudas, contacta al bazar.",
+                !string.IsNullOrWhiteSpace(settings?.SaleCancelledMessage)
+                    ? settings!.SaleCancelledMessage
+                    : $"{customerName}, tu venta ha sido cancelada. Si tienes dudas, contacta al bazar.",
                 actionUrl),
 
             NotificationType.ProofValidated => new NotificationTemplateData(
                 "Comprobante validado",
-                $"{customerName}, tu comprobante ya fue aprobado. Gracias por tu pago.",
+                !string.IsNullOrWhiteSpace(settings?.ProofValidatedMessage)
+                    ? settings!.ProofValidatedMessage
+                    : $"{customerName}, tu comprobante ya fue aprobado. Gracias por tu pago.",
                 actionUrl),
 
             _ => BuildReminderTemplate(customerName, total, actionUrl),
         };
     }
 
+    /// <summary>
+    /// Arma el recordatorio de pago (tipo por defecto). Si el total esta actualmente rechazado,
+    /// se reemplaza por un mensaje especifico con el motivo del rechazo y la invitacion a
+    /// volver a subir el comprobante, acompanado del link. En cualquier otro caso, se conserva
+    /// el comportamiento existente (mensaje de cobro con el enlace embebido).
+    /// </summary>
     private static NotificationTemplateData BuildReminderTemplate(string customerName, BzaClosureCustomerTotal total, string? actionUrl)
     {
+        if (total.Status == BzaClosureCustomerTotalStatus.Rejected)
+        {
+            var reason = string.IsNullOrWhiteSpace(total.RejectionReason)
+                ? "no cumple con lo requerido"
+                : total.RejectionReason;
+
+            var rejectedBody = $"{customerName}, tu comprobante fue rechazado. Motivo: {reason}. " +
+                "Puedes volver a subir tu comprobante aqui:";
+            rejectedBody = AppendLink(rejectedBody, actionUrl);
+
+            return new NotificationTemplateData("Comprobante rechazado", rejectedBody, actionUrl);
+        }
+
         var body = ClosureMessageBuilder.Build(null, customerName, total.TotalAmount, null, total.ClosureEvent.PaymentDeadline, null);
         body = string.IsNullOrWhiteSpace(actionUrl)
             ? body.Replace(ClosureMessageBuilder.UploadLinkPlaceholder, string.Empty)
             : body.Replace(ClosureMessageBuilder.UploadLinkPlaceholder, actionUrl);
 
         return new NotificationTemplateData("Recordatorio de pago", body, actionUrl);
+    }
+
+    /// <summary>
+    /// Arma el mensaje de vencimiento usando los textos configurados por el bazar:
+    /// "por vencer" si la fecha limite de pago aun no llega, o "vencido" si ya se cumplio ese
+    /// dia o antes. Ambos casos incluyen el link del comprobante en el cuerpo del mensaje.
+    /// </summary>
+    private static NotificationTemplateData BuildDueDateTemplate(
+        string customerName,
+        BzaClosureCustomerTotal total,
+        string? actionUrl,
+        BzaNotificationSettings? settings)
+    {
+        var isOverdue = total.ClosureEvent.PaymentDeadline.Date <= DateTime.UtcNow.Date;
+
+        if (isOverdue)
+        {
+            var body = !string.IsNullOrWhiteSpace(settings?.PaymentOverdueMessage)
+                ? settings!.PaymentOverdueMessage
+                : $"{customerName}, tu pago se encuentra vencido, por favor regularizalo.";
+
+            return new NotificationTemplateData("Pago vencido", AppendLink(body, actionUrl), actionUrl);
+        }
+
+        var dueSoonBody = !string.IsNullOrWhiteSpace(settings?.PaymentDueSoonMessage)
+            ? settings!.PaymentDueSoonMessage
+            : $"{customerName}, tu pago vence hoy. Evita retrasos subiendo tu comprobante.";
+
+        return new NotificationTemplateData("Tu pago esta por vencer", AppendLink(dueSoonBody, actionUrl), actionUrl);
+    }
+
+    /// <summary>Agrega el link del comprobante al cuerpo del mensaje si aun no esta presente.</summary>
+    private static string AppendLink(string body, string? actionUrl)
+    {
+        if (string.IsNullOrWhiteSpace(actionUrl) || body.Contains(actionUrl, StringComparison.Ordinal))
+            return body;
+
+        return $"{body}\n\n{actionUrl}";
     }
 }

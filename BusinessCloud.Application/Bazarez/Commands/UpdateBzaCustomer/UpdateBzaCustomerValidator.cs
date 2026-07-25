@@ -1,4 +1,4 @@
-﻿using FluentValidation;
+using FluentValidation;
 using BusinessCloud.Application.Bazares.Common;
 
 namespace BusinessCloud.Application.Bazares.Commands.UpdateBzaCustomer;
@@ -13,7 +13,9 @@ public class UpdateBzaCustomerValidator : AbstractValidator<UpdateBzaCustomerCom
         RuleFor(v => v.BzaCollectorId).GreaterThan(0).WithMessage("Debe tener un recolector asignado.");
         RuleFor(v => v.Status).InclusiveBetween(0, 1).WithMessage("El status debe ser 1 (Activo) o 0 (Inactivo).");
         RuleFor(v => v.FacebookName)
+            .Must(v => string.IsNullOrWhiteSpace(v) || FacebookMessengerProfile.IsValidUrl(v))
+            .WithMessage("El Facebook debe ser la URL completa del perfil o Messenger (ej. https://facebook.com/usuario o https://m.me/usuario).")
             .Must(v => string.IsNullOrWhiteSpace(v) || FacebookMessengerProfile.IsValid(v))
-            .WithMessage("El Facebook debe ser un usuario/ID válido o una URL válida de Facebook/Messenger.");
+            .WithMessage("La URL de Facebook debe incluir un usuario o ID válido.");
     }
 }

@@ -21,4 +21,7 @@ public class BzaNotificationSettings : BaseAuditableEntity
 
     /// <summary>Mensaje de venta cancelada personalizado.</summary>
     public string SaleCancelledMessage { get; set; } = string.Empty;
+
+    /// <summary>Mensaje especial de comprobante validado personalizado.</summary>
+    public string ProofValidatedMessage { get; set; } = string.Empty;
 }
