@@ -41,7 +41,8 @@ public record LabelCustomerDto(
     DateTime? DeliveryDate,
     decimal TotalAmount,
     int ProductCount,
-    List<LabelProductDto> Products);
+    List<LabelProductDto> Products,
+    int Status);
 
 public class DeliveryLabelDataDto
 {
@@ -124,7 +125,8 @@ public class GetDeliveryLabelDataHandler(IBazaresDbContext context)
                     deliveryDate,
                     t.TotalAmount,
                     products.Count,
-                    products);
+                    products,
+                    t.Status);
             })
             .OrderBy(c => c.GroupName)
             .ThenBy(c => c.CustomerName)

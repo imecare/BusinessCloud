@@ -15,6 +15,8 @@ public class ReactivateClosureSaleHandler(IBazaresDbContext context)
         var total = await _context.ClosureCustomerTotals
             .Include(t => t.ClosureEvent)
                 .ThenInclude(c => c.Items)
+            .Include(t => t.ClosureEvent)
+                .ThenInclude(c => c.GroupDeliveries)
             .Include(t => t.Customer)
             .FirstOrDefaultAsync(t => t.Id == request.ClosureCustomerTotalId, cancellationToken)
             ?? throw new KeyNotFoundException("El total del cliente no existe.");
@@ -86,6 +88,34 @@ public class ReactivateClosureSaleHandler(IBazaresDbContext context)
                 sale.BzaClosureEventId = newClosure.Id;
         }
         // Mode.Same: se mantiene en el cierre actual.
+        else if (request.Mode == ReactivateMode.SameNewDate)
+        {
+            if (!request.NewDeliveryDate.HasValue)
+                throw new ArgumentException("Debes indicar la fecha real de entrega.");
+
+            if (total.BzaCollectorGroupId.HasValue)
+            {
+                var groupDelivery = total.ClosureEvent.GroupDeliveries
+                    .FirstOrDefault(g => g.BzaCollectorGroupId == total.BzaCollectorGroupId.Value);
+                if (groupDelivery is not null)
+                {
+                    groupDelivery.DeliveryDate = request.NewDeliveryDate.Value;
+                }
+                else
+                {
+                    total.ClosureEvent.GroupDeliveries.Add(new BzaClosureGroupDelivery
+                    {
+                        BzaClosureEventId = total.ClosureEvent.Id,
+                        BzaCollectorGroupId = total.BzaCollectorGroupId.Value,
+                        DeliveryDate = request.NewDeliveryDate.Value
+                    });
+                }
+            }
+            else
+            {
+                total.ClosureEvent.OfficialDeliveryDate = request.NewDeliveryDate.Value;
+            }
+        }
 
         await _context.SaveChangesAsync(cancellationToken);
 

@@ -1,7 +1,9 @@
 using BusinessCloud.Api.Authorization;
 using BusinessCloud.Application.Bazares.Commands.CancelClosureSale;
+using BusinessCloud.Application.Bazares.Commands.CancelPendingSales;
 using BusinessCloud.Application.Bazares.Commands.ManualValidateClosureTotal;
 using BusinessCloud.Application.Bazares.Commands.Notifications;
+using BusinessCloud.Application.Bazares.Commands.MovePendingSales;
 using BusinessCloud.Application.Bazares.Commands.ReactivateClosureSale;
 using BusinessCloud.Application.Bazares.Commands.RejectClosureProof;
 using BusinessCloud.Application.Bazares.Commands.ResyncClosureGroups;
@@ -13,6 +15,7 @@ using BusinessCloud.Application.Bazares.Commands.ValidateClosureProof;
 using BusinessCloud.Application.Bazares.Queries.GetClosureEventDetail;
 using BusinessCloud.Application.Bazares.Queries.GetClosureEvents;
 using BusinessCloud.Application.Bazares.Queries.GetDeliveryLabelData;
+using BusinessCloud.Application.Bazares.Queries.GetPendingMoveOptions;
 using BusinessCloud.Application.Bazares.Queries.GetReactivationOptions;
 using BusinessCloud.Application.Bazares.Queries.PrepareTotals;
 using MediatR;
@@ -188,6 +191,35 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
     [HttpPost("{id:int}/start-delivery")]
     public async Task<ActionResult<StartClosureDeliveryResultDto>> StartDelivery(int id)
         => await mediator.Send(new StartClosureDeliveryCommand(id));
+
+    /// <summary>
+    /// Opciones para mover las ventas pendientes (sin comprobante) de un evento de cierre
+    /// antes de marcarlo "en proceso de entrega": cuántas hay y a qué otros eventos se pueden mover.
+    /// </summary>
+    [HttpGet("{id:int}/pending-move-options")]
+    public async Task<ActionResult<PendingMoveOptionsDto>> PendingMoveOptions(int id)
+        => await mediator.Send(new GetPendingMoveOptionsQuery(id));
+
+    /// <summary>
+    /// Mueve las ventas pendientes (sin comprobante) de un evento de cierre a otro
+    /// existente o a uno nuevo, para que no queden "atrapadas" en un evento ya despachado.
+    /// </summary>
+    [HttpPost("{id:int}/move-pending")]
+    public async Task<ActionResult<MovePendingSalesResultDto>> MovePendingSales(int id, [FromBody] MovePendingSalesRequest body)
+        => await mediator.Send(new MovePendingSalesCommand(
+            id,
+            body.Mode,
+            body.TargetClosureEventId,
+            body.NewDeliveryDate,
+            body.NewPaymentDeadline));
+
+    /// <summary>
+    /// Cancela por sistema todas las ventas pendientes (sin comprobante) de un evento
+    /// de cierre. Se pueden reactivar después desde Validación de comprobantes.
+    /// </summary>
+    [HttpPost("{id:int}/cancel-pending")]
+    public async Task<ActionResult<CancelPendingSalesResultDto>> CancelPendingSales(int id)
+        => await mediator.Send(new CancelPendingSalesCommand(id));
 }
 
 /// <summary>Cuerpo de la petición de rechazo de comprobante.</summary>
@@ -228,6 +260,15 @@ public class CancelSaleRequest
 public class ReactivateSaleRequest
 {
     public ReactivateMode Mode { get; set; } = ReactivateMode.Same;
+    public int? TargetClosureEventId { get; set; }
+    public DateTime? NewDeliveryDate { get; set; }
+    public DateTime? NewPaymentDeadline { get; set; }
+}
+
+/// <summary>Cuerpo de la petición para mover ventas pendientes de un evento de cierre.</summary>
+public class MovePendingSalesRequest
+{
+    public MovePendingSalesMode Mode { get; set; }
     public int? TargetClosureEventId { get; set; }
     public DateTime? NewDeliveryDate { get; set; }
     public DateTime? NewPaymentDeadline { get; set; }

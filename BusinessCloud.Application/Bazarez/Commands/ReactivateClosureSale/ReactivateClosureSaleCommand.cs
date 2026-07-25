@@ -11,6 +11,11 @@ public enum ReactivateMode
     Existing = 1,
     /// <summary>Crear un nuevo evento de pago con nueva fecha de entrega y límite.</summary>
     New = 2,
+    /// <summary>
+    /// Mantener en el mismo evento de pago pero corregir la fecha de entrega real
+    /// del grupo del cliente (la oficial ya pasó y aún no se procesaron etiquetas).
+    /// </summary>
+    SameNewDate = 3,
 }
 
 /// <summary>

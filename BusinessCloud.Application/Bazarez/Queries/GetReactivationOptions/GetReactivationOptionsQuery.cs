@@ -12,7 +12,6 @@ namespace BusinessCloud.Application.Bazares.Queries.GetReactivationOptions;
 /// </summary>
 public record GetReactivationOptionsQuery(int ClosureCustomerTotalId)
     : IRequest<ReactivationOptionsDto>;
-
 public class ReactivationOptionsDto
 {
     public int ClosureCustomerTotalId { get; set; }
@@ -22,8 +21,14 @@ public class ReactivationOptionsDto
     public bool DeliveryPassed { get; set; }
     /// <summary>El cierre ya entró en proceso de entrega (etiquetas/despacho impresos).</summary>
     public bool LabelsProcessed { get; set; }
-    /// <summary>Se recomienda reasignar a otro evento (DeliveryPassed || LabelsProcessed).</summary>
+    /// <summary>Se recomienda reasignar a otro evento (solo si ya se procesaron etiquetas/despacho).</summary>
     public bool NeedsReassign { get; set; }
+    /// <summary>
+    /// La fecha pasó pero aún no se procesaron etiquetas: se puede mantener en el mismo
+    /// evento, pero se debe confirmar si fue un error de marcación o pedir la fecha real
+    /// de entrega para el grupo del cliente.
+    /// </summary>
+    public bool CanKeepWithNewDate { get; set; }
     /// <summary>Eventos de cierre existentes válidos como destino (entrega futura).</summary>
     public List<ReactivationCandidateDto> Candidates { get; set; } = new();
 }
@@ -87,7 +92,8 @@ public class GetReactivationOptionsHandler(IBazaresDbContext context)
             CurrentPaymentDeadline = total.ClosureEvent.PaymentDeadline,
             DeliveryPassed = deliveryPassed,
             LabelsProcessed = labelsProcessed,
-            NeedsReassign = deliveryPassed || labelsProcessed,
+            NeedsReassign = labelsProcessed,
+            CanKeepWithNewDate = deliveryPassed && !labelsProcessed,
             Candidates = candidates
         };
     }
