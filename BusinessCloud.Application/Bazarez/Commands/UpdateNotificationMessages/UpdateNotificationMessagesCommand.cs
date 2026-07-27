@@ -10,7 +10,8 @@ public record UpdateNotificationMessagesCommand(
     string PaymentDueSoonMessage,
     string PaymentOverdueMessage,
     string SaleCancelledMessage,
-    string ProofValidatedMessage) : IRequest;
+    string ProofValidatedMessage,
+    string WithdrawalValidatedMessage) : IRequest;
 
 public class UpdateNotificationMessagesHandler(IBazaresDbContext context)
     : IRequestHandler<UpdateNotificationMessagesCommand>
@@ -30,6 +31,7 @@ public class UpdateNotificationMessagesHandler(IBazaresDbContext context)
         settings.PaymentOverdueMessage = request.PaymentOverdueMessage ?? string.Empty;
         settings.SaleCancelledMessage = request.SaleCancelledMessage ?? string.Empty;
         settings.ProofValidatedMessage = request.ProofValidatedMessage ?? string.Empty;
+        settings.WithdrawalValidatedMessage = request.WithdrawalValidatedMessage ?? string.Empty;
 
         await context.SaveChangesAsync(ct);
     }

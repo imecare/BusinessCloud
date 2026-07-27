@@ -78,6 +78,18 @@ public class ClosureCustomerPublicDto
 
     /// <summary>Otras cuentas del mismo telefono en bazares distintos con saldo pendiente o rechazado.</summary>
     public List<OtherPendingAccountDto> OtherPendingAccounts { get; set; } = new();
+
+    /// <summary>Indica si el evento de cierre ya fue entregado (se subió comprobante de entrega).</summary>
+    public bool Delivered { get; set; }
+
+    /// <summary>Fecha en que se marcó como entregado.</summary>
+    public DateTime? DeliveredAt { get; set; }
+
+    /// <summary>
+    /// URL del comprobante de entrega (firma/foto de recibido) visible para este cliente:
+    /// prioriza el de su grupo de recolección; si no hay uno específico, usa el general.
+    /// </summary>
+    public string? DeliveryProofImageUrl { get; set; }
 }
 
 public class GetClosureCustomerByTokenHandler(IBazaresDbContext context, IConfiguration configuration)
@@ -96,6 +108,8 @@ public class GetClosureCustomerByTokenHandler(IBazaresDbContext context, IConfig
                 .ThenInclude(c => c.GroupDeliveries)
             .Include(t => t.ClosureEvent)
                 .ThenInclude(c => c.Items)
+            .Include(t => t.ClosureEvent)
+                .ThenInclude(c => c.DeliveryProofs)
             .FirstOrDefaultAsync(t => t.UploadToken == request.UploadToken, cancellationToken)
             ?? throw new KeyNotFoundException("El enlace no es válido o ha expirado.");
 
@@ -104,6 +118,24 @@ public class GetClosureCustomerByTokenHandler(IBazaresDbContext context, IConfig
                 .FirstOrDefault(g => g.BzaCollectorGroupId == total.BzaCollectorGroupId.Value)?.DeliveryDate
                 ?? total.ClosureEvent.OfficialDeliveryDate
             : total.ClosureEvent.OfficialDeliveryDate;
+
+        // Comprobante de entrega visible para este cliente: prioriza el de su grupo
+        // (más reciente) y, si no hay uno específico, usa el general (sin grupo asignado).
+        string? deliveryProofUrl = null;
+        if (total.ClosureEvent.Delivered)
+        {
+            deliveryProofUrl = total.BzaCollectorGroupId.HasValue
+                ? total.ClosureEvent.DeliveryProofs
+                    .Where(p => p.BzaCollectorGroupId == total.BzaCollectorGroupId.Value)
+                    .OrderByDescending(p => p.UploadedAt)
+                    .FirstOrDefault()?.ImageUrl
+                : null;
+
+            deliveryProofUrl ??= total.ClosureEvent.DeliveryProofs
+                .Where(p => p.BzaCollectorGroupId == null)
+                .OrderByDescending(p => p.UploadedAt)
+                .FirstOrDefault()?.ImageUrl;
+        }
 
         var phone = new string((total.Customer?.Phone ?? string.Empty).Where(char.IsDigit).ToArray());
 
@@ -211,7 +243,10 @@ public class GetClosureCustomerByTokenHandler(IBazaresDbContext context, IConfig
             ChargeMessage = notif?.ChargeMessage,
             WebPushPublicKey = _configuration["WebPush:PublicKey"],
             WebPushEnabled = !string.IsNullOrWhiteSpace(_configuration["WebPush:PublicKey"]),
-            OtherPendingAccounts = otherPendingAccounts
+            OtherPendingAccounts = otherPendingAccounts,
+            Delivered = total.ClosureEvent.Delivered,
+            DeliveredAt = total.ClosureEvent.DeliveredAt,
+            DeliveryProofImageUrl = deliveryProofUrl
         };
     }
 }

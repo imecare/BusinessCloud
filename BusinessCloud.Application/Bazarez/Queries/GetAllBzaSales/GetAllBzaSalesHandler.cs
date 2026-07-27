@@ -1,4 +1,5 @@
 using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Domain.Bazares.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,24 +13,17 @@ public class GetAllBzaSalesHandler(IBazaresDbContext context)
     private static readonly Dictionary<int, string> StatusNames = new()
     {
         { 1, "Abierto" },
-        { 2, "Cerrado" },
+        { 2, "En proceso de pago" },
         { 3, "En Entrega" },
         { 4, "Finalizado" },
         { 5, "Cancelado" },
-        { 6, "Entregado" }
+        { 6, "Finalizado" }
     };
 
     public async Task<List<BzaSaleListDto>> Handle(GetAllBzaSalesQuery request, CancellationToken cancellationToken)
     {
         var query = _context.Events.AsQueryable();
 
-        // Filtro por estado
-        if (request.Status.HasValue)
-        {
-            query = query.Where(s => s.Status == request.Status.Value);
-        }
-
-        // Filtro por rango de fechas (sobre la fecha de creación del evento), inclusivo
         if (request.FromDate.HasValue)
         {
             var from = request.FromDate.Value.Date;
@@ -42,14 +36,12 @@ public class GetAllBzaSalesHandler(IBazaresDbContext context)
             query = query.Where(s => s.CreatedAt < toExclusive);
         }
 
-        // Filtro por búsqueda en la descripción
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var term = request.Search.Trim();
             query = query.Where(s => EF.Functions.Like(s.Description, $"%{term}%"));
         }
 
-        // Materializar datos primero para evitar memory leak en proyección con Dictionary
         var rawSales = await query
             .OrderByDescending(s => s.CreatedAt)
             .Select(s => new
@@ -67,23 +59,98 @@ public class GetAllBzaSalesHandler(IBazaresDbContext context)
             })
             .ToListAsync(cancellationToken);
 
-        // Mapear StatusName en memoria (evita EF Core memory leak warning)
-        return rawSales.Select(s => new BzaSaleListDto
+        var eventIds = rawSales.Select(s => s.Id).ToList();
+
+        var closureLinks = await _context.ClosureEventItems
+            .AsNoTracking()
+            .Where(i => eventIds.Contains(i.BzaEventId))
+            .Join(
+                _context.ClosureEvents.AsNoTracking(),
+                item => item.BzaClosureEventId,
+                closure => closure.Id,
+                (item, closure) => new
+                {
+                    item.BzaEventId,
+                    closure.Id,
+                    closure.Status,
+                    closure.InDeliveryProcess,
+                    closure.Delivered,
+                    closure.CreatedAt
+                })
+            .ToListAsync(cancellationToken);
+
+        var latestClosureByEvent = closureLinks
+            .GroupBy(x => x.BzaEventId)
+            .ToDictionary(
+                g => g.Key,
+                g =>
+                {
+                    var latest = g.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).First();
+                    return new ClosureStatusSnapshot(latest.Status, latest.InDeliveryProcess, latest.Delivered);
+                });
+
+        var mapped = rawSales
+            .Select(s =>
+            {
+                var closure = latestClosureByEvent.TryGetValue(s.Id, out var resolvedClosure)
+                    ? resolvedClosure
+                    : null;
+
+                var resolvedStatus = ResolveEventStatus(s.Status, closure);
+
+                return new BzaSaleListDto
+                {
+                    Id = s.Id,
+                    Description = s.Description,
+                    PaymentDeadline = s.PaymentDeadline,
+                    Status = resolvedStatus,
+                    StatusName = StatusNames.GetValueOrDefault(resolvedStatus, "Desconocido"),
+                    TotalEventSales = s.TotalEventSales,
+                    UnsentSalesAmount = s.UnsentSalesAmount,
+                    HasSentSales = s.HasSentSales,
+                    UniqueCustomersCount = s.UniqueCustomersCount,
+                    TotalCustomers = s.UniqueCustomersCount,
+                    TotalAmount = s.TotalEventSales,
+                    TotalPaid = s.TotalPaid,
+                    TotalPending = Math.Max(0m, s.TotalEventSales - s.TotalPaid),
+                    CreatedAt = s.CreatedAt
+                };
+            });
+
+        if (request.Status.HasValue)
         {
-            Id = s.Id,
-            Description = s.Description,
-            PaymentDeadline = s.PaymentDeadline,
-            Status = s.Status,
-            StatusName = StatusNames.GetValueOrDefault(s.Status, "Desconocido"),
-            TotalEventSales = s.TotalEventSales,
-            UnsentSalesAmount = s.UnsentSalesAmount,
-            HasSentSales = s.HasSentSales,
-            UniqueCustomersCount = s.UniqueCustomersCount,
-            TotalCustomers = s.UniqueCustomersCount,
-            TotalAmount = s.TotalEventSales,
-            TotalPaid = s.TotalPaid,
-            TotalPending = Math.Max(0m, s.TotalEventSales - s.TotalPaid),
-            CreatedAt = s.CreatedAt
-        }).ToList();
+            mapped = mapped.Where(s => s.Status == request.Status.Value);
+        }
+
+        return mapped.ToList();
+    }
+
+    private sealed record ClosureStatusSnapshot(int Status, bool InDeliveryProcess, bool Delivered);
+
+    private static int ResolveEventStatus(int currentStatus, ClosureStatusSnapshot? closure)
+    {
+        if (closure is null)
+        {
+            return currentStatus == 6 ? 4 : currentStatus;
+        }
+
+        if (closure.Status == BzaClosureEventStatus.Cancelled)
+        {
+            return 5;
+        }
+
+        if (closure.Delivered)
+        {
+            return 4;
+        }
+
+        if (closure.InDeliveryProcess)
+        {
+            return 3;
+        }
+
+        return 2;
     }
 }
+
+

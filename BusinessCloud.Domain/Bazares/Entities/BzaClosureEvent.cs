@@ -56,6 +56,16 @@ public class BzaClosureEvent : BaseAuditableEntity
     /// </summary>
     public bool InDeliveryProcess { get; set; }
 
+    /// <summary>
+    /// Indica que la entrega física ya fue completada y cerrada (se subió al menos
+    /// un comprobante de entrega/firma de recibido). Una vez cerrada, el cliente ve
+    /// el comprobante de entrega en lugar de las opciones de pago.
+    /// </summary>
+    public bool Delivered { get; set; }
+
+    /// <summary>Fecha en que se cerró la entrega (<see cref="Delivered"/> = true).</summary>
+    public DateTime? DeliveredAt { get; set; }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Navegación
     // ─────────────────────────────────────────────────────────────────────────
@@ -64,6 +74,9 @@ public class BzaClosureEvent : BaseAuditableEntity
 
     /// <summary>Fechas de entrega por grupo de recolección que participa en el cierre.</summary>
     public ICollection<BzaClosureGroupDelivery> GroupDeliveries { get; set; } = new List<BzaClosureGroupDelivery>();
+
+    /// <summary>Comprobantes de entrega (firmas/fotos de recibido) subidos por el bazar.</summary>
+    public ICollection<BzaClosureDeliveryProof> DeliveryProofs { get; set; } = new List<BzaClosureDeliveryProof>();
 
     /// <summary>Totales y comprobantes por cada cliente incluido en el cierre.</summary>
     public ICollection<BzaClosureCustomerTotal> CustomerTotals { get; set; } = new List<BzaClosureCustomerTotal>();

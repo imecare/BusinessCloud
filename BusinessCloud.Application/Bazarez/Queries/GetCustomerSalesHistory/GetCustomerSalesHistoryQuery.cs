@@ -54,6 +54,12 @@ public class EventHistoryGroupDto
 
     // Pagos del cliente en este evento
     public List<EventHistoryPaymentDto> Payments { get; set; } = [];
+
+    /// <summary>Indica si el evento ya fue entregado (comprobante de entrega subido y cierre cerrado).</summary>
+    public bool Delivered { get; set; }
+
+    /// <summary>URL del comprobante de entrega (firma/foto de recibido) visible para este cliente.</summary>
+    public string? DeliveryProofImageUrl { get; set; }
 }
 
 public class EventHistoryProductDto

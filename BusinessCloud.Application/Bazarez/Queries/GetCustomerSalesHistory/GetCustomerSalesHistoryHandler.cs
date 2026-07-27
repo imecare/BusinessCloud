@@ -1,4 +1,5 @@
 using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Domain.Bazares.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -31,7 +32,7 @@ public class GetCustomerSalesHistoryHandler(IBazaresDbContext context)
             .FirstOrDefaultAsync(c => c.Id == request.BzaCustomerId, cancellationToken)
             ?? throw new KeyNotFoundException("Cliente no encontrado.");
 
-        // Obtener ventas del cliente (una por evento) con sus productos
+        // Obtener ventas del cliente (una por evento) con sus productos.
         var customerSales = await _context.Sales
             .Include(s => s.Event)
             .Include(s => s.Products)
@@ -40,11 +41,28 @@ public class GetCustomerSalesHistoryHandler(IBazaresDbContext context)
 
         var saleEventIds = customerSales.Select(s => s.BzaEventId).Distinct().ToList();
 
-        // Obtener pagos del cliente en esos eventos
+        // Obtener pagos del cliente en esos eventos.
         var customerPayments = await _context.Payments
             .Where(p => saleEventIds.Contains(p.BzaEventId) && p.BzaCustomerId == request.BzaCustomerId)
             .OrderByDescending(p => p.Date)
             .ToListAsync(cancellationToken);
+
+        // Mapear cada Evento de Venta a su Evento de Cierre (si ya se envío el total).
+        var closureItemsByEvent = await _context.ClosureEventItems
+            .Where(i => saleEventIds.Contains(i.BzaEventId))
+            .ToDictionaryAsync(i => i.BzaEventId, i => i.BzaClosureEventId, cancellationToken);
+
+        var closureEventIds = closureItemsByEvent.Values.Distinct().ToList();
+
+        var closureEvents = await _context.ClosureEvents
+            .Include(c => c.DeliveryProofs)
+            .Where(c => closureEventIds.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id, cancellationToken);
+
+        var closureTotalsByEvent = await _context.ClosureCustomerTotals
+            .Where(t => closureEventIds.Contains(t.BzaClosureEventId) && t.BzaCustomerId == request.BzaCustomerId)
+            .Select(t => new { t.BzaClosureEventId, t.Status, t.BzaCollectorGroupId })
+            .ToDictionaryAsync(t => t.BzaClosureEventId, cancellationToken);
 
         var eventsGroups = customerSales
             .OrderByDescending(s => s.Event.CreatedAt)
@@ -54,12 +72,11 @@ public class GetCustomerSalesHistoryHandler(IBazaresDbContext context)
                 var products = s.Products.OrderByDescending(p => p.CreatedAt).ToList();
                 var payments = customerPayments.Where(pay => pay.BzaEventId == saleEvent.Id).ToList();
                 var subtotal = products.Sum(p => p.Price);
+
                 var paidAmount = payments.Where(p => p.IsVerified).Sum(p => p.Amount);
                 var pendingAmount = Math.Max(0, subtotal - paidAmount);
 
-                // Estado de pago del cliente: si aÃºn hay pendiente, distinguir entre
-                // "pendiente de pago" y "pendiente de validar comprobante" (el cliente
-                // ya enviÃ³ un comprobante preautorizado que el bazar no ha validado).
+                // Estado de pago base desde pagos registrados.
                 var hasPendingProof = payments.Any(p => !p.IsVerified && p.PaymentStatus == 1);
                 var paymentState = pendingAmount <= 0 ? 0 : (hasPendingProof ? 2 : 1);
                 var paymentStateName = paymentState switch
@@ -69,14 +86,92 @@ public class GetCustomerSalesHistoryHandler(IBazaresDbContext context)
                     _ => "Pendiente de pago"
                 };
 
+                // Estado del evento en historial: debe seguir el flujo real de cierre/entrega
+                // cuando ya existe un cierre para ese evento.
+                var eventStatus = saleEvent.Status;
+
+                // Resolver comprobante de entrega por grupo (si el cierre ya fue entregado).
+                var delivered = false;
+                string? deliveryProofUrl = null;
+
+                if (closureItemsByEvent.TryGetValue(saleEvent.Id, out var closureEventId)
+                    && closureEvents.TryGetValue(closureEventId, out var closureEvent))
+                {
+                    // Estado del historial alineado al flujo operativo: Abierto, En Entrega, Finalizado o Cancelado.
+                    if (closureEvent.Status == BzaClosureEventStatus.Cancelled)
+                    {
+                        eventStatus = 5; // Cancelado
+                    }
+                    else if (closureEvent.Delivered)
+                    {
+                        eventStatus = 4; // Finalizado
+                    }
+                    else if (closureEvent.InDeliveryProcess)
+                    {
+                        eventStatus = 3; // En Entrega
+                    }
+                    else
+                    {
+                        eventStatus = 1; // Abierto (aún no entra a entrega)
+                    }
+
+                    if (closureTotalsByEvent.TryGetValue(closureEventId, out var closureTotal))
+                    {
+                        // Estado de pago debe venir del total del cierre del cliente.
+                        if (closureTotal.Status == BzaClosureCustomerTotalStatus.Validated)
+                        {
+                            paidAmount = subtotal;
+                            pendingAmount = 0;
+                            paymentState = 0;
+                            paymentStateName = "Pagado";
+                        }
+                        else if (closureTotal.Status == BzaClosureCustomerTotalStatus.ProofReceived)
+                        {
+                            paymentState = 2;
+                            paymentStateName = "Pendiente de validar comprobante";
+                        }
+                        else
+                        {
+                            paymentState = pendingAmount <= 0 ? 0 : 1;
+                            paymentStateName = paymentState == 0 ? "Pagado" : "Pendiente de pago";
+                        }
+
+                        if (closureEvent.Delivered)
+                        {
+                            delivered = true;
+
+                            deliveryProofUrl = closureTotal.BzaCollectorGroupId.HasValue
+                                ? closureEvent.DeliveryProofs
+                                    .Where(p => p.BzaCollectorGroupId == closureTotal.BzaCollectorGroupId.Value)
+                                    .OrderByDescending(p => p.UploadedAt)
+                                    .FirstOrDefault()?.ImageUrl
+                                : null;
+
+                            deliveryProofUrl ??= closureEvent.DeliveryProofs
+                                .Where(p => p.BzaCollectorGroupId == null)
+                                .OrderByDescending(p => p.UploadedAt)
+                                .FirstOrDefault()?.ImageUrl;
+                        }
+                    }
+                    else if (closureEvent.Delivered)
+                    {
+                        delivered = true;
+
+                        deliveryProofUrl = closureEvent.DeliveryProofs
+                            .Where(p => p.BzaCollectorGroupId == null)
+                            .OrderByDescending(p => p.UploadedAt)
+                            .FirstOrDefault()?.ImageUrl;
+                    }
+                }
+
                 return new EventHistoryGroupDto
                 {
                     SaleEventId = saleEvent.Id,
                     EventDescription = saleEvent.Description,
                     CreatedAt = saleEvent.CreatedAt,
                     PaymentDeadline = saleEvent.PaymentDeadline,
-                    EventStatus = saleEvent.Status,
-                    EventStatusName = EventStatusNames.GetValueOrDefault(saleEvent.Status, "Desconocido"),
+                    EventStatus = eventStatus,
+                    EventStatusName = EventStatusNames.GetValueOrDefault(eventStatus, "Desconocido"),
                     IsCustomerPaid = pendingAmount <= 0,
                     PaymentState = paymentState,
                     PaymentStateName = paymentStateName,
@@ -98,7 +193,9 @@ public class GetCustomerSalesHistoryHandler(IBazaresDbContext context)
                         PaymentMethod = p.PaymentMethod,
                         PaymentStatus = p.PaymentStatus,
                         PaymentStatusName = PaymentStatusNames.GetValueOrDefault(p.PaymentStatus, "Desconocido")
-                    }).ToList()
+                    }).ToList(),
+                    Delivered = delivered,
+                    DeliveryProofImageUrl = deliveryProofUrl
                 };
             }).ToList();
 
@@ -117,3 +214,4 @@ public class GetCustomerSalesHistoryHandler(IBazaresDbContext context)
         };
     }
 }
+

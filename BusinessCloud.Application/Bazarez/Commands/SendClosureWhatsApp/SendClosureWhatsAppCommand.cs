@@ -9,8 +9,7 @@ using System.Globalization;
 namespace BusinessCloud.Application.Bazares.Commands.SendClosureWhatsApp;
 
 /// <summary>
-/// EnvÃƒÂ­a por WhatsApp (Cloud API) el mensaje de cobro a cada cliente del cierre y registra
-/// cada envÃƒÂ­o para dar seguimiento a su entrega vÃƒÂ­a los webhooks de Meta.
+/// Envia por WhatsApp (Cloud API) el mensaje de cobro a cada cliente del cierre.
 /// </summary>
 public record SendClosureWhatsAppCommand(
     int ClosureEventId,
@@ -86,39 +85,53 @@ public class SendClosureWhatsAppHandler(
             WhatsAppSendResult send;
             if (string.IsNullOrEmpty(phone))
             {
-                send = new WhatsAppSendResult(false, null, null, "El cliente no tiene telÃƒÂ©fono registrado.");
+                send = new WhatsAppSendResult(false, null, null, "El cliente no tiene telefono registrado.");
             }
             else
             {
+                var uploadUrl = $"{baseUrl}/comprobante/{total.UploadToken}";
                 var closureTotalsTemplateName = _configuration["WhatsApp:ClosureTotalsTemplateName"];
+
                 if (!string.IsNullOrWhiteSpace(closureTotalsTemplateName))
                 {
-                    var templateParams = new[]
+                    var templateLang = string.IsNullOrWhiteSpace(_configuration["WhatsApp:ClosureTotalsTemplateLang"])
+                        ? "es"
+                        : _configuration["WhatsApp:ClosureTotalsTemplateLang"]!;
+
+                    var commonParams = new[]
                     {
                         string.IsNullOrWhiteSpace(bazarName) ? "Bazar" : bazarName.Trim(),
                         name,
                         total.TotalAmount.ToString("C", Culture),
                         FormatLongDate(deliveryDate ?? closure.PaymentDeadline),
                         FormatLongDate(closure.PaymentDeadline),
-                        $"{baseUrl}/comprobante/{total.UploadToken}",
                     };
 
-                    send = await whatsApp.SendTemplateWithResultAsync(
+                    send = await TrySendClosureTemplateAsync(
+                        whatsApp,
                         phone,
                         closureTotalsTemplateName,
-                        string.IsNullOrWhiteSpace(_configuration["WhatsApp:ClosureTotalsTemplateLang"])
-                            ? "es"
-                            : _configuration["WhatsApp:ClosureTotalsTemplateLang"]!,
-                        templateParams,
+                        templateLang,
+                        commonParams,
+                        uploadUrl,
                         ct);
                 }
                 else
                 {
+                    send = new WhatsAppSendResult(false, null, null, "Plantilla de cobro no configurada.");
+                }
+
+                if (!send.Success)
+                {
                     var message = ClosureMessageBuilder
                         .Build(bazarName, name, total.TotalAmount, deliveryDate, closure.PaymentDeadline, salesWhatsApp)
-                        .Replace(ClosureMessageBuilder.UploadLinkPlaceholder, $"{baseUrl}/comprobante/{total.UploadToken}");
+                        .Replace(ClosureMessageBuilder.UploadLinkPlaceholder, uploadUrl);
 
-                    send = await whatsApp.SendTextWithResultAsync(phone, message, ct);
+                    var fallbackSend = await whatsApp.SendTextWithResultAsync(phone, message, ct);
+                    if (fallbackSend.Success)
+                    {
+                        send = fallbackSend;
+                    }
                 }
             }
 
@@ -147,7 +160,6 @@ public class SendClosureWhatsAppHandler(
 
         await context.SaveChangesAsync(ct);
 
-        // Contabiliza los mensajes enviados en el saldo de la empresa (mensajes acumulables).
         if (result.Sent > 0)
         {
             var tenantId = currentUser.TenantId;
@@ -167,6 +179,66 @@ public class SendClosureWhatsAppHandler(
         }
 
         return result;
+    }
+
+    private static async Task<WhatsAppSendResult> TrySendClosureTemplateAsync(
+        IWhatsAppSender whatsApp,
+        string phone,
+        string templateName,
+        string configuredLang,
+        IReadOnlyList<string> commonParams,
+        string uploadUrl,
+        CancellationToken ct)
+    {
+        var langs = GetLanguageCandidates(configuredLang);
+        WhatsAppSendResult last = new(false, null, null, "No se pudo enviar plantilla de WhatsApp.");
+
+        foreach (var lang in langs)
+        {
+            var withLinkInBody = commonParams.Concat(new[] { uploadUrl }).ToArray();
+            var bodyAttempt = await whatsApp.SendTemplateWithResultAsync(phone, templateName, lang, withLinkInBody, ct);
+            if (bodyAttempt.Success)
+            {
+                return bodyAttempt;
+            }
+
+            var buttonAttempt = await whatsApp.SendTemplateWithResultAsync(phone, templateName, lang, commonParams, ct, uploadUrl);
+            if (buttonAttempt.Success)
+            {
+                return buttonAttempt;
+            }
+
+            last = buttonAttempt;
+        }
+
+        return last;
+    }
+
+    private static IReadOnlyList<string> GetLanguageCandidates(string configuredLang)
+    {
+        var langs = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(configuredLang))
+        {
+            langs.Add(configuredLang.Trim());
+        }
+
+        var normalized = (configuredLang ?? string.Empty).Trim();
+        if (normalized.Contains('_'))
+        {
+            var baseLang = normalized.Split('_')[0];
+            if (!string.IsNullOrWhiteSpace(baseLang) && !langs.Contains(baseLang, StringComparer.OrdinalIgnoreCase))
+            {
+                langs.Add(baseLang);
+            }
+        }
+
+        if (!langs.Contains("es", StringComparer.OrdinalIgnoreCase))
+        {
+            langs.Add("es");
+        }
+
+        return langs;
     }
 
     private static string FormatLongDate(DateTime date)

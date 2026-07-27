@@ -29,11 +29,13 @@ public record PendingWithdrawalItemDto(
     int CustomerId,
     string CustomerName,
     string? CustomerPhone,
+    string? CustomerFacebookName,
     string? Bank,
     string? Reference,
     string SaleDescription,
     decimal TotalAmount,
     DateTime? ProofUploadedAt,
+    string UploadToken,
     List<string> ProofUrls);
 
 public class GetPendingWithdrawalsReportHandler(IBazaresDbContext context)
@@ -65,11 +67,13 @@ public class GetPendingWithdrawalsReportHandler(IBazaresDbContext context)
             t.BzaCustomerId,
             t.Customer.Name,
             t.Customer.Phone,
+            t.Customer.FacebookName,
             t.WithdrawalBank,
             t.CustomerReference,
             t.ClosureEvent.Description,
             t.TotalAmount,
             t.ProofUploadedAt,
+            t.UploadToken,
             t.Proofs
                 .OrderBy(p => p.UploadedAt)
                 .Select(p => p.ImageUrl)

@@ -12,6 +12,7 @@ public record NotificationSettingsDto(
     string PaymentOverdueMessage,
     string SaleCancelledMessage,
     string ProofValidatedMessage,
+    string WithdrawalValidatedMessage,
     List<PaymentCardDto> Cards);
 
 public record GetNotificationSettingsQuery(bool IncludeInactiveCards = true)
@@ -44,6 +45,7 @@ public class GetNotificationSettingsHandler(IBazaresDbContext context)
             settings?.PaymentOverdueMessage ?? string.Empty,
             settings?.SaleCancelledMessage ?? string.Empty,
             settings?.ProofValidatedMessage ?? string.Empty,
+            settings?.WithdrawalValidatedMessage ?? string.Empty,
             cards);
     }
 }

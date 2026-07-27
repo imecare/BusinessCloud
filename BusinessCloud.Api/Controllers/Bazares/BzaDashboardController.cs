@@ -16,11 +16,12 @@ public class BzaDashboardController : ControllerBase
     public BzaDashboardController(ISender mediator) => _mediator = mediator;
 
     /// <summary>
-    /// Dashboard del bazar: ventas semanales, morosos, volumen por recolector.
+    /// Dashboard del bazar con filtro de periodo (today, week, month).
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<BzaDashboardDto>> Get()
+    public async Task<ActionResult<BzaDashboardDto>> Get([FromQuery] string? period = null)
     {
-        return await _mediator.Send(new GetBzaDashboardQuery());
+        return await _mediator.Send(new GetBzaDashboardQuery(period));
     }
 }
+

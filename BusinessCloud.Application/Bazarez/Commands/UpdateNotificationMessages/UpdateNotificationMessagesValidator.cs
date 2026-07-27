@@ -11,5 +11,6 @@ public class UpdateNotificationMessagesValidator : AbstractValidator<UpdateNotif
         RuleFor(x => x.PaymentOverdueMessage).MaximumLength(2000);
         RuleFor(x => x.SaleCancelledMessage).MaximumLength(2000);
         RuleFor(x => x.ProofValidatedMessage).MaximumLength(2000);
+        RuleFor(x => x.WithdrawalValidatedMessage).MaximumLength(2000);
     }
 }

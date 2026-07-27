@@ -2,13 +2,14 @@ using MediatR;
 
 namespace BusinessCloud.Application.Bazares.Queries.GetBzaDashboard;
 
-public record GetBzaDashboardQuery : IRequest<BzaDashboardDto>;
+public record GetBzaDashboardQuery(string? Period = null) : IRequest<BzaDashboardDto>;
 
 public class BzaDashboardDto
 {
     public int TotalCustomers { get; set; }
     public int TotalCollectors { get; set; }
     public decimal WeeklySales { get; set; }
+    public decimal TotalSent { get; set; }
     public decimal TotalPaid { get; set; }
     public decimal TotalPending { get; set; }
     public int PendingSales { get; set; }
@@ -16,6 +17,13 @@ public class BzaDashboardDto
     public int DeliveredSales { get; set; }
     public int DelinquentsCount { get; set; }
     public int MessagesAvailable { get; set; }
+    public int PendingValidationCount { get; set; }
+    public int RejectedProofCount { get; set; }
+    public int CustomersWithPendingBalance { get; set; }
+    public int PendingWithdrawalsToValidate { get; set; }
+    public int ClosuresInDelivery { get; set; }
+    public int FinalizedClosures { get; set; }
+    public decimal RecoveryRate { get; set; }
     public List<CollectorVolumeDto> CollectorVolumes { get; set; } = new();
     public List<DelinquentCustomerDto> Delinquents { get; set; } = new();
 }
@@ -40,3 +48,6 @@ public class DelinquentCustomerDto
     public DateTime? PaymentDeadline { get; set; }
     public int OverdueSales { get; set; }
 }
+
+
+

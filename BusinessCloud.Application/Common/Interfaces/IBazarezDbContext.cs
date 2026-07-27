@@ -27,6 +27,7 @@ public interface IBazaresDbContext
     DbSet<BzaClosureGroupDelivery> ClosureGroupDeliveries { get; }
     DbSet<BzaClosureCustomerTotal> ClosureCustomerTotals { get; }
     DbSet<BzaClosureProof> ClosureProofs { get; }
+    DbSet<BzaClosureDeliveryProof> ClosureDeliveryProofs { get; }
     DbSet<BzaProofRejection> ProofRejections { get; }
     DbSet<BzaSaleCancellation> SaleCancellations { get; }
     DbSet<BzaBlockedCustomer> BlockedCustomers { get; }

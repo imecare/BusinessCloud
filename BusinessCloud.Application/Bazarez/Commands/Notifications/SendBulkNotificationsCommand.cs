@@ -238,7 +238,14 @@ public class SendBulkNotificationsHandler(
                 "Comprobante validado",
                 !string.IsNullOrWhiteSpace(settings?.ProofValidatedMessage)
                     ? settings!.ProofValidatedMessage
-                    : $"{customerName}, tu comprobante ya fue aprobado. Gracias por tu pago.",
+                    : $"{customerName}, tu comprobante fue validado. Gracias por tu pago.",
+                actionUrl),
+
+            NotificationType.WithdrawalValidated => new NotificationTemplateData(
+                "Retiro realizado",
+                !string.IsNullOrWhiteSpace(settings?.WithdrawalValidatedMessage)
+                    ? settings!.WithdrawalValidatedMessage
+                    : $"{customerName}, tu retiro fue realizado y tu venta quedó validada. Gracias por tu pago.",
                 actionUrl),
 
             _ => BuildReminderTemplate(customerName, total, actionUrl),

@@ -1,6 +1,9 @@
 using BusinessCloud.Api.Authorization;
 using BusinessCloud.Application.Bazares.Commands.CancelClosureSale;
 using BusinessCloud.Application.Bazares.Commands.CancelPendingSales;
+using BusinessCloud.Application.Bazares.Commands.CloseClosureDelivery;
+using BusinessCloud.Application.Bazares.Commands.DeleteClosureDraft;
+using BusinessCloud.Application.Bazares.Commands.DeleteDeliveryProof;
 using BusinessCloud.Application.Bazares.Commands.ManualValidateClosureTotal;
 using BusinessCloud.Application.Bazares.Commands.Notifications;
 using BusinessCloud.Application.Bazares.Commands.MovePendingSales;
@@ -11,7 +14,9 @@ using BusinessCloud.Application.Bazares.Commands.SendClosureWhatsApp;
 using BusinessCloud.Application.Bazares.Commands.SendTotals;
 using BusinessCloud.Application.Bazares.Commands.StartClosureDelivery;
 using BusinessCloud.Application.Bazares.Commands.UploadClosureProof;
+using BusinessCloud.Application.Bazares.Commands.UploadDeliveryProof;
 using BusinessCloud.Application.Bazares.Commands.ValidateClosureProof;
+using BusinessCloud.Application.Bazares.Queries.GetClosureDeliveryProofs;
 using BusinessCloud.Application.Bazares.Queries.GetClosureEventDetail;
 using BusinessCloud.Application.Bazares.Queries.GetClosureEvents;
 using BusinessCloud.Application.Bazares.Queries.GetDeliveryLabelData;
@@ -45,6 +50,17 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
     [HttpPost("send")]
     public async Task<ActionResult<SendTotalsResultDto>> Send(SendTotalsCommand command)
         => await mediator.Send(command);
+
+    /// <summary>
+    /// Cancela un cierre draft generado al previsualizar mensajes, para permitir
+    /// corregir fechas y generar nuevamente el env�o de totales.
+    /// </summary>
+    [HttpDelete("{id:int}")]
+    public async Task<ActionResult> DeleteDraft(int id)
+    {
+        await mediator.Send(new DeleteClosureDraftCommand(id));
+        return NoContent();
+    }
 
     /// <summary>
     /// Envía por WhatsApp (Cloud API) el mensaje de cobro a todos los clientes del cierre
@@ -220,6 +236,68 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
     [HttpPost("{id:int}/cancel-pending")]
     public async Task<ActionResult<CancelPendingSalesResultDto>> CancelPendingSales(int id)
         => await mediator.Send(new CancelPendingSalesCommand(id));
+
+    /// <summary>
+    /// Detalle de entrega de un evento de cierre: grupos participantes y comprobantes
+    /// de entrega (firmas/fotos de recibido) ya subidos.
+    /// </summary>
+    [HttpGet("{id:int}/delivery-proofs")]
+    public async Task<ActionResult<ClosureDeliveryProofsDto>> GetDeliveryProofs(int id)
+        => await mediator.Send(new GetClosureDeliveryProofsQuery(id));
+
+    /// <summary>
+    /// Sube uno o varios comprobantes de entrega (firma/foto de recibido) para un evento
+    /// de cierre en proceso de entrega. Si no se indica grupo, el comprobante es general.
+    /// </summary>
+    [HttpPost("{id:int}/delivery-proofs")]
+    [RequestSizeLimit(60_000_000)]
+    public async Task<ActionResult<UploadDeliveryProofResultDto>> UploadDeliveryProofs(
+        int id,
+        [FromForm] List<IFormFile> files,
+        [FromForm] int? collectorGroupId = null)
+    {
+        var incoming = (files ?? new List<IFormFile>())
+            .Where(f => f is not null && f.Length > 0)
+            .ToList();
+
+        if (incoming.Count == 0)
+            return BadRequest("Debes adjuntar al menos un archivo.");
+
+        var streams = new List<Stream>();
+        try
+        {
+            var inputs = new List<DeliveryProofFileInput>();
+            foreach (var f in incoming)
+            {
+                var stream = f.OpenReadStream();
+                streams.Add(stream);
+                inputs.Add(new DeliveryProofFileInput(stream, f.FileName, f.ContentType));
+            }
+
+            var result = await mediator.Send(new UploadDeliveryProofCommand(id, collectorGroupId, inputs));
+            return Ok(result);
+        }
+        finally
+        {
+            foreach (var s in streams)
+            {
+                await s.DisposeAsync();
+            }
+        }
+    }
+
+    /// <summary>Elimina un comprobante de entrega subido por error.</summary>
+    [HttpDelete("delivery-proofs/{proofId:int}")]
+    public async Task<ActionResult<DeleteDeliveryProofResultDto>> DeleteDeliveryProof(int proofId)
+        => await mediator.Send(new DeleteDeliveryProofCommand(proofId));
+
+    /// <summary>
+    /// Cierra la entrega de un evento de cierre (requiere al menos un comprobante subido).
+    /// A partir de aquí, los clientes ven su comprobante de entrega en su enlace.
+    /// </summary>
+    [HttpPost("{id:int}/close-delivery")]
+    public async Task<ActionResult<CloseClosureDeliveryResultDto>> CloseDelivery(int id)
+        => await mediator.Send(new CloseClosureDeliveryCommand(id));
 }
 
 /// <summary>Cuerpo de la petición de rechazo de comprobante.</summary>
@@ -273,3 +351,6 @@ public class MovePendingSalesRequest
     public DateTime? NewDeliveryDate { get; set; }
     public DateTime? NewPaymentDeadline { get; set; }
 }
+
+
+

@@ -37,6 +37,7 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
     public DbSet<BzaClosureGroupDelivery> ClosureGroupDeliveries => Set<BzaClosureGroupDelivery>();
     public DbSet<BzaClosureCustomerTotal> ClosureCustomerTotals => Set<BzaClosureCustomerTotal>();
     public DbSet<BzaClosureProof> ClosureProofs => Set<BzaClosureProof>();
+    public DbSet<BzaClosureDeliveryProof> ClosureDeliveryProofs => Set<BzaClosureDeliveryProof>();
     public DbSet<BzaProofRejection> ProofRejections => Set<BzaProofRejection>();
     public DbSet<BzaSaleCancellation> SaleCancellations => Set<BzaSaleCancellation>();
     public DbSet<BzaBlockedCustomer> BlockedCustomers => Set<BzaBlockedCustomer>();
@@ -73,6 +74,7 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         modelBuilder.Entity<BzaClosureGroupDelivery>().ToTable("Bza_ClosureGroupDeliveries");
         modelBuilder.Entity<BzaClosureCustomerTotal>().ToTable("Bza_ClosureCustomerTotals");
         modelBuilder.Entity<BzaClosureProof>().ToTable("Bza_ClosureProofs");
+        modelBuilder.Entity<BzaClosureDeliveryProof>().ToTable("Bza_ClosureDeliveryProofs");
         modelBuilder.Entity<BzaProofRejection>().ToTable("Bza_ProofRejections");
         modelBuilder.Entity<BzaSaleCancellation>().ToTable("Bza_SaleCancellations");
         modelBuilder.Entity<BzaBlockedCustomer>().ToTable("Bza_BlockedCustomers");
@@ -185,6 +187,18 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
             .HasOne(g => g.CollectorGroup)
             .WithMany()
             .HasForeignKey(g => g.BzaCollectorGroupId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<BzaClosureDeliveryProof>()
+            .HasOne(p => p.ClosureEvent)
+            .WithMany(c => c.DeliveryProofs)
+            .HasForeignKey(p => p.BzaClosureEventId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<BzaClosureDeliveryProof>()
+            .HasOne(p => p.CollectorGroup)
+            .WithMany()
+            .HasForeignKey(p => p.BzaCollectorGroupId)
             .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<BzaClosureCustomerTotal>()

@@ -24,4 +24,7 @@ public class BzaNotificationSettings : BaseAuditableEntity
 
     /// <summary>Mensaje especial de comprobante validado personalizado.</summary>
     public string ProofValidatedMessage { get; set; } = string.Empty;
+
+    /// <summary>Mensaje especial de retiro sin tarjeta validado personalizado.</summary>
+    public string WithdrawalValidatedMessage { get; set; } = string.Empty;
 }
