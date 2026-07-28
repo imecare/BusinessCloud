@@ -50,6 +50,9 @@ public class UpdateBzaCustomerHandler : IRequestHandler<UpdateBzaCustomerCommand
         entity.Phone = phone;
         entity.Status = request.Status;
         entity.BzaCollectorId = request.BzaCollectorId;
+        // Al editar/completar el cliente ya se cuenta con teléfono y recolector reales:
+        // deja de estar "pendiente de completar información" (alta rápida).
+        entity.IsPendingInfo = false;
 
         await _context.SaveChangesAsync(cancellationToken);
     }

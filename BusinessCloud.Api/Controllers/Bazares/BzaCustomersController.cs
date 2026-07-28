@@ -1,4 +1,5 @@
 ﻿using BusinessCloud.Application.Bazares.Commands.CreateBzaCustomer;
+using BusinessCloud.Application.Bazares.Commands.QuickCreateBzaCustomer;
 using BusinessCloud.Application.Bazares.Commands.BlockCustomer;
 using BusinessCloud.Application.Bazares.Commands.MergeBzaCustomers;
 using BusinessCloud.Application.Bazares.Commands.UpdateBzaCustomer;
@@ -43,6 +44,14 @@ public class BzaCustomersController : ControllerBase
 
     [HttpPost]
     public async Task<ActionResult<int>> Create(CreateBzaCustomerCommand command)
+        => await _mediator.Send(command);
+
+    /// <summary>
+    /// Alta rápida durante la captura en vivo de una venta: solo requiere el nombre.
+    /// El cliente queda marcado como pendiente de completar teléfono y recolector.
+    /// </summary>
+    [HttpPost("quick")]
+    public async Task<ActionResult<int>> QuickCreate(QuickCreateBzaCustomerCommand command)
         => await _mediator.Send(command);
 
     [HttpPut("{id}")]

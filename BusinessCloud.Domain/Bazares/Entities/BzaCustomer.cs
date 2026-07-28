@@ -39,6 +39,13 @@ public class BzaCustomer : BaseAuditableEntity
     /// </summary>
     public string? PortalToken { get; set; }
 
+    /// <summary>
+    /// true cuando el cliente fue dado de alta rápida (solo nombre) durante la captura
+    /// en vivo de una venta, y todavía falta completar su teléfono y recolector.
+    /// Se limpia automáticamente al editar/completar su información.
+    /// </summary>
+    public bool IsPendingInfo { get; set; } = false;
+
     // ─────────────────────────────────────────────────────────────────────────
     // Relaciones
     // ─────────────────────────────────────────────────────────────────────────
