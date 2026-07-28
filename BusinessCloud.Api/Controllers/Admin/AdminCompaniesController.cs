@@ -243,6 +243,47 @@ public class AdminCompaniesController : ControllerBase
         });
     }
 
+    /// <summary>Actualiza el correo de acceso del usuario SuperAdmin de la empresa.</summary>
+    [HttpPut("{tenantId}/admin-email")]
+    public async Task<IActionResult> UpdateAdminEmail(string tenantId, [FromBody] UpdateCompanyAdminEmailRequest request)
+    {
+        var email = (request.AdminEmail ?? string.Empty).Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(email))
+            return BadRequest(new ApiResponse<object> { Success = false, Message = "El correo es obligatorio." });
+
+        var companyAdmin = await _identityContext.Users
+            .FirstOrDefaultAsync(u => u.TenantId == tenantId && u.Role == SystemRoles.SuperAdmin);
+
+        if (companyAdmin is null)
+            return NotFound(new ApiResponse<object> { Success = false, Message = "No se encontró el administrador de la empresa." });
+
+        var existing = await _userManager.FindByEmailAsync(email);
+        if (existing is not null && existing.Id != companyAdmin.Id)
+            return Conflict(new ApiResponse<object> { Success = false, Message = "El correo ya está registrado en otra cuenta." });
+
+        var setUserNameResult = await _userManager.SetUserNameAsync(companyAdmin, email);
+        if (!setUserNameResult.Succeeded)
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = string.Join(" ", setUserNameResult.Errors.Select(e => e.Description))
+            });
+
+        var setEmailResult = await _userManager.SetEmailAsync(companyAdmin, email);
+        if (!setEmailResult.Succeeded)
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = string.Join(" ", setEmailResult.Errors.Select(e => e.Description))
+            });
+
+        return Ok(new ApiResponse<object>
+        {
+            Success = true,
+            Message = "Correo de acceso actualizado.",
+            Data = new { tenantId, adminEmail = email }
+        });
+    }
     /// <summary>Registra la compra de un paquete o mensajes adicionales (acumula mensajes).</summary>
     [HttpPost("{tenantId}/purchase-package")]
     public async Task<IActionResult> PurchasePackage(string tenantId, [FromBody] PurchasePackageRequest request)
@@ -264,3 +305,4 @@ public class AdminCompaniesController : ControllerBase
         });
     }
 }
+

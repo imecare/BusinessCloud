@@ -37,6 +37,11 @@ public class GetCompanyByIdHandler(IIdentityDbContext context)
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.TenantId == tenant.Id, cancellationToken);
 
+        var companyAdminEmail = await _context.Users
+            .AsNoTracking()
+            .Where(u => u.TenantId == tenant.Id && u.Role == SystemRoles.SuperAdmin)
+            .Select(u => u.Email)
+            .FirstOrDefaultAsync(cancellationToken);
         var userCount = await _context.Users
             .AsNoTracking()
             .CountAsync(u => u.TenantId == tenant.Id, cancellationToken);
@@ -57,6 +62,7 @@ public class GetCompanyByIdHandler(IIdentityDbContext context)
             UserCount = userCount,
             HasSubscription = subscription is not null,
             MessagesAvailable = balance?.Available ?? 0,
+            AdminEmail = companyAdminEmail,
             MessagesTotalPurchased = balance?.TotalPurchased ?? 0,
             MessagesTotalUsed = balance?.TotalUsed ?? 0,
         };
@@ -90,3 +96,4 @@ public class GetCompanyByIdHandler(IIdentityDbContext context)
         return dto;
     }
 }
+

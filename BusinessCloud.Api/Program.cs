@@ -1,4 +1,4 @@
-using BusinessCloud.Api.Middleware;
+﻿using BusinessCloud.Api.Middleware;
 using BusinessCloud.Application;
 using BusinessCloud.Api.Common;
 using BusinessCloud.Application.Common.Interfaces;
@@ -156,7 +156,10 @@ try
     builder.Services.AddSingleton<BusinessCloud.Application.Common.Interfaces.IVerificationCodeService,
         BusinessCloud.Infrastructure.Common.Services.VerificationCodeService>();
 
-    // Configuraci�n de MongoDB (opcional)
+            builder.Services.AddScoped<BusinessCloud.Application.Common.Interfaces.IAdminPinService,
+                BusinessCloud.Infrastructure.Common.Services.AdminPinService>();
+
+    // Configuración de MongoDB (opcional)
     var mongoConnectionString = builder.Configuration.GetConnectionString("MongoDb");
     if (!string.IsNullOrWhiteSpace(mongoConnectionString) && !mongoConnectionString.Contains("localhost"))
     {

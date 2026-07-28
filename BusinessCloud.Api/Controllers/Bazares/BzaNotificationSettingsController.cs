@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using BusinessCloud.Api.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using MediatR;
@@ -20,7 +20,8 @@ namespace BusinessCloud.Api.Controllers.Bazares;
 public class BzaNotificationSettingsController(
     ISender mediator,
     IVerificationCodeService verification,
-    ICurrentUserService currentUser) : ControllerBase
+    ICurrentUserService currentUser,
+    IAdminPinService adminPin) : ControllerBase
 {
     /// <summary>Obtiene los mensajes personalizados y las tarjetas activas.</summary>
     [HttpGet]
@@ -40,29 +41,27 @@ public class BzaNotificationSettingsController(
         return NoContent();
     }
 
-    /// <summary>Crea una nueva tarjeta. Solo SuperAdmin, con verificación por WhatsApp.</summary>
+    /// <summary>Crea una nueva tarjeta. Solo SuperAdmin, con verificacion por PIN o WhatsApp.</summary>
     [Authorize(Policy = "SuperAdmin")]
     [HttpPost("cards")]
     public async Task<ActionResult<int>> CreateCard(CreatePaymentCardCommand command)
     {
-        var invalid = ValidateChallenge("payment.card.add", command.ChallengeId, command.VerificationCode);
+        var invalid = await ValidateChallengeAsync("payment.card.add", command.ChallengeId, command.VerificationCode, command.AdminPin);
         if (invalid is not null)
             return invalid;
 
         return await mediator.Send(command);
     }
 
-    /// <summary>Actualiza una tarjeta existente. Solo SuperAdmin, con verificación por WhatsApp.</summary>
+    /// <summary>Actualiza una tarjeta existente. Solo SuperAdmin, con verificacion por PIN o WhatsApp.</summary>
     [Authorize(Policy = "SuperAdmin")]
     [HttpPut("cards/{id}")]
     public async Task<ActionResult> UpdateCard(int id, UpdatePaymentCardCommand command)
     {
         if (id != command.Id)
-        {
             return BadRequest("El ID de la tarjeta no coincide.");
-        }
 
-        var invalid = ValidateChallenge("payment.card.update", command.ChallengeId, command.VerificationCode);
+        var invalid = await ValidateChallengeAsync("payment.card.update", command.ChallengeId, command.VerificationCode, command.AdminPin);
         if (invalid is not null)
             return invalid;
 
@@ -70,12 +69,12 @@ public class BzaNotificationSettingsController(
         return NoContent();
     }
 
-    /// <summary>Elimina una tarjeta. Solo SuperAdmin, con verificación por WhatsApp.</summary>
+    /// <summary>Elimina una tarjeta. Solo SuperAdmin, con verificacion por PIN o WhatsApp.</summary>
     [Authorize(Policy = "SuperAdmin")]
     [HttpDelete("cards/{id}")]
-    public async Task<ActionResult> DeleteCard(int id, [FromQuery] string? challengeId, [FromQuery] string? verificationCode)
+    public async Task<ActionResult> DeleteCard(int id, [FromQuery] string? challengeId, [FromQuery] string? verificationCode, [FromQuery] string? adminPin)
     {
-        var invalid = ValidateChallenge("payment.card.delete", challengeId, verificationCode);
+        var invalid = await ValidateChallengeAsync("payment.card.delete", challengeId, verificationCode, adminPin);
         if (invalid is not null)
             return invalid;
 
@@ -92,21 +91,29 @@ public class BzaNotificationSettingsController(
     }
 
     /// <summary>
-    /// Valida el código OTP del desafío para el propósito indicado (verificación del SuperAdmin).
-    /// Devuelve null si es válido, o un ActionResult de error 403 si no lo es.
+    /// Valida PIN o codigo OTP del SuperAdmin segun lo que se proporcione.
+    /// Si se envia adminPin, verifica el hash. Si se envia challengeId+code, verifica OTP.
     /// </summary>
-    private ActionResult? ValidateChallenge(string purpose, string? challengeId, string? code)
+    private async Task<ActionResult?> ValidateChallengeAsync(string purpose, string? challengeId, string? code, string? pin)
     {
         var userId = currentUser.UserId;
         if (string.IsNullOrEmpty(userId))
-            return Unauthorized(new { success = false, message = "Sesión no válida." });
+            return Unauthorized(new { success = false, message = "Sesion no valida." });
+
+        if (!string.IsNullOrWhiteSpace(pin))
+        {
+            var pinOk = await adminPin.VerifyPinAsync(userId, pin);
+            if (!pinOk)
+                return StatusCode(403, new { success = false, message = "PIN incorrecto.", code = "PIN_INVALID" });
+            return null;
+        }
 
         if (string.IsNullOrWhiteSpace(challengeId) || string.IsNullOrWhiteSpace(code))
         {
             return StatusCode(403, new
             {
                 success = false,
-                message = "Esta operación requiere verificación por WhatsApp.",
+                message = "Esta operacion requiere verificacion (PIN o codigo WhatsApp).",
                 code = "VERIFICATION_REQUIRED"
             });
         }
@@ -116,7 +123,7 @@ public class BzaNotificationSettingsController(
             return StatusCode(403, new
             {
                 success = false,
-                message = "El código de verificación es inválido o expiró.",
+                message = "El codigo de verificacion es invalido o expiro.",
                 code = "VERIFICATION_INVALID"
             });
         }

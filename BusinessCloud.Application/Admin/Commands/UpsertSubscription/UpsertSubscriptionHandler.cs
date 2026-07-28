@@ -33,6 +33,14 @@ public class UpsertSubscriptionHandler(
             ? null
             : new string(request.OwnerPhone.Where(char.IsDigit).ToArray());
 
+        if (!string.IsNullOrWhiteSpace(normalizedPhone))
+        {
+            var phoneInUse = await _context.TenantSubscriptions
+                .AnyAsync(s => s.OwnerPhone == normalizedPhone && s.TenantId != request.TenantId, cancellationToken);
+
+            if (phoneInUse)
+                throw new ValidationException("El número de teléfono del dueño ya está registrado en otra empresa.");
+        }
         if (subscription is null)
         {
             subscription = new TenantSubscription
@@ -100,3 +108,4 @@ public class UpsertSubscriptionHandler(
         return subscription.Id;
     }
 }
+

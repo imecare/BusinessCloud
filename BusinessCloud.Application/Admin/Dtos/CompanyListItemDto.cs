@@ -30,5 +30,7 @@ public class CompanyListItemDto
 
     public string? OwnerName { get; set; }
     public string? OwnerPhone { get; set; }
+    public string? AdminEmail { get; set; }
     public int? SellerId { get; set; }
 }
+

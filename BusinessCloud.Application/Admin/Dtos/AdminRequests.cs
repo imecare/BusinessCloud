@@ -50,6 +50,11 @@ public class SetCompanyStatusRequest
     public bool IsActive { get; set; }
 }
 
+/// <summary>Actualización del correo de acceso del SuperAdmin de una empresa.</summary>
+public class UpdateCompanyAdminEmailRequest
+{
+    public string AdminEmail { get; set; } = null!;
+}
 /// <summary>Alta/ediciÃ³n de un comisionista del SaaS.</summary>
 public class SystemSellerRequest
 {
@@ -88,3 +93,4 @@ public class PurchasePackageRequest
     public decimal? CustomPrice { get; set; }
     public string? Note { get; set; }
 }
+

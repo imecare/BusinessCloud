@@ -22,9 +22,12 @@ public class CreateBazarUserRequest
     /// <summary>Permite ver los totales de venta. Por defecto true.</summary>
     public bool CanViewTotals { get; set; } = true;
 
-    /// <summary>Identificador del desafío OTP (obtenido de verification/request).</summary>
+    /// <summary>Identificador del desafío OTP (obtenido de verification/request). Alternativa al PIN.</summary>
     public string? ChallengeId { get; set; }
 
-    /// <summary>Código de verificación recibido por WhatsApp.</summary>
+    /// <summary>Código de verificación recibido por WhatsApp. Alternativa al PIN.</summary>
     public string? VerificationCode { get; set; }
+
+    /// <summary>PIN de seguridad del SuperAdmin. Alternativa al código OTP de WhatsApp.</summary>
+    public string? AdminPin { get; set; }
 }

@@ -44,13 +44,17 @@ public class GetCompaniesHandler(IIdentityDbContext context)
                     .ToList(),
                 Subscription = _context.TenantSubscriptions
                     .FirstOrDefault(s => s.TenantId == t.Id),
+                AdminEmail = _context.Users
+                    .Where(u => u.TenantId == t.Id && u.Role == SystemRoles.SuperAdmin)
+                    .Select(u => u.Email)
+                    .FirstOrDefault(),
             })
             .ToListAsync(cancellationToken);
 
         var now = DateTime.UtcNow;
 
         var result = tenants
-            .Select(t => MapToDto(t.Id, t.Name, t.IsActive, t.CreatedAt, t.Modules, t.Subscription, now))
+            .Select(t => MapToDto(t.Id, t.Name, t.IsActive, t.CreatedAt, t.Modules, t.Subscription, t.AdminEmail, now))
             .ToList();
 
         if (!string.IsNullOrWhiteSpace(request.Status))
@@ -73,6 +77,7 @@ public class GetCompaniesHandler(IIdentityDbContext context)
         DateTime createdAt,
         IReadOnlyList<string> modules,
         TenantSubscription? subscription,
+        string? adminEmail,
         DateTime now)
     {
         var dto = new CompanyListItemDto
@@ -83,6 +88,7 @@ public class GetCompaniesHandler(IIdentityDbContext context)
             CreatedAt = createdAt,
             Modules = modules,
             HasSubscription = subscription is not null,
+            AdminEmail = adminEmail,
         };
 
         if (subscription is not null)
@@ -108,3 +114,5 @@ public class GetCompaniesHandler(IIdentityDbContext context)
         return dto;
     }
 }
+
+

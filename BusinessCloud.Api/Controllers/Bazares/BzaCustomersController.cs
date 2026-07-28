@@ -69,12 +69,12 @@ public class BzaCustomersController : ControllerBase
     public async Task<ActionResult<int>> Block(BlockCustomerCommand command)
         => await _mediator.Send(command);
 
-    /// <summary>Quita (desactiva) un bloqueo. Solo SuperAdmin, con verificación por WhatsApp.</summary>
+    /// <summary>Quita (desactiva) un bloqueo. Solo SuperAdmin, con verificación por PIN o WhatsApp.</summary>
     [Authorize(Policy = "SuperAdmin")]
     [HttpPost("blocked/{id:int}/unblock")]
     public async Task<ActionResult> Unblock(int id, [FromBody] UnblockRequest? body)
     {
-        await _mediator.Send(new UnblockCustomerCommand(id, body?.ChallengeId, body?.VerificationCode));
+        await _mediator.Send(new UnblockCustomerCommand(id, body?.ChallengeId, body?.VerificationCode, body?.AdminPin));
         return NoContent();
     }
 
@@ -111,9 +111,11 @@ public class BzaCustomersController : ControllerBase
     #endregion
 }
 
-/// <summary>Cuerpo de la petición para quitar un bloqueo (con verificación OTP).</summary>
+/// <summary>Cuerpo de la petición para quitar un bloqueo (con verificación OTP o PIN).</summary>
 public class UnblockRequest
 {
     public string? ChallengeId { get; set; }
     public string? VerificationCode { get; set; }
+    /// <summary>PIN de seguridad del SuperAdmin. Alternativa al OTP de WhatsApp.</summary>
+    public string? AdminPin { get; set; }
 }

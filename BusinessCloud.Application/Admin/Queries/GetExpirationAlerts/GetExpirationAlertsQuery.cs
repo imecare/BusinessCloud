@@ -37,6 +37,10 @@ public class GetExpirationAlertsHandler(IIdentityDbContext context)
                     .ToList(),
                 Subscription = _context.TenantSubscriptions
                     .FirstOrDefault(s => s.TenantId == t.Id),
+                AdminEmail = _context.Users
+                    .Where(u => u.TenantId == t.Id && u.Role == SystemRoles.SuperAdmin)
+                    .Select(u => u.Email)
+                    .FirstOrDefault(),
             })
             .ToListAsync(cancellationToken);
 
@@ -71,7 +75,7 @@ public class GetExpirationAlertsHandler(IIdentityDbContext context)
             if (status != SubscriptionStatus.Active)
             {
                 needAttention.Add(GetCompaniesHandler.MapToDto(
-                    t.Id, t.Name, t.IsActive, t.CreatedAt, t.Modules, t.Subscription, now));
+                    t.Id, t.Name, t.IsActive, t.CreatedAt, t.Modules, t.Subscription, t.AdminEmail, now));
             }
         }
 
@@ -82,3 +86,4 @@ public class GetExpirationAlertsHandler(IIdentityDbContext context)
         return dto;
     }
 }
+

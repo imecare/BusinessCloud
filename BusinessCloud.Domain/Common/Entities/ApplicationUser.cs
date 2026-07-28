@@ -34,5 +34,12 @@ namespace BusinessCloud.Domain.Common.Entities
         /// Si es false, se ocultan los totales para proteger la información de ventas.
         /// </summary>
         public bool CanViewTotals { get; set; } = true;
+
+        /// <summary>
+        /// Hash del PIN de seguridad del SuperAdmin (PBKDF2 vía IPasswordHasher).
+        /// Solo el SuperAdmin del bazar puede configurarlo. Se usa como alternativa
+        /// al código OTP de WhatsApp para autorizar operaciones sensibles.
+        /// </summary>
+        public string? AdminSecurityPinHash { get; set; }
     }
 }

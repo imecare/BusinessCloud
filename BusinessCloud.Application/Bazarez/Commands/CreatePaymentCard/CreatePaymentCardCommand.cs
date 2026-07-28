@@ -8,11 +8,14 @@ namespace BusinessCloud.Application.Bazares.Commands.CreatePaymentCard;
 public record CreatePaymentCardCommand(string CardNumber, string CardHolderName, string? Bank, string? Notes, bool IsActive = true)
     : IRequest<int>
 {
-    /// <summary>Identificador del desafío OTP (verificación por WhatsApp del SuperAdmin).</summary>
+    /// <summary>Identificador del desafío OTP. Alternativa al PIN.</summary>
     public string? ChallengeId { get; init; }
 
-    /// <summary>Código de verificación ingresado por el SuperAdmin.</summary>
+    /// <summary>Código de verificación OTP. Alternativa al PIN.</summary>
     public string? VerificationCode { get; init; }
+
+    /// <summary>PIN de seguridad del SuperAdmin. Alternativa al código OTP.</summary>
+    public string? AdminPin { get; init; }
 }
 
 public class CreatePaymentCardHandler(IBazaresDbContext context)

@@ -26,6 +26,7 @@ public class AuthController : ControllerBase
     private readonly IVerificationCodeService _verification;
     private readonly IBazaresDbContext _bazaresDb;
     private readonly ILogger<AuthController> _logger;
+    private readonly IAdminPinService _adminPin;
 
     public AuthController(
         UserManager<ApplicationUser> userManager,
@@ -37,7 +38,8 @@ public class AuthController : ControllerBase
         IWhatsAppSender whatsApp,
         IVerificationCodeService verification,
         IBazaresDbContext bazaresDb,
-        ILogger<AuthController> logger)
+        ILogger<AuthController> logger,
+        IAdminPinService adminPin)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -49,6 +51,7 @@ public class AuthController : ControllerBase
         _verification = verification;
         _bazaresDb = bazaresDb;
         _logger = logger;
+        _adminPin = adminPin;
     }
 
     [HttpPost("register-company")]
@@ -487,6 +490,49 @@ public class AuthController : ControllerBase
         return Ok(new { success = true, phoneNumber = me.PhoneNumber });
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // PIN de seguridad del SuperAdmin
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Indica si el SuperAdmin tiene configurado un PIN de seguridad.
+    /// Solo SuperAdmin.
+    /// </summary>
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpGet("me/security-pin/status")]
+    public async Task<IActionResult> GetSecurityPinStatus()
+    {
+        var me = await _userManager.GetUserAsync(User);
+        if (me is null)
+            return Unauthorized();
+
+        return Ok(new { configured = !string.IsNullOrEmpty(me.AdminSecurityPinHash) });
+    }
+
+    /// <summary>
+    /// Configura o cambia el PIN de seguridad del SuperAdmin.
+    /// Si ya tiene PIN, se requiere el PIN actual para cambiarlo.
+    /// Solo SuperAdmin.
+    /// </summary>
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpPut("me/security-pin")]
+    public async Task<IActionResult> SetSecurityPin([FromBody] SetSecurityPinRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.NewPin) || request.NewPin.Length < 4 || request.NewPin.Length > 8
+            || !request.NewPin.All(char.IsDigit))
+            return BadRequest(new { success = false, message = "El PIN debe tener entre 4 y 8 dígitos numéricos." });
+
+        var me = await _userManager.GetUserAsync(User);
+        if (me is null)
+            return Unauthorized();
+
+        var (success, error) = await _adminPin.SetPinAsync(me.Id, request.NewPin, request.CurrentPin);
+        if (!success)
+            return BadRequest(new { success = false, message = error ?? "No se pudo guardar el PIN." });
+
+        return Ok(new { success = true, message = "PIN configurado correctamente." });
+    }
+
     /// <summary>
     /// Envía un código de verificación por WhatsApp al número del SuperAdmin
     /// antes de autorizar una operación sensible (alta/edición/baja/reset).
@@ -570,7 +616,7 @@ public class AuthController : ControllerBase
         if (string.IsNullOrEmpty(tenantId))
             return Unauthorized(new { success = false, message = "No se pudo determinar la empresa." });
 
-        var challenge = await ValidateChallengeAsync("user.create", request.ChallengeId, request.VerificationCode);
+        var challenge = await ValidateChallengeAsync("user.create", request.ChallengeId, request.VerificationCode, request.AdminPin);
         if (challenge is not null)
             return challenge;
 
@@ -636,7 +682,7 @@ public class AuthController : ControllerBase
     {
         var tenantId = _currentUser.TenantId;
 
-        var challenge = await ValidateChallengeAsync("user.update", request.ChallengeId, request.VerificationCode);
+        var challenge = await ValidateChallengeAsync("user.update", request.ChallengeId, request.VerificationCode, request.AdminPin);
         if (challenge is not null)
             return challenge;
 
@@ -670,7 +716,7 @@ public class AuthController : ControllerBase
     {
         var tenantId = _currentUser.TenantId;
 
-        var challenge = await ValidateChallengeAsync("user.status", request.ChallengeId, request.VerificationCode);
+        var challenge = await ValidateChallengeAsync("user.status", request.ChallengeId, request.VerificationCode, request.AdminPin);
         if (challenge is not null)
             return challenge;
 
@@ -705,7 +751,7 @@ public class AuthController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.TemporaryPassword) || request.TemporaryPassword.Length < 6)
             return BadRequest(new { success = false, message = "La contraseña temporal debe tener al menos 6 caracteres." });
 
-        var challenge = await ValidateChallengeAsync("user.reset-password", request.ChallengeId, request.VerificationCode);
+        var challenge = await ValidateChallengeAsync("user.reset-password", request.ChallengeId, request.VerificationCode, request.AdminPin);
         if (challenge is not null)
             return challenge;
 
@@ -865,21 +911,30 @@ public class AuthController : ControllerBase
     // ============================================================
 
     /// <summary>
-    /// Valida el código OTP del desafío para el propósito indicado.
-    /// Devuelve null si es válido, o un IActionResult de error si no lo es.
+    /// Valida PIN o código OTP según lo que se proporcione.
+    /// Si se envía adminPin, verifica hash. Si se envía challengeId+code, verifica OTP.
+    /// Devuelve null si es válido, o un IActionResult de error.
     /// </summary>
-    private async Task<IActionResult?> ValidateChallengeAsync(string purpose, string? challengeId, string? code)
+    private async Task<IActionResult?> ValidateChallengeAsync(string purpose, string? challengeId, string? code, string? adminPin = null)
     {
         var me = await _userManager.GetUserAsync(User);
         if (me is null)
             return Unauthorized(new { success = false, message = "Sesión no válida." });
+
+        if (!string.IsNullOrWhiteSpace(adminPin))
+        {
+            var pinOk = await _adminPin.VerifyPinAsync(me.Id, adminPin);
+            if (!pinOk)
+                return StatusCode(403, new { success = false, message = "PIN incorrecto.", code = "PIN_INVALID" });
+            return null;
+        }
 
         if (string.IsNullOrWhiteSpace(challengeId) || string.IsNullOrWhiteSpace(code))
         {
             return StatusCode(403, new
             {
                 success = false,
-                message = "Esta operación requiere verificación por WhatsApp.",
+                message = "Esta operación requiere verificación (PIN o código WhatsApp).",
                 code = "VERIFICATION_REQUIRED"
             });
         }

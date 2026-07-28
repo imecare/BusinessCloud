@@ -11,25 +11,25 @@ public class CreateBzaCustomerHandler : IRequestHandler<CreateBzaCustomerCommand
     private readonly IBazaresDbContext _context;
     private readonly IVerificationCodeService _verification;
     private readonly ICurrentUserService _currentUser;
+    private readonly IAdminPinService _adminPin;
 
     public CreateBzaCustomerHandler(
         IBazaresDbContext context,
         IVerificationCodeService verification,
-        ICurrentUserService currentUser)
+        ICurrentUserService currentUser,
+        IAdminPinService adminPin)
     {
         _context = context;
         _verification = verification;
         _currentUser = currentUser;
+        _adminPin = adminPin;
     }
 
     public async Task<int> Handle(CreateBzaCustomerCommand request, CancellationToken cancellationToken)
     {
-        // El teléfono es la llave para el envío de totales: se normaliza a solo dígitos y debe ser único.
         var phone = NormalizePhone(request.Phone);
         var facebookName = FacebookMessengerProfile.Normalize(request.FacebookName);
 
-        // Validación de lista de bloqueo: si el nombre o el Facebook coinciden con un
-        // cliente bloqueado activo, no se permite el alta salvo autorización del SuperAdmin (OTP).
         var nameLower = (request.Name ?? string.Empty).Trim().ToLower();
         var fbLower = string.IsNullOrWhiteSpace(facebookName) ? null : facebookName.Trim().ToLower();
 
@@ -42,23 +42,30 @@ public class CreateBzaCustomerHandler : IRequestHandler<CreateBzaCustomerCommand
 
         if (block is not null)
         {
-            var hasChallenge = !string.IsNullOrWhiteSpace(request.ChallengeId)
-                               && !string.IsNullOrWhiteSpace(request.VerificationCode);
+            var userId = _currentUser.UserId ?? string.Empty;
+            bool authorized = false;
 
-            if (!hasChallenge)
+            // Verificar por PIN si se proporcionó.
+            if (!string.IsNullOrWhiteSpace(request.AdminPin))
+            {
+                authorized = await _adminPin.VerifyPinAsync(userId, request.AdminPin, cancellationToken);
+                if (!authorized)
+                    throw new InvalidOperationException("PIN incorrecto. No se puede forzar el alta del cliente bloqueado.");
+            }
+            // Verificar por OTP si se proporcionó challenge.
+            else if (!string.IsNullOrWhiteSpace(request.ChallengeId) && !string.IsNullOrWhiteSpace(request.VerificationCode))
+            {
+                authorized = _verification.Validate(
+                    request.ChallengeId!, request.VerificationCode!, "customer.block.override", userId);
+                if (!authorized)
+                    throw new InvalidOperationException("El código de verificación es inválido o expiró.");
+            }
+
+            if (!authorized)
             {
                 throw new InvalidOperationException(
                     $"CLIENTE_BLOQUEADO: El cliente coincide con un registro de la lista de bloqueo (nombre o Facebook). Motivo: {block.Reason}. Se requiere autorización del SuperAdmin para darlo de alta.");
             }
-
-            var authorized = _verification.Validate(
-                request.ChallengeId!, request.VerificationCode!, "customer.block.override", _currentUser.UserId ?? string.Empty);
-
-            if (!authorized)
-            {
-                throw new InvalidOperationException("El código de verificación es inválido o expiró.");
-            }
-            // Autorizado por el SuperAdmin: continúa el alta pese al bloqueo.
         }
 
         var duplicate = await _context.Customers
@@ -85,7 +92,6 @@ public class CreateBzaCustomerHandler : IRequestHandler<CreateBzaCustomerCommand
         return entity.Id;
     }
 
-    /// <summary>Deja solo los dígitos del teléfono para usarlo como llave única.</summary>
     private static string NormalizePhone(string? phone)
         => new string((phone ?? string.Empty).Where(char.IsDigit).ToArray());
 }

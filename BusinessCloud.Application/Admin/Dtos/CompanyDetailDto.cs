@@ -31,6 +31,7 @@ public class CompanyDetailDto
 
     public string? OwnerName { get; set; }
     public string? OwnerPhone { get; set; }
+    public string? AdminEmail { get; set; }
     public int? SellerId { get; set; }
     public decimal CommissionInitialAmount { get; set; }
     public decimal CommissionMonthlyPercent { get; set; }
@@ -40,3 +41,4 @@ public class CompanyDetailDto
     public int MessagesTotalPurchased { get; set; }
     public int MessagesTotalUsed { get; set; }
 }
+

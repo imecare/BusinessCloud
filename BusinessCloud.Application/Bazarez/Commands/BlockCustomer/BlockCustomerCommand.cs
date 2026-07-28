@@ -1,4 +1,4 @@
-using BusinessCloud.Application.Common.Interfaces;
+﻿using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Domain.Bazares.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -49,13 +49,14 @@ public class BlockCustomerHandler(IBazaresDbContext context)
     }
 }
 
-/// <summary>Desactiva (quita) un bloqueo de la lista. Requiere autorización OTP del SuperAdmin.</summary>
-public record UnblockCustomerCommand(int Id, string? ChallengeId = null, string? VerificationCode = null) : IRequest;
+/// <summary>Desactiva (quita) un bloqueo de la lista. Requiere autorización OTP o PIN del SuperAdmin.</summary>
+public record UnblockCustomerCommand(int Id, string? ChallengeId = null, string? VerificationCode = null, string? AdminPin = null) : IRequest;
 
 public class UnblockCustomerHandler(
     IBazaresDbContext context,
     IVerificationCodeService verification,
-    ICurrentUserService currentUser)
+    ICurrentUserService currentUser,
+    IAdminPinService adminPin)
     : IRequestHandler<UnblockCustomerCommand>
 {
     public async Task Handle(UnblockCustomerCommand request, CancellationToken ct)
@@ -67,15 +68,27 @@ public class UnblockCustomerHandler(
         if (!entity.IsActive)
             return;
 
-        var hasChallenge = !string.IsNullOrWhiteSpace(request.ChallengeId)
-                           && !string.IsNullOrWhiteSpace(request.VerificationCode);
-        if (!hasChallenge)
-            throw new InvalidOperationException("VERIFICATION_REQUIRED: Se requiere autorización del SuperAdmin para quitar el bloqueo.");
+        var userId = currentUser.UserId ?? string.Empty;
+        bool authorized = false;
 
-        var authorized = verification.Validate(
-            request.ChallengeId!, request.VerificationCode!, "customer.unblock", currentUser.UserId ?? string.Empty);
-        if (!authorized)
-            throw new InvalidOperationException("El código de verificación es inválido o expiró.");
+        if (!string.IsNullOrWhiteSpace(request.AdminPin))
+        {
+            authorized = await adminPin.VerifyPinAsync(userId, request.AdminPin, ct);
+            if (!authorized)
+                throw new InvalidOperationException("PIN incorrecto. No se puede quitar el bloqueo.");
+        }
+        else
+        {
+            var hasChallenge = !string.IsNullOrWhiteSpace(request.ChallengeId)
+                               && !string.IsNullOrWhiteSpace(request.VerificationCode);
+            if (!hasChallenge)
+                throw new InvalidOperationException("VERIFICATION_REQUIRED: Se requiere autorizacion del SuperAdmin para quitar el bloqueo.");
+
+            authorized = verification.Validate(
+                request.ChallengeId!, request.VerificationCode!, "customer.unblock", userId);
+            if (!authorized)
+                throw new InvalidOperationException("El codigo de verificacion es invalido o expiro.");
+        }
 
         entity.IsActive = false;
         await context.SaveChangesAsync(ct);

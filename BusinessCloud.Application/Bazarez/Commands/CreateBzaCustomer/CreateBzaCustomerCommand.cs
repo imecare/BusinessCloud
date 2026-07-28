@@ -9,7 +9,10 @@ public record CreateBzaCustomerCommand : IRequest<int>
     public string Phone { get; init; } = string.Empty;
     public int BzaCollectorId { get; init; }
 
-    /// <summary>Desafío OTP (SuperAdmin) para forzar el alta de un cliente bloqueado.</summary>
+    /// <summary>Desafío OTP (SuperAdmin) para forzar el alta de un cliente bloqueado. Alternativa al PIN.</summary>
     public string? ChallengeId { get; init; }
     public string? VerificationCode { get; init; }
+
+    /// <summary>PIN de seguridad del SuperAdmin. Alternativa al código OTP para forzar el alta.</summary>
+    public string? AdminPin { get; init; }
 }
