@@ -236,7 +236,7 @@ public class ValidateBzaImportHandler(IBazaresDbContext context)
 
             var candidateMatches = sampleDescriptions.Count > 0
                 ? await _context.SoldProducts
-                    .Where(p => p.Sale.Event.Status == 1 && p.Sale.BzaEventId != request.EventId
+                    .Where(p => p.Sale.Event.Status == 1
                                 && sampleDescriptions.Contains(p.Description))
                     .Select(p => new { p.Description, p.Price, EventName = p.Sale.Event.Description })
                     .ToListAsync(ct)
