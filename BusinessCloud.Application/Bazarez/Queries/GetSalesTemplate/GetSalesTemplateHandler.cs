@@ -28,13 +28,13 @@ public class GetSalesTemplateHandler : IRequestHandler<GetSalesTemplateQuery, Sa
 
         // --- Hoja 1: Captura de compras (la importacion lee la hoja "Compras") ---
         // Columnas alineadas con el parser de importacion:
-        // 1=Cliente, 2=Producto, 3=Precio, 4=Recolector, 5=Nombre de Facebook, 6=Telefono
+        // 1=Producto, 2=Precio, 3=Cliente, 4=Recolector, 5=Nombre de Facebook, 6=Telefono
         // Recolector, Facebook y Telefono son OPCIONALES:
         //  - Si el cliente ya existe y la celda viene en blanco, se conserva el dato registrado.
         //  - Facebook y Telefono solo se capturan (crean) para clientes NUEVOS.
         //  - Si el cliente existe y el dato difiere, se solicita confirmacion al validar.
         var ws = workbook.Worksheets.Add("Compras");
-        var headers = new[] { "Cliente (Nombre)", "Producto", "Precio", "Recolector", "Nombre de Facebook", "Teléfono" };
+        var headers = new[] { "Producto", "Precio", "Cliente (Nombre)", "Recolector", "Nombre de Facebook", "Teléfono" };
         for (int i = 0; i < headers.Length; i++)
         {
             ws.Cell(1, i + 1).Value = headers[i];
@@ -52,13 +52,14 @@ public class GetSalesTemplateHandler : IRequestHandler<GetSalesTemplateQuery, Sa
 
         const int lastDataRow = 1000;
         const int collectorColumn = 4; // Recolector
+        const int customerColumn = 3; // Cliente (Nombre)
 
-        // Lista desplegable de CLIENTES en la columna A.
+        // Lista desplegable de CLIENTES en la columna C.
         // ErrorStyle = Warning permite escribir clientes nuevos (no bloquea la captura).
         if (customers.Count > 0)
         {
             var customerRange = catWs.Range(1, 1, customers.Count, 1);
-            var customerValidation = ws.Range(2, 1, lastDataRow, 1).CreateDataValidation();
+            var customerValidation = ws.Range(2, customerColumn, lastDataRow, customerColumn).CreateDataValidation();
             customerValidation.List(customerRange);
             customerValidation.IgnoreBlanks = true;
             customerValidation.InCellDropdown = true;

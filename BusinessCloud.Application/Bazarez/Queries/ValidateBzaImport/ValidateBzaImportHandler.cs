@@ -46,16 +46,16 @@ public class ValidateBzaImportHandler(IBazaresDbContext context)
 
         var lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
 
-        // 3. Parsear filas: [Cliente, Producto, Precio, Recolector, Facebook, Teléfono]
+        // 3. Parsear filas: [Producto, Precio, Cliente, Recolector, Facebook, Telefono]
         // Agrupar por nombre de cliente (normalizado).
         var groups = new Dictionary<string, ImportCustomerGroupDto>(StringComparer.OrdinalIgnoreCase);
         var firstDescriptions = new List<string>();
 
         for (int row = 2; row <= lastRow; row++)
         {
-            var clientName = ws.Cell(row, 1).GetString().Trim();
-            var productDesc = ws.Cell(row, 2).GetString().Trim();
-            var priceStr = ws.Cell(row, 3).GetString().Trim();
+            var productDesc = ws.Cell(row, 1).GetString().Trim();
+            var priceStr = ws.Cell(row, 2).GetString().Trim();
+            var clientName = ws.Cell(row, 3).GetString().Trim();
             var collectorName = ws.Cell(row, 4).GetString().Trim();
             var facebookName = ws.Cell(row, 5).GetString().Trim();
             var phone = ws.Cell(row, 6).GetString().Trim();
