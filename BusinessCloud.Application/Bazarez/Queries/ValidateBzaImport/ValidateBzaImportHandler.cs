@@ -49,7 +49,7 @@ public class ValidateBzaImportHandler(IBazaresDbContext context)
         // 3. Parsear filas: [Producto, Precio, Cliente, Recolector, Facebook, Telefono]
         // Agrupar por nombre de cliente (normalizado).
         var groups = new Dictionary<string, ImportCustomerGroupDto>(StringComparer.OrdinalIgnoreCase);
-        var firstDescriptions = new List<string>();
+        var sampleItems = new List<(string Description, decimal Price)>();
 
         for (int row = 2; row <= lastRow; row++)
         {
@@ -113,8 +113,8 @@ public class ValidateBzaImportHandler(IBazaresDbContext context)
             group.Total += price;
             result.TotalProducts++;
 
-            if (firstDescriptions.Count < DuplicateSampleSize)
-                firstDescriptions.Add(productDesc);
+            if (sampleItems.Count < DuplicateSampleSize)
+                sampleItems.Add((productDesc, price));
         }
 
         result.HasRows = result.TotalProducts > 0;
@@ -217,29 +217,46 @@ public class ValidateBzaImportHandler(IBazaresDbContext context)
             .OrderBy(g => g.CustomerName)
             .ToList();
 
-        // 6. Detección de posible archivo ya subido: comparar los primeros productos
-        //    contra productos de eventos ABIERTOS (Status = 1). Solo advierte.
-        if (firstDescriptions.Count > 0)
+        // 6. Deteccion de posible archivo ya subido: compara los primeros productos
+        //    (descripcion + precio, para evitar falsos positivos por nombres genericos)
+        //    contra productos de eventos ABIERTOS. Solo advierte si hay una coincidencia
+        //    fuerte (al menos 2 productos y al menos la mitad de la muestra).
+        if (sampleItems.Count > 0)
         {
-            var sample = firstDescriptions
-                .Select(d => d.Trim())
-                .Where(d => d.Length > 0)
+            var sample = sampleItems
+                .Where(x => x.Description.Length > 0)
+                .Select(x => (Description: x.Description.Trim(), x.Price))
+                .Distinct()
+                .ToList();
+
+            var sampleDescriptions = sample
+                .Select(s => s.Description)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            var dupMatches = await _context.SoldProducts
-                .Where(p => p.Sale.Event.Status == 1 && sample.Contains(p.Description))
-                .Select(p => new { p.Description, EventName = p.Sale.Event.Description })
-                .ToListAsync(ct);
+            var candidateMatches = sampleDescriptions.Count > 0
+                ? await _context.SoldProducts
+                    .Where(p => p.Sale.Event.Status == 1 && p.Sale.BzaEventId != request.EventId
+                                && sampleDescriptions.Contains(p.Description))
+                    .Select(p => new { p.Description, p.Price, EventName = p.Sale.Event.Description })
+                    .ToListAsync(ct)
+                : [];
 
-            if (dupMatches.Count > 0)
+            var matchedPairs = candidateMatches
+                .Where(cm => sample.Any(s =>
+                    s.Description.Equals(cm.Description, StringComparison.OrdinalIgnoreCase) && s.Price == cm.Price))
+                .ToList();
+
+            var matchedDescriptions = matchedPairs
+                .Select(m => m.Description)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var matchRatio = sample.Count > 0 ? (double)matchedDescriptions.Count / sample.Count : 0;
+
+            if (matchedDescriptions.Count >= 2 && matchRatio >= 0.5)
             {
-                var matchedDescriptions = dupMatches
-                    .Select(d => d.Description)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-                var eventNames = dupMatches
+                var eventNames = matchedPairs
                     .Select(d => d.EventName)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
@@ -249,13 +266,108 @@ public class ValidateBzaImportHandler(IBazaresDbContext context)
                     PossibleDuplicate = true,
                     MatchedDescriptions = matchedDescriptions,
                     EventNames = eventNames,
-                    Message = $"Se encontraron {matchedDescriptions.Count} de los primeros {sample.Count} productos ya registrados " +
+                    Message = $"Se encontraron {matchedDescriptions.Count} de los primeros {sample.Count} productos (mismo nombre y precio) ya registrados " +
                               $"en evento(s) abierto(s): {string.Join(", ", eventNames)}. " +
                               "Es posible que este archivo ya se haya subido antes. Revisa antes de continuar.",
                 };
             }
         }
 
+        // 7. Sugerencias de clientes duplicados/similares para evitar altas repetidas
+        //    por errores de captura (ej. "Mariana Prueb" vs "Mariana prueba").
+        var newGroups = groups.Values.Where(g => g.MatchStatus == "new").ToList();
+
+        // 7.a. Nuevo vs. existentes en BD: si el nombre es muy parecido a un cliente ya
+        //      registrado, se sugiere usar ese cliente en vez de crear uno nuevo.
+        foreach (var group in newGroups)
+        {
+            var closeMatches = existingCustomers
+                .Where(c => IsFuzzyMatch(group.CustomerName, c.Name))
+                .Select(c => new ImportCandidateDto
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    Phone = c.Phone,
+                    CollectorName = c.CollectorName,
+                })
+                .ToList();
+
+            if (closeMatches.Count > 0)
+                group.PossibleExistingMatches = closeMatches;
+        }
+
+        // 7.b. Nuevo vs. nuevo dentro del mismo archivo: nombres muy parecidos que
+        //      probablemente son el mismo cliente capturado con una variacion/error.
+        for (int i = 0; i < newGroups.Count; i++)
+        {
+            for (int j = i + 1; j < newGroups.Count; j++)
+            {
+                if (IsFuzzyMatch(newGroups[i].CustomerName, newGroups[j].CustomerName))
+                {
+                    result.PossibleDuplicateNewCustomers.Add(new ImportDuplicatePairDto
+                    {
+                        NameA = newGroups[i].CustomerName,
+                        NameB = newGroups[j].CustomerName,
+                    });
+                }
+            }
+        }
+
         return result;
+    }
+
+    /// <summary>
+    /// Compara dos nombres y determina si son lo suficientemente parecidos como para
+    /// tratarse probablemente de la misma persona (typo/variacion de captura), usando
+    /// distancia de Levenshtein normalizada por la longitud del nombre mas largo.
+    /// </summary>
+    private static bool IsFuzzyMatch(string nameA, string nameB)
+    {
+        var a = (nameA ?? string.Empty).Trim();
+        var b = (nameB ?? string.Empty).Trim();
+
+        if (a.Length == 0 || b.Length == 0)
+            return false;
+
+        if (a.Equals(b, StringComparison.OrdinalIgnoreCase))
+            return false; // ya son iguales (mismo grupo), no aplica sugerencia
+
+        var maxLen = Math.Max(a.Length, b.Length);
+        if (maxLen < 5)
+            return false; // nombres muy cortos: evitar falsos positivos
+
+        var distance = LevenshteinDistance(a, b);
+        if (distance == 0)
+            return false;
+
+        // Tolerancia: 1 caracter de diferencia por cada ~6 caracteres del nombre,
+        // con un minimo de 1 y un maximo de 3 caracteres de diferencia permitidos.
+        var allowedDistance = Math.Clamp(maxLen / 6, 1, 3);
+        return distance <= allowedDistance;
+    }
+
+    private static int LevenshteinDistance(string s, string t)
+    {
+        s = s.ToLowerInvariant();
+        t = t.ToLowerInvariant();
+        var n = s.Length;
+        var m = t.Length;
+        var d = new int[n + 1, m + 1];
+
+        for (int i = 0; i <= n; i++) d[i, 0] = i;
+        for (int j = 0; j <= m; j++) d[0, j] = j;
+
+        for (int i = 1; i <= n; i++)
+        {
+            for (int j = 1; j <= m; j++)
+            {
+                var cost = s[i - 1] == t[j - 1] ? 0 : 1;
+                d[i, j] = Math.Min(
+                    Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),
+                    d[i - 1, j - 1] + cost);
+            }
+        }
+
+        return d[n, m];
     }
 }

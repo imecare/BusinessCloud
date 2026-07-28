@@ -24,6 +24,11 @@ public class ValidateBzaImportResult
     public List<string> NewCollectors { get; set; } = [];
 
     public ImportDuplicateWarningDto? DuplicateWarning { get; set; }
+
+    /// <summary>Pares de clientes NUEVOS dentro del mismo archivo con nombres muy similares
+    /// (posible error de captura); se sugiere al usuario confirmar si son la misma persona.</summary>
+    public List<ImportDuplicatePairDto> PossibleDuplicateNewCustomers { get; set; } = [];
+
     public List<string> Errors { get; set; } = [];
 }
 
@@ -71,7 +76,12 @@ public class ImportCustomerGroupDto
     public int? MatchedCustomerId { get; set; }
 
     /// <summary>Candidatos cuando MatchStatus = "ambiguous" (mismo nombre, distinto teléfono).</summary>
+    /// <summary>Candidatos cuando MatchStatus = "ambiguous" (mismo nombre, distinto telefono).</summary>
     public List<ImportCandidateDto> Candidates { get; set; } = [];
+
+    /// <summary>Cuando MatchStatus = "new": clientes ya registrados con nombre muy parecido
+    /// (posible error de captura). El usuario puede elegir usar uno de estos en vez de crear uno nuevo.</summary>
+    public List<ImportCandidateDto> PossibleExistingMatches { get; set; } = [];
 
     public List<ImportProductLineDto> Products { get; set; } = [];
     public decimal Total { get; set; }
@@ -116,4 +126,11 @@ public class ImportDuplicateWarningDto
     public List<string> MatchedDescriptions { get; set; } = [];
     public List<string> EventNames { get; set; } = [];
     public string Message { get; set; } = string.Empty;
+}
+
+/// <summary>Par de nombres de clientes nuevos (dentro del mismo archivo) muy similares entre si.</summary>
+public class ImportDuplicatePairDto
+{
+    public string NameA { get; set; } = string.Empty;
+    public string NameB { get; set; } = string.Empty;
 }
