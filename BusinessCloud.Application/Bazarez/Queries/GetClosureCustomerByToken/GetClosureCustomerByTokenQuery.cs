@@ -48,8 +48,7 @@ public class ClosureCustomerPublicDto
     /// <summary>Nombre del bazar (para saludos y enlaces).</summary>
     public string? BazarName { get; set; }
     /// <summary>URL del logo del bazar.</summary>
-    public string? BazarLogoUrl { get; set; }
-    /// <summary>Tarjetas/cuentas activas para que el cliente realice el pago.</summary>
+    public string? BazarLogoUrl { get; set; }    /// <summary>Tarjetas/cuentas activas para que el cliente realice el pago.</summary>
     public List<PublicPaymentCardDto> ActiveCards { get; set; } = new();
     /// <summary>Detalle de productos del cliente en este cierre.</summary>
     public List<PublicProductDto> Products { get; set; } = new();
@@ -63,6 +62,9 @@ public class ClosureCustomerPublicDto
     public string? SecondaryWhatsApp { get; set; }
     /// <summary>Descripción del WhatsApp adicional.</summary>
     public string? SecondaryWhatsAppDescription { get; set; }
+
+    /// <summary>URL de la pagina de Facebook del bazar, para que el cliente contacte por Messenger.</summary>
+    public string? FacebookPageUrl { get; set; }
 
     /// <summary>Hora límite de pago general del bazar (HH:mm), usada si el cierre no trae hora propia.</summary>
     public string? PaymentCutoffTime { get; set; }
@@ -239,6 +241,7 @@ public class GetClosureCustomerByTokenHandler(IBazaresDbContext context, IConfig
             SalesWhatsApp = settings?.SalesWhatsApp,
             SecondaryWhatsApp = settings?.SecondaryWhatsAppShowInProof == true ? settings?.SecondaryWhatsApp : null,
             SecondaryWhatsAppDescription = settings?.SecondaryWhatsAppShowInProof == true ? settings?.SecondaryWhatsAppDescription : null,
+            FacebookPageUrl = settings?.FacebookPageUrl,
             PaymentCutoffTime = settings?.PaymentCutoffTime,
             ChargeMessage = notif?.ChargeMessage,
             WebPushPublicKey = _configuration["WebPush:PublicKey"],

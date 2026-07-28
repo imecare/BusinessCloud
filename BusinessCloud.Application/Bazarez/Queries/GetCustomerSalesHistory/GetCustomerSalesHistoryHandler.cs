@@ -47,12 +47,16 @@ public class GetCustomerSalesHistoryHandler(IBazaresDbContext context)
             .OrderByDescending(p => p.Date)
             .ToListAsync(cancellationToken);
 
-        // Mapear cada Evento de Venta a su Evento de Cierre (si ya se envío el total).
-        var closureItemsByEvent = await _context.ClosureEventItems
-            .Where(i => saleEventIds.Contains(i.BzaEventId))
-            .ToDictionaryAsync(i => i.BzaEventId, i => i.BzaClosureEventId, cancellationToken);
-
-        var closureEventIds = closureItemsByEvent.Values.Distinct().ToList();
+        // El cierre (evento de pago) al que pertenece cada venta se determina directamente
+        // desde BzaSale.BzaClosureEventId (fuente de verdad), no desde BzaClosureEventItem.
+        // Un mismo BzaEventId puede tener varios BzaClosureEventItem historicos (p.ej. tras
+        // mover pendientes a otro cierre), por lo que agrupar por BzaEventId causaria claves
+        // duplicadas.
+        var closureEventIds = customerSales
+            .Where(s => s.BzaClosureEventId.HasValue)
+            .Select(s => s.BzaClosureEventId!.Value)
+            .Distinct()
+            .ToList();
 
         var closureEvents = await _context.ClosureEvents
             .Include(c => c.DeliveryProofs)
@@ -94,8 +98,8 @@ public class GetCustomerSalesHistoryHandler(IBazaresDbContext context)
                 var delivered = false;
                 string? deliveryProofUrl = null;
 
-                if (closureItemsByEvent.TryGetValue(saleEvent.Id, out var closureEventId)
-                    && closureEvents.TryGetValue(closureEventId, out var closureEvent))
+                if (s.BzaClosureEventId.HasValue
+                    && closureEvents.TryGetValue(s.BzaClosureEventId.Value, out var closureEvent))
                 {
                     // Estado del historial alineado al flujo operativo: Abierto, En Entrega, Finalizado o Cancelado.
                     if (closureEvent.Status == BzaClosureEventStatus.Cancelled)
@@ -112,10 +116,10 @@ public class GetCustomerSalesHistoryHandler(IBazaresDbContext context)
                     }
                     else
                     {
-                        eventStatus = 1; // Abierto (aún no entra a entrega)
+                        eventStatus = 1; // Abierto (aï¿½n no entra a entrega)
                     }
 
-                    if (closureTotalsByEvent.TryGetValue(closureEventId, out var closureTotal))
+                    if (closureTotalsByEvent.TryGetValue(s.BzaClosureEventId.Value, out var closureTotal))
                     {
                         // Estado de pago debe venir del total del cierre del cliente.
                         if (closureTotal.Status == BzaClosureCustomerTotalStatus.Validated)
