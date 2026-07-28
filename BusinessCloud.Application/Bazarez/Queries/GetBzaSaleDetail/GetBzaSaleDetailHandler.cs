@@ -1,15 +1,18 @@
+using BusinessCloud.Application.Common.Dtos;
 using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Domain.Bazares.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace BusinessCloud.Application.Bazares.Queries.GetBzaSaleDetail;
 
-public class GetBzaSaleDetailHandler(IBazaresDbContext context, IMongoContext mongoContext)
+public class GetBzaSaleDetailHandler(IBazaresDbContext context, IMongoContext mongoContext, ILogger<GetBzaSaleDetailHandler> logger)
     : IRequestHandler<GetBzaSaleDetailQuery, BzaSaleDetailDto>
 {
     private readonly IBazaresDbContext _context = context;
     private readonly IMongoContext _mongoContext = mongoContext;
+    private readonly ILogger<GetBzaSaleDetailHandler> _logger = logger;
 
     private static readonly Dictionary<int, string> StatusNames = new()
     {
@@ -59,7 +62,18 @@ public class GetBzaSaleDetailHandler(IBazaresDbContext context, IMongoContext mo
             ? Math.Round((totalPaid / totalRevenue) * 100m, 2)
             : 0m;
 
-        var mongoLogs = await _mongoContext.GetAuditLogsBySaleIdAsync(saleEvent.Id, cancellationToken);
+        // El historial de auditoría (Mongo) es complementario y best-effort: si el clúster no
+        // responde (o el request se cancela), el detalle del evento NO debe fallar por esto.
+        List<AuditLogEntry> mongoLogs;
+        try
+        {
+            mongoLogs = await _mongoContext.GetAuditLogsBySaleIdAsync(saleEvent.Id, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(ex, "No se pudo obtener el historial de auditoría (Mongo) para el evento {EventId}.", saleEvent.Id);
+            mongoLogs = new List<AuditLogEntry>();
+        }
 
         return new BzaSaleDetailDto
         {

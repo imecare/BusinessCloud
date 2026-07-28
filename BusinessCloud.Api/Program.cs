@@ -163,7 +163,16 @@ try
     var mongoConnectionString = builder.Configuration.GetConnectionString("MongoDb");
     if (!string.IsNullOrWhiteSpace(mongoConnectionString) && !mongoConnectionString.Contains("localhost"))
     {
-        builder.Services.AddSingleton<MongoDB.Driver.IMongoClient>(sp => new MongoDB.Driver.MongoClient(mongoConnectionString));
+        builder.Services.AddSingleton<MongoDB.Driver.IMongoClient>(sp =>
+        {
+            // Timeout corto: si el clúster de Mongo no responde, que falle rápido (no 30s por default)
+            // para no bloquear los endpoints que dependen de auditoría/historial (best-effort).
+            var settings = MongoDB.Driver.MongoClientSettings.FromConnectionString(mongoConnectionString);
+            settings.ServerSelectionTimeout = TimeSpan.FromSeconds(5);
+            settings.ConnectTimeout = TimeSpan.FromSeconds(5);
+            settings.SocketTimeout = TimeSpan.FromSeconds(5);
+            return new MongoDB.Driver.MongoClient(settings);
+        });
         builder.Services.AddScoped<IMongoContext, MongoContext>();
         Log.Information("MongoDB configurado correctamente.");
     }

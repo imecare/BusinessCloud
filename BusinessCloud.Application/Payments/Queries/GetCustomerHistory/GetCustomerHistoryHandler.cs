@@ -1,5 +1,6 @@
 ﻿using BusinessCloud.Application.Common.Interfaces;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -13,12 +14,14 @@ public class GetCustomerHistoryHandler : IRequestHandler<GetCustomerHistoryQuery
     private readonly IMongoContext _mongoContext;
     private readonly ICacheService _cache;
     private readonly ICurrentUserService _userService;
+    private readonly ILogger<GetCustomerHistoryHandler> _logger;
 
-    public GetCustomerHistoryHandler(IMongoContext mongoContext, ICacheService cache, ICurrentUserService userService)
+    public GetCustomerHistoryHandler(IMongoContext mongoContext, ICacheService cache, ICurrentUserService userService, ILogger<GetCustomerHistoryHandler> logger)
     {
         _mongoContext = mongoContext;
         _cache = cache;
         _userService = userService;
+        _logger = logger;
     }
 
     public async Task<List<CustomerHistoryDto>> Handle(GetCustomerHistoryQuery request, CancellationToken cancellationToken)
@@ -38,8 +41,18 @@ public class GetCustomerHistoryHandler : IRequestHandler<GetCustomerHistoryQuery
         var cachedData = await _cache.GetAsync<List<CustomerHistoryDto>>(cacheKey);
         if (cachedData != null) return cachedData;
 
-                // 2. Si no está en Redis, ir a MongoDB a través de la abstracción del contexto
-        var data = await _mongoContext.GetCustomerHistoryByPhoneAsync(effectiveTenantId, request.CustomerPhone, cancellationToken);
+                // 2. Si no está en Redis, ir a MongoDB a través de la abstracción del contexto.
+        // Best-effort: si Mongo falla (timeout/desconexión), no rompemos la respuesta al cliente.
+        List<CustomerHistoryDto> data;
+        try
+        {
+            data = await _mongoContext.GetCustomerHistoryByPhoneAsync(effectiveTenantId, request.CustomerPhone, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "No se pudo obtener el historial de cliente (Mongo) para el teléfono {Phone}.", request.CustomerPhone);
+            return new List<CustomerHistoryDto>();
+        }
 
         // 3. Guardar en Redis para la próxima consulta
         if (data.Any())
