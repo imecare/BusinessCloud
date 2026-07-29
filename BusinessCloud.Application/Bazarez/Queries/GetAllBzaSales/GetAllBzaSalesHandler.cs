@@ -86,7 +86,7 @@ public class GetAllBzaSalesHandler(IBazaresDbContext context)
                 g =>
                 {
                     var latest = g.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).First();
-                    return new ClosureStatusSnapshot(latest.Status, latest.InDeliveryProcess, latest.Delivered);
+                    return new ClosureStatusSnapshot(latest.Id, latest.Status, latest.InDeliveryProcess, latest.Delivered);
                 });
 
         var mapped = rawSales
@@ -105,6 +105,7 @@ public class GetAllBzaSalesHandler(IBazaresDbContext context)
                     PaymentDeadline = s.PaymentDeadline,
                     Status = resolvedStatus,
                     StatusName = StatusNames.GetValueOrDefault(resolvedStatus, "Desconocido"),
+                    ClosureEventId = closure?.Id,
                     TotalEventSales = s.TotalEventSales,
                     UnsentSalesAmount = s.UnsentSalesAmount,
                     HasSentSales = s.HasSentSales,
@@ -125,7 +126,7 @@ public class GetAllBzaSalesHandler(IBazaresDbContext context)
         return mapped.ToList();
     }
 
-    private sealed record ClosureStatusSnapshot(int Status, bool InDeliveryProcess, bool Delivered);
+    private sealed record ClosureStatusSnapshot(int Id, int Status, bool InDeliveryProcess, bool Delivered);
 
     private static int ResolveEventStatus(int currentStatus, ClosureStatusSnapshot? closure)
     {

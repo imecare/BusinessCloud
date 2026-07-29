@@ -24,6 +24,11 @@ public class BzaSaleListDto
     public string StatusName { get; set; } = string.Empty;
 
     /// <summary>
+    /// Id del cierre (envío de totales) más reciente vinculado a este evento, si ya existe.
+    /// </summary>
+    public int? ClosureEventId { get; set; }
+
+    /// <summary>
     /// Total de ventas del evento (suma de todos los productos de todos los clientes).
     /// </summary>
     public decimal TotalEventSales { get; set; }
