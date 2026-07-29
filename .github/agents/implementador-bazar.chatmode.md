@@ -118,3 +118,11 @@ Ejecutar con: `cd Front && npm test`
 5. **Reportar** — Listar archivos modificados, validaciones ejecutadas y resultado.
 
 Si una decisión de negocio es ambigua, hacer **una sola pregunta puntual** antes de continuar.
+
+---
+
+## 🚫 Despliegue a producción (regla no negociable)
+
+- **Nunca hacer `git push` a `main`/`master` sin que el usuario lo pida explícitamente.**
+- Después de implementar y validar (`build`/`test`), el trabajo debe quedar como máximo commiteado en local para que el usuario lo revise primero en local.
+- Solo se hace `push` cuando el usuario dice explícitamente "mandar a producción", "súbelo", "haz el deploy" o similar.

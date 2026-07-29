@@ -178,3 +178,12 @@ Ejecutar: `cd Back && dotnet test`
 5. **Reportar** — Listar archivos modificados por capa, validaciones ejecutadas y resultado.
 
 Si una decisión de negocio es ambigua, hacer **una sola pregunta puntual** antes de continuar.
+
+---
+
+## 🚫 Despliegue a producción (regla no negociable)
+
+- **Nunca hacer `git push` a `main`/`master` (Front, Back o el monorepo) sin que el usuario lo pida explícitamente.**
+- Después de implementar y validar (`build`/`test`) un cambio, el trabajo debe quedar **commiteado como máximo en local** (o sin commitear) para que el usuario lo revise primero en local (`localhost:4200` front, `localhost:7147`/`5136` back).
+- Solo se hace `push` cuando el usuario dice explícitamente algo equivalente a "mandar a producción", "súbelo", "haz el deploy" o similar. Ninguna otra frase autoriza el envío.
+- Esta es la **única** confirmación que se debe pedir antes de actuar en el flujo normal de trabajo; no se requieren otras preguntas de confirmación salvo ambigüedad de negocio (ver arriba).
