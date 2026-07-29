@@ -1,4 +1,5 @@
 using BusinessCloud.Application.Bazares.Queries.GetBzaDashboard;
+using BusinessCloud.Application.Bazares.Queries.GetBzaSalesChart;
 using BusinessCloud.Api.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -22,6 +23,15 @@ public class BzaDashboardController : ControllerBase
     public async Task<ActionResult<BzaDashboardDto>> Get([FromQuery] string? period = null)
     {
         return await _mediator.Send(new GetBzaDashboardQuery(period));
+    }
+
+    /// <summary>
+    /// Datos para las graficas de ventas: por semana en un mes y por mes en un anio.
+    /// </summary>
+    [HttpGet("sales-chart")]
+    public async Task<ActionResult<BzaSalesChartDto>> GetSalesChart([FromQuery] int? year = null, [FromQuery] int? month = null)
+    {
+        return await _mediator.Send(new GetBzaSalesChartQuery(year, month));
     }
 }
 

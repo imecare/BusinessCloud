@@ -93,6 +93,15 @@ public class PrepareTotalsHandler(IBazaresDbContext context)
         var distinctCustomers = pendingSales.Select(x => x.Sale.BzaCustomerId).Distinct().Count();
         var totalAmount = pendingSales.Sum(x => x.Pending);
 
+        // Clientes con informaciÃ³n incompleta (alta rÃ¡pida) incluidos en la selecciÃ³n.
+        var pendingInfoCustomers = pendingSales
+            .Select(x => x.Sale.Customer)
+            .Where(c => c is not null && c.IsPendingInfo)
+            .DistinctBy(c => c!.Id)
+            .Select(c => new PendingInfoCustomerDto(c!.Id, c.Name))
+            .OrderBy(c => c.Name)
+            .ToList();
+
         var settings = await _context.BazarSettings.FirstOrDefaultAsync(cancellationToken);
 
         return new PrepareTotalsResultDto
@@ -102,7 +111,8 @@ public class PrepareTotalsHandler(IBazaresDbContext context)
             CustomerCount = distinctCustomers,
             TotalAmount = totalAmount,
             SuggestedPaymentDeadline = today.AddDays(7),
-            PaymentCutoffTime = settings?.PaymentCutoffTime
+            PaymentCutoffTime = settings?.PaymentCutoffTime,
+            PendingInfoCustomers = pendingInfoCustomers
         };
     }
 

@@ -100,7 +100,22 @@ public class SendTotalsHandler(IBazaresDbContext context)
             .ToList();
 
         if (pendingSales.Count == 0)
-            throw new InvalidOperationException("Los eventos seleccionados no tienen ventas pendientes por enviar. Es posible que ya estén en un envío de totales.");
+            throw new InvalidOperationException("Los eventos seleccionados no tienen ventas pendientes por enviar. Es posible que ya est\u00E9n en un env\u00EDo de totales.");
+
+        // Bloqueo: no se puede enviar si algun cliente incluido tiene su informacion incompleta.
+        var incompleteCustomers = pendingSales
+            .Select(x => x.Sale.Customer)
+            .Where(c => c is not null && c.IsPendingInfo)
+            .DistinctBy(c => c!.Id)
+            .Select(c => c!.Name)
+            .OrderBy(n => n)
+            .ToList();
+        if (incompleteCustomers.Count > 0)
+        {
+            var names = string.Join(", ", incompleteCustomers);
+            throw new FluentValidation.ValidationException(
+                $"No se puede enviar los totales: {incompleteCustomers.Count} cliente(s) tienen su informacion incompleta ({names}). Completalos en Clientes > Pendientes de completar.");
+        }
 
         // Agrupar ventas pendientes por cliente.
         var byCustomer = pendingSales

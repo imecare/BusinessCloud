@@ -18,7 +18,15 @@ public class PrepareTotalsResultDto
     public DateTime SuggestedPaymentDeadline { get; set; }
     /// <summary>Hora límite de pago por defecto (HH:mm) configurada por el bazar.</summary>
     public string? PaymentCutoffTime { get; set; }
+
+    /// <summary>
+    /// Clientes de la seleccion con informacion incompleta (alta rapida, sin telefono/recolector).
+    /// Mientras existan, no se puede enviar el cierre.
+    /// </summary>
+    public List<PendingInfoCustomerDto> PendingInfoCustomers { get; set; } = new();
 }
+
+public record PendingInfoCustomerDto(int Id, string Name);
 
 public record TotalsEventDto(int EventId, string Description, decimal Pending, int CustomerCount);
 
