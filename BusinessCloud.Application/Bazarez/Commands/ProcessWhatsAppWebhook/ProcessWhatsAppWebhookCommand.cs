@@ -1,6 +1,7 @@
 using System.Globalization;
 using BusinessCloud.Application.Bazares.Queries.IdentifyWhatsAppSender;
 using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Application.Common.Utilities;
 using BusinessCloud.Domain.Bazares.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -280,7 +281,7 @@ public class ProcessWhatsAppWebhookHandler(
 
     private async Task<List<SignedProofDto>> LoadSignedProofsAsync(string phone, CancellationToken cancellationToken)
     {
-        var candidates = BuildPhoneCandidates(phone);
+        var candidates = PhoneNumberCandidates.Build(phone);
         if (candidates.Count == 0)
             return new List<SignedProofDto>();
 
@@ -351,22 +352,6 @@ public class ProcessWhatsAppWebhookHandler(
                 builder.Append(ch);
         }
         return builder.ToString().Normalize(System.Text.NormalizationForm.FormC);
-    }
-
-    private static List<string> BuildPhoneCandidates(string? phone)
-    {
-        var digits = new string((phone ?? string.Empty).Where(char.IsDigit).ToArray());
-        if (string.IsNullOrWhiteSpace(digits))
-            return new List<string>();
-
-        var candidates = new HashSet<string>(StringComparer.Ordinal) { digits };
-
-        if (digits.Length == 10)
-            candidates.Add("52" + digits);
-        else if (digits.StartsWith("52", StringComparison.Ordinal) && digits.Length > 10)
-            candidates.Add(digits[2..]);
-
-        return candidates.OrderByDescending(x => x.Length).ToList();
     }
 
     private enum CustomerIntent

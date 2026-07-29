@@ -1,4 +1,5 @@
 using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Application.Common.Utilities;
 using BusinessCloud.Domain.Bazares.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -120,27 +121,5 @@ public class IdentifyWhatsAppSenderHandler(IIdentityDbContext identityContext, I
     }
 
     private static List<string> BuildPhoneCandidates(string? phone)
-    {
-        var digits = NormalizePhone(phone);
-        if (string.IsNullOrWhiteSpace(digits))
-            return new List<string>();
-
-        var candidates = new HashSet<string>(StringComparer.Ordinal)
-        {
-            digits,
-        };
-
-        if (digits.Length == 10)
-        {
-            candidates.Add("52" + digits);
-        }
-        else if (digits.StartsWith("52", StringComparison.Ordinal) && digits.Length > 10)
-        {
-            candidates.Add(digits[2..]);
-        }
-
-        return candidates.OrderByDescending(x => x.Length).ToList();
-    }
-
-    private static string NormalizePhone(string? phone) => new string((phone ?? string.Empty).Where(char.IsDigit).ToArray());
+        => PhoneNumberCandidates.Build(phone).ToList();
 }
