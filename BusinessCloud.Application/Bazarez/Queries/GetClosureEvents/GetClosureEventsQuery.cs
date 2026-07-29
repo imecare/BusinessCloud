@@ -20,6 +20,7 @@ public record ClosureEventListItemDto(
     DateTime CreatedAt,
     int CustomerCount,
     int ProofsReceived,
+    int ValidatedCount,
     decimal TotalAmount);
 
 public class GetClosureEventsHandler(IBazaresDbContext context)
@@ -42,6 +43,7 @@ public class GetClosureEventsHandler(IBazaresDbContext context)
                 c.CreatedAt,
                 c.CustomerTotals.Count,
                 c.CustomerTotals.Count(t => t.Status == 2),
+                c.CustomerTotals.Count(t => t.Status == 3),
                 c.CustomerTotals.Sum(t => (decimal?)t.TotalAmount) ?? 0m))
             .ToListAsync(cancellationToken);
     }
