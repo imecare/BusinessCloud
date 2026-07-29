@@ -57,7 +57,7 @@ public class UpdateBzaCustomerHandler : IRequestHandler<UpdateBzaCustomerCommand
         await _context.SaveChangesAsync(cancellationToken);
     }
 
-    /// <summary>Deja solo los dígitos del teléfono para usarlo como llave única.</summary>
+    /// <summary>Deja solo los dígitos del teléfono y antepone el código de país (52) cuando falte.</summary>
     private static string NormalizePhone(string? phone)
-        => new string((phone ?? string.Empty).Where(char.IsDigit).ToArray());
+        => PhoneNumberNormalizer.Normalize(phone);
 }

@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Application.Bazares.Common;
 
 namespace BusinessCloud.Application.Bazares.Commands.MergeBzaCustomers;
 
@@ -101,7 +102,7 @@ public class MergeBzaCustomersHandler : IRequestHandler<MergeBzaCustomersCommand
             totalsToMove.Count);
     }
 
-    /// <summary>Deja solo los dígitos del teléfono para usarlo como llave única.</summary>
+    /// <summary>Deja solo los dígitos del teléfono y antepone el código de país (52) cuando falte.</summary>
     private static string NormalizePhone(string? phone)
-        => new string((phone ?? string.Empty).Where(char.IsDigit).ToArray());
+        => PhoneNumberNormalizer.Normalize(phone);
 }

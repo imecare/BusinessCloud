@@ -1,4 +1,5 @@
 using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Application.Bazares.Common;
 using BusinessCloud.Domain.Bazares.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -131,7 +132,7 @@ public class CommitBzaImportHandler(IBazaresDbContext context, IMongoContext mon
 
                 if (customerDto.ChangePhoneTo is not null)
                 {
-                    var newPhone = customerDto.ChangePhoneTo.Trim();
+                    var newPhone = PhoneNumberNormalizer.Normalize(customerDto.ChangePhoneTo);
                     if (!string.Equals(customer.Phone, newPhone, StringComparison.Ordinal))
                     {
                         // El teléfono es único por tenant: si ya pertenece a OTRO cliente,
@@ -174,7 +175,7 @@ public class CommitBzaImportHandler(IBazaresDbContext context, IMongoContext mon
                     continue;
                 }
 
-                var newCustomerPhone = nc.Phone?.Trim() ?? string.Empty;
+                var newCustomerPhone = PhoneNumberNormalizer.Normalize(nc.Phone);
 
                 // El teléfono es único por tenant. Si ya pertenece a otro cliente se IGNORA
                 // este registro (no se crea el cliente ni su venta) y se detalla el conflicto,

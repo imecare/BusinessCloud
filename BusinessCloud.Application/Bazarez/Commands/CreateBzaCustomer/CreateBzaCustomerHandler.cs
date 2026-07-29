@@ -27,7 +27,7 @@ public class CreateBzaCustomerHandler : IRequestHandler<CreateBzaCustomerCommand
 
     public async Task<int> Handle(CreateBzaCustomerCommand request, CancellationToken cancellationToken)
     {
-        var phone = NormalizePhone(request.Phone);
+        var phone = PhoneNumberNormalizer.Normalize(request.Phone);
         var facebookName = FacebookMessengerProfile.Normalize(request.FacebookName);
 
         var nameLower = (request.Name ?? string.Empty).Trim().ToLower();
@@ -93,5 +93,5 @@ public class CreateBzaCustomerHandler : IRequestHandler<CreateBzaCustomerCommand
     }
 
     private static string NormalizePhone(string? phone)
-        => new string((phone ?? string.Empty).Where(char.IsDigit).ToArray());
+        => PhoneNumberNormalizer.Normalize(phone);
 }

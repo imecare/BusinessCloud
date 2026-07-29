@@ -1,4 +1,5 @@
 using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Application.Bazares.Common;
 using ClosedXML.Excel;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -146,7 +147,7 @@ public class ValidateBzaCustomersImportHandler(IBazaresDbContext context)
         return result;
     }
 
-    /// <summary>Deja solo los dígitos del teléfono para usarlo como llave única.</summary>
+    /// <summary>Deja solo los dígitos del teléfono y antepone el código de país (52) cuando falte.</summary>
     private static string NormalizePhone(string? phone)
-        => new((phone ?? string.Empty).Where(char.IsDigit).ToArray());
+        => PhoneNumberNormalizer.Normalize(phone);
 }

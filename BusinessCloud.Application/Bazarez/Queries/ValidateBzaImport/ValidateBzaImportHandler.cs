@@ -1,4 +1,5 @@
 using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Application.Bazares.Common;
 using ClosedXML.Excel;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -58,7 +59,7 @@ public class ValidateBzaImportHandler(IBazaresDbContext context)
             var clientName = ws.Cell(row, 3).GetString().Trim();
             var collectorName = ws.Cell(row, 4).GetString().Trim();
             var facebookName = ws.Cell(row, 5).GetString().Trim();
-            var phone = ws.Cell(row, 6).GetString().Trim();
+            var phone = PhoneNumberNormalizer.Normalize(ws.Cell(row, 6).GetString());
 
             if (string.IsNullOrEmpty(clientName) && string.IsNullOrEmpty(productDesc))
                 continue;
@@ -187,8 +188,9 @@ public class ValidateBzaImportHandler(IBazaresDbContext context)
 
                 // El teléfono del archivo difiere del registrado -> requiere confirmación de cambio
                 var filePhone = group.PhoneFromFile.Trim();
+                var currentPhoneNormalized = PhoneNumberNormalizer.Normalize(matches[0].Phone);
                 if (filePhone.Length > 0 &&
-                    !filePhone.Equals((matches[0].Phone ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase))
+                    !filePhone.Equals(currentPhoneNormalized, StringComparison.OrdinalIgnoreCase))
                 {
                     group.PhoneChanged = true;
                 }

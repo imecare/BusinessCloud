@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using BusinessCloud.Application.Bazares.Common;
 using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Infrastructure.Common.Options;
 using Microsoft.Extensions.Logging;
@@ -260,18 +261,5 @@ public class WhatsAppSender : IWhatsAppSender
     /// cÃƒÂ³digo de paÃƒÂ­s por defecto cuando el nÃƒÂºmero llega sin ÃƒÂ©l (10 dÃƒÂ­gitos nacionales).
     /// </summary>
     private static string NormalizePhone(string phone, string defaultCountryCode)
-    {
-        if (string.IsNullOrWhiteSpace(phone))
-            return string.Empty;
-
-        var digits = new string(phone.Where(char.IsDigit).ToArray());
-        if (digits.Length == 0)
-            return string.Empty;
-
-        var cc = new string((defaultCountryCode ?? string.Empty).Where(char.IsDigit).ToArray());
-        if (!string.IsNullOrEmpty(cc) && digits.Length == 10 && !digits.StartsWith(cc))
-            digits = cc + digits;
-
-        return digits;
-    }
+        => PhoneNumberNormalizer.Normalize(phone, defaultCountryCode);
 }
