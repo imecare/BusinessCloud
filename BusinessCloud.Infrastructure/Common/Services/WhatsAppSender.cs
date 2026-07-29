@@ -46,9 +46,10 @@ public class WhatsAppSender : IWhatsAppSender
         string languageCode,
         IReadOnlyList<string> bodyParameters,
         CancellationToken cancellationToken = default,
-        string? buttonUrlParameter = null)
+        string? buttonUrlParameter = null,
+        string? headerParameter = null)
     {
-        return SendTemplateWithResultAsync(toPhone, templateName, languageCode, bodyParameters, cancellationToken, buttonUrlParameter)
+        return SendTemplateWithResultAsync(toPhone, templateName, languageCode, bodyParameters, cancellationToken, buttonUrlParameter, headerParameter)
             .ContinueWith(t => t.Result.Success, cancellationToken);
     }
 
@@ -149,7 +150,8 @@ public class WhatsAppSender : IWhatsAppSender
         string languageCode,
         IReadOnlyList<string> bodyParameters,
         CancellationToken cancellationToken = default,
-        string? buttonUrlParameter = null)
+        string? buttonUrlParameter = null,
+        string? headerParameter = null)
     {
         var to = NormalizePhone(toPhone, _options.DefaultCountryCode);
         if (!IsConfigured || string.IsNullOrWhiteSpace(to))
@@ -158,14 +160,22 @@ public class WhatsAppSender : IWhatsAppSender
         if (string.IsNullOrWhiteSpace(templateName))
             return new WhatsAppSendResult(false, null, null, "Nombre de plantilla no configurado.");
 
-        var components = new List<object>
+        var components = new List<object>();
+
+        if (!string.IsNullOrWhiteSpace(headerParameter))
         {
-            new
+            components.Add(new
             {
-                type = "body",
-                parameters = bodyParameters.Select(text => new { type = "text", text }).ToArray(),
-            },
-        };
+                type = "header",
+                parameters = new object[] { new { type = "text", text = headerParameter } },
+            });
+        }
+
+        components.Add(new
+        {
+            type = "body",
+            parameters = bodyParameters.Select(text => new { type = "text", text }).ToArray(),
+        });
 
         if (!string.IsNullOrWhiteSpace(buttonUrlParameter))
         {

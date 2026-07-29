@@ -26,7 +26,8 @@ public interface IWhatsAppSender
         string languageCode,
         IReadOnlyList<string> bodyParameters,
         CancellationToken cancellationToken = default,
-        string? buttonUrlParameter = null);
+        string? buttonUrlParameter = null,
+        string? headerParameter = null);
 
     /// <summary>EnvÃ­a una plantilla aprobada de WhatsApp.</summary>
     Task<bool> SendTemplateAsync(
@@ -35,7 +36,8 @@ public interface IWhatsAppSender
         string languageCode,
         IReadOnlyList<string> bodyParameters,
         CancellationToken cancellationToken = default,
-        string? buttonUrlParameter = null);
+        string? buttonUrlParameter = null,
+        string? headerParameter = null);
 
     /// <summary>EnvÃ­a un mensaje de texto simple.</summary>
     Task<bool> SendTextAsync(string toPhone, string message, CancellationToken cancellationToken = default);

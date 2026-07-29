@@ -55,7 +55,6 @@ public class SendClosureWhatsAppHandler(
 
         var settings = await context.BazarSettings.FirstOrDefaultAsync(ct);
         var bazarName = settings?.BazarName;
-        var salesWhatsApp = settings?.SalesWhatsApp;
 
         var deliveryByGroup = closure.GroupDeliveries
             .GroupBy(g => g.BzaCollectorGroupId)
@@ -98,11 +97,11 @@ public class SendClosureWhatsAppHandler(
                         ? "es"
                         : _configuration["WhatsApp:ClosureTotalsTemplateLang"]!;
 
-                    var commonParams = new[]
+                    var headerParam = string.IsNullOrWhiteSpace(bazarName) ? "Bazar" : bazarName.Trim();
+                    var bodyParams = new[]
                     {
-                        string.IsNullOrWhiteSpace(bazarName) ? "Bazar" : bazarName.Trim(),
                         name,
-                        total.TotalAmount.ToString("C", Culture),
+                        total.TotalAmount.ToString("N2", Culture),
                         FormatLongDate(deliveryDate ?? closure.PaymentDeadline),
                         FormatLongDate(closure.PaymentDeadline),
                     };
@@ -112,26 +111,14 @@ public class SendClosureWhatsAppHandler(
                         phone,
                         closureTotalsTemplateName,
                         templateLang,
-                        commonParams,
+                        headerParam,
+                        bodyParams,
                         uploadUrl,
                         ct);
                 }
                 else
                 {
                     send = new WhatsAppSendResult(false, null, null, "Plantilla de cobro no configurada.");
-                }
-
-                if (!send.Success)
-                {
-                    var message = ClosureMessageBuilder
-                        .Build(bazarName, name, total.TotalAmount, deliveryDate, closure.PaymentDeadline, salesWhatsApp)
-                        .Replace(ClosureMessageBuilder.UploadLinkPlaceholder, uploadUrl);
-
-                    var fallbackSend = await whatsApp.SendTextWithResultAsync(phone, message, ct);
-                    if (fallbackSend.Success)
-                    {
-                        send = fallbackSend;
-                    }
                 }
             }
 
@@ -186,29 +173,28 @@ public class SendClosureWhatsAppHandler(
         string phone,
         string templateName,
         string configuredLang,
-        IReadOnlyList<string> commonParams,
+        string headerParam,
+        IReadOnlyList<string> bodyCommonParams,
         string uploadUrl,
         CancellationToken ct)
     {
         var langs = GetLanguageCandidates(configuredLang);
-        WhatsAppSendResult last = new(false, null, null, "No se pudo enviar plantilla de WhatsApp.");
+        WhatsAppSendResult last = new(false, null, null, "No se pudo enviar la plantilla de WhatsApp.");
+
+        // total_compra_v2: el nombre del bazar va en el HEADER y el cuerpo lleva 5 parametros
+        // (cliente, total, fecha de entrega, fecha limite y el enlace del comprobante).
+        var bodyParams = bodyCommonParams.Concat(new[] { uploadUrl }).ToArray();
 
         foreach (var lang in langs)
         {
-            var withLinkInBody = commonParams.Concat(new[] { uploadUrl }).ToArray();
-            var bodyAttempt = await whatsApp.SendTemplateWithResultAsync(phone, templateName, lang, withLinkInBody, ct);
-            if (bodyAttempt.Success)
+            var attempt = await whatsApp.SendTemplateWithResultAsync(
+                phone, templateName, lang, bodyParams, ct, headerParameter: headerParam);
+            if (attempt.Success)
             {
-                return bodyAttempt;
+                return attempt;
             }
 
-            var buttonAttempt = await whatsApp.SendTemplateWithResultAsync(phone, templateName, lang, commonParams, ct, uploadUrl);
-            if (buttonAttempt.Success)
-            {
-                return buttonAttempt;
-            }
-
-            last = buttonAttempt;
+            last = attempt;
         }
 
         return last;
