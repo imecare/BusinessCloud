@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1100" viewBox="0 0 800 1100">
+  <rect width="800" height="1100" fill="#eef2ff"/>
+  <rect x="90" y="70" width="620" height="960" rx="28" fill="white"/>
+  <text x="400" y="170" text-anchor="middle" font-family="Arial" font-size="42" font-weight="700" fill="#111827">COMPROBANTE</text>
+  <text x="400" y="225" text-anchor="middle" font-family="Arial" font-size="25" fill="#64748b">Transferencia bancaria</text>
+  <line x1="150" y1="280" x2="650" y2="280" stroke="#e2e8f0" stroke-width="4"/>
+  <text x="150" y="360" font-family="Arial" font-size="25" fill="#64748b">Monto</text>
+  <text x="150" y="430" font-family="Arial" font-size="62" font-weight="700" fill="#4f46e5">$850.00</text>
+  <text x="150" y="540" font-family="Arial" font-size="25" fill="#64748b">Referencia</text>
+  <text x="150" y="590" font-family="Arial" font-size="32" font-weight="700" fill="#111827">BAZ-73921</text>
+  <text x="150" y="700" font-family="Arial" font-size="25" fill="#64748b">Beneficiario</text>
+  <text x="150" y="750" font-family="Arial" font-size="32" font-weight="700" fill="#111827">Bazar Demo</text>
+  <text x="150" y="860" font-family="Arial" font-size="25" fill="#64748b">Fecha</text>
+  <text x="150" y="910" font-family="Arial" font-size="32" font-weight="700" fill="#111827">28 julio 2026</text>
+  <circle cx="620" cy="900" r="48" fill="#dcfce7"/>
+  <path d="m596 900 16 16 32-38" fill="none" stroke="#16a34a" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
