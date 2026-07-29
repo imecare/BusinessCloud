@@ -48,7 +48,7 @@ public class GetBzaSaleDetailHandler(IBazaresDbContext context, IMongoContext mo
                 })
             .OrderByDescending(c => c.CreatedAt)
             .ThenByDescending(c => c.Id)
-            .Select(c => new ClosureStatusSnapshot(c.Status, c.InDeliveryProcess, c.Delivered))
+            .Select(c => new ClosureStatusSnapshot(c.Id, c.Status, c.InDeliveryProcess, c.Delivered))
             .FirstOrDefaultAsync(cancellationToken);
 
         var effectiveStatus = ResolveEventStatus(saleEvent.Status, closure);
@@ -82,6 +82,7 @@ public class GetBzaSaleDetailHandler(IBazaresDbContext context, IMongoContext mo
             PaymentDeadline = saleEvent.PaymentDeadline,
             Status = effectiveStatus,
             StatusName = StatusNames.GetValueOrDefault(effectiveStatus, "Desconocido"),
+            ClosureEventId = closure?.Id,
             Metrics = new BzaSaleMetricsDto
             {
                 TotalRevenue = totalRevenue,
@@ -110,7 +111,7 @@ public class GetBzaSaleDetailHandler(IBazaresDbContext context, IMongoContext mo
         };
     }
 
-    private sealed record ClosureStatusSnapshot(int Status, bool InDeliveryProcess, bool Delivered);
+    private sealed record ClosureStatusSnapshot(int Id, int Status, bool InDeliveryProcess, bool Delivered);
 
     private static int ResolveEventStatus(int currentStatus, ClosureStatusSnapshot? closure)
     {

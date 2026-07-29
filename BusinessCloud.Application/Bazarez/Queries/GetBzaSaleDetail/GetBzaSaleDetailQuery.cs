@@ -5,7 +5,7 @@ namespace BusinessCloud.Application.Bazares.Queries.GetBzaSaleDetail;
 public record GetBzaSaleDetailQuery(int Id) : IRequest<BzaSaleDetailDto>;
 
 /// <summary>
-/// DTO con métricas consolidadas del Evento de Venta.
+/// DTO con mï¿½tricas consolidadas del Evento de Venta.
 /// </summary>
 public class BzaSaleMetricsDto
 {
@@ -34,7 +34,13 @@ public class BzaSaleDetailDto
     public string StatusName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Métricas del evento para dashboard de detalle.
+    /// Id del Evento de Cierre (envÃ­o de totales) al que pertenecen las ventas de este
+    /// evento, si ya se generÃ³. Null si todavÃ­a no se ha hecho el envÃ­o de totales.
+    /// </summary>
+    public int? ClosureEventId { get; set; }
+
+    /// <summary>
+    /// Mï¿½tricas del evento para dashboard de detalle.
     /// </summary>
     public BzaSaleMetricsDto Metrics { get; set; } = new();
 
@@ -49,7 +55,7 @@ public class BzaSaleDetailDto
     public int ProductsCount { get; set; }
 
     /// <summary>
-    /// Cantidad de clientes únicos con compras en este evento.
+    /// Cantidad de clientes ï¿½nicos con compras en este evento.
     /// </summary>
     public int UniqueCustomersCount { get; set; }
 
@@ -64,7 +70,7 @@ public class BzaSaleDetailDto
     public decimal PendingAmount { get; set; }
 
     /// <summary>
-    /// Historial de auditoría del evento (desde MongoDB).
+    /// Historial de auditorï¿½a del evento (desde MongoDB).
     /// </summary>
     public List<BzaSaleAuditDto> AuditHistory { get; set; } = [];
 }
