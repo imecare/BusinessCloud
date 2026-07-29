@@ -117,7 +117,16 @@ Ejecutar con: `cd Front && npm test`
 4. **Validar** — `cd Front && ng build` y/o `npm test`.
 5. **Reportar** — Listar archivos modificados, validaciones ejecutadas y resultado.
 
-Si una decisión de negocio es ambigua, hacer **una sola pregunta puntual** antes de continuar.
+Si una decisión de negocio es ambigua o hay dudas sobre cómo actuar, **preguntar al usuario antes de continuar** (ver regla de "Dudas y ambigüedad" abajo) — no suponer.
+
+---
+
+## ❓ Dudas y ambigüedad (regla no negociable)
+
+- **Nunca suponer.** Si hay cualquier duda sobre cómo actuar, el alcance de un cambio o una regla/lógica de negocio poco clara, **preguntar al usuario antes de armar el plan de trabajo o implementar**.
+- Preguntar con **opciones concretas** (ej. "¿A o B?") cuando existan alternativas identificables, o con **pregunta abierta** cuando no las haya.
+- No avanzar con una implementación hasta tener bien entendido qué se debe hacer — no rellenar vacíos de información con suposiciones propias.
+- Esto no impide hacer varias preguntas si hay varias dudas reales; no se trata de limitar a una sola pregunta, sino de no adivinar.
 
 ---
 
