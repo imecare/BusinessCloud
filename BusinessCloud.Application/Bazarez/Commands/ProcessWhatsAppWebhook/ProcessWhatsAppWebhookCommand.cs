@@ -87,6 +87,32 @@ public class ProcessWhatsAppWebhookHandler(
     {
         var identified = await sender.Send(new IdentifyWhatsAppSenderQuery(message.From), cancellationToken);
         var command = NormalizeCommand(message.Body);
+        var intent = ResolveCustomerIntent(message.Body);
+
+        // Palabras clave de cliente: si el numero pertenece a un cliente se atiende como
+        // cliente aunque tambien sea dueno (un dueno puede ser cliente de otros bazares).
+        if (intent == CustomerIntent.PendingPayments)
+        {
+            if (identified.CustomerAccounts.Count > 0)
+                return BuildCustomerPendingReply(identified);
+
+            if (identified.Role == WhatsAppSenderRole.Owner)
+                return await BuildOwnerReplyAsync(identified, command, cancellationToken);
+
+            return "No encontramos pagos pendientes asociados a este numero.";
+        }
+
+        if (intent == CustomerIntent.Signatures)
+        {
+            var signed = await LoadSignedProofsAsync(message.From, cancellationToken);
+            if (signed.Count > 0)
+                return BuildSignaturesReply(signed);
+
+            if (identified.Role == WhatsAppSenderRole.Owner && identified.CustomerAccounts.Count == 0)
+                return await BuildOwnerReplyAsync(identified, command, cancellationToken);
+
+            return "No encontramos comprobantes con firma de entrega en el ultimo mes para este numero.";
+        }
 
         return identified.Role switch
         {
@@ -172,7 +198,7 @@ public class ProcessWhatsAppWebhookHandler(
             return "Estos son tus accesos directos de pago:\n" + string.Join("\n", lines);
         }
 
-        return "Hola. Escribe PENDIENTES para ver tus bazares con adeudos, o LINKS para obtener tus accesos directos de pago.";
+        return "Hola. Escribe PAGOS para ver tus pagos pendientes con el link a tu comprobante, o FIRMAS para ver tus comprobantes de entrega del ultimo mes.";
     }
 
     private async Task<List<OwnerClosureSummaryDto>> LoadOwnerOpenClosuresAsync(List<string> tenantIds, CancellationToken cancellationToken)
@@ -228,6 +254,129 @@ public class ProcessWhatsAppWebhookHandler(
             + $"Clientes con comprobante: {closure.ProofReceivedCount}\n"
             + $"Clientes pendientes por pagar: {closure.PendingCount}";
     }
+
+    private string BuildCustomerPendingReply(IdentifyWhatsAppSenderResultDto identified)
+    {
+        var baseUrl = GetPortalBaseUrl();
+        var lines = identified.CustomerAccounts
+            .OrderBy(x => x.BazarName, StringComparer.CurrentCultureIgnoreCase)
+            .Select(x => $"- {x.BazarName}: {x.TotalAmount.ToString("C", Culture)}\n  {baseUrl}/comprobante/{x.UploadToken}");
+
+        return "Estos son tus pagos pendientes. Abre el link para subir tu comprobante:\n"
+            + string.Join("\n", lines);
+    }
+
+    private string BuildSignaturesReply(List<SignedProofDto> proofs)
+    {
+        var baseUrl = GetPortalBaseUrl();
+        var lines = proofs
+            .OrderBy(x => x.BazarName, StringComparer.CurrentCultureIgnoreCase)
+            .ThenByDescending(x => x.SignedAt)
+            .Select(x => $"- {x.BazarName} ({x.SignedAt.ToString("dd/MM/yyyy", Culture)}):\n  {baseUrl}/comprobante/{x.UploadToken}");
+
+        return "Comprobantes con firma de entrega del ultimo mes:\n"
+            + string.Join("\n", lines);
+    }
+
+    private async Task<List<SignedProofDto>> LoadSignedProofsAsync(string phone, CancellationToken cancellationToken)
+    {
+        var candidates = BuildPhoneCandidates(phone);
+        if (candidates.Count == 0)
+            return new List<SignedProofDto>();
+
+        var cutoff = DateTime.UtcNow.AddMonths(-1);
+
+        var rows = await context.ClosureCustomerTotals
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(t => candidates.Contains(t.Customer.Phone)
+                        && t.Status != BzaClosureCustomerTotalStatus.Cancelled)
+            .Select(t => new
+            {
+                t.TenantId,
+                t.UploadToken,
+                LastSignedAt = t.ClosureEvent.DeliveryProofs
+                    .Where(p => (p.BzaCollectorGroupId == null || p.BzaCollectorGroupId == t.BzaCollectorGroupId)
+                                && p.UploadedAt >= cutoff)
+                    .Select(p => (DateTime?)p.UploadedAt)
+                    .Max(),
+            })
+            .Where(x => x.LastSignedAt != null)
+            .ToListAsync(cancellationToken);
+
+        if (rows.Count == 0)
+            return new List<SignedProofDto>();
+
+        var tenantIds = rows.Select(x => x.TenantId).Distinct().ToList();
+        var bazarNames = await context.BazarSettings
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(s => tenantIds.Contains(s.TenantId))
+            .Select(s => new { s.TenantId, s.BazarName })
+            .ToDictionaryAsync(x => x.TenantId, x => x.BazarName ?? "Bazar", cancellationToken);
+
+        return rows
+            .Select(x => new SignedProofDto(
+                bazarNames.TryGetValue(x.TenantId, out var name) ? name : "Bazar",
+                x.UploadToken,
+                x.LastSignedAt!.Value))
+            .ToList();
+    }
+
+    private string GetPortalBaseUrl()
+        => (configuration["WhatsApp:PublicPortalBaseUrl"] ?? "https://bazares.bcloud.com.mx").TrimEnd('/');
+
+    private static CustomerIntent ResolveCustomerIntent(string? body)
+    {
+        var text = RemoveDiacritics((body ?? string.Empty).Trim().ToLowerInvariant());
+        if (string.IsNullOrWhiteSpace(text))
+            return CustomerIntent.None;
+
+        if (text.Contains("firma"))
+            return CustomerIntent.Signatures;
+
+        if (text.Contains("pendiente") || text.Contains("pago") || text.Contains("link"))
+            return CustomerIntent.PendingPayments;
+
+        return CustomerIntent.None;
+    }
+
+    private static string RemoveDiacritics(string text)
+    {
+        var normalized = text.Normalize(System.Text.NormalizationForm.FormD);
+        var builder = new System.Text.StringBuilder(normalized.Length);
+        foreach (var ch in normalized)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark)
+                builder.Append(ch);
+        }
+        return builder.ToString().Normalize(System.Text.NormalizationForm.FormC);
+    }
+
+    private static List<string> BuildPhoneCandidates(string? phone)
+    {
+        var digits = new string((phone ?? string.Empty).Where(char.IsDigit).ToArray());
+        if (string.IsNullOrWhiteSpace(digits))
+            return new List<string>();
+
+        var candidates = new HashSet<string>(StringComparer.Ordinal) { digits };
+
+        if (digits.Length == 10)
+            candidates.Add("52" + digits);
+        else if (digits.StartsWith("52", StringComparison.Ordinal) && digits.Length > 10)
+            candidates.Add(digits[2..]);
+
+        return candidates.OrderByDescending(x => x.Length).ToList();
+    }
+
+    private enum CustomerIntent
+    {
+        None = 0,
+        PendingPayments = 1,
+        Signatures = 2,
+    }
+
+    private sealed record SignedProofDto(string BazarName, string UploadToken, DateTime SignedAt);
 
     private async Task<bool> ApplyStatusAsync(WhatsAppWebhookStatusInput status, CancellationToken cancellationToken)
     {

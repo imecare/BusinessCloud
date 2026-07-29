@@ -169,8 +169,61 @@ public class ProcessWhatsAppWebhookHandlerTests
             }), default);
 
         Assert.Single(replies);
-        Assert.Contains("PENDIENTES", replies[0]);
-        Assert.Contains("LINKS", replies[0]);
+        Assert.Contains("PAGOS", replies[0]);
+        Assert.Contains("FIRMAS", replies[0]);
+    }
+
+    [Fact]
+    public async Task Handle_ClienteFirmas_RespondeComprobantesConFirmaDelUltimoMes()
+    {
+        using var ctx = BazaresContextFactory.Create();
+        ctx.BazarSettings.Add(new BzaBazarSettings { Id = 1, TenantId = Tenant, BazarName = "Bazar Firmas" });
+
+        var customer = new BzaCustomer { Id = 1, TenantId = Tenant, Name = "Cliente Uno", Phone = "5511112222" };
+        ctx.Customers.Add(customer);
+
+        ctx.ClosureEvents.Add(new BzaClosureEvent
+        {
+            Id = 30,
+            TenantId = Tenant,
+            Description = "Cierre con entrega",
+            PaymentDeadline = DateTime.UtcNow.AddDays(-1),
+            Status = BzaClosureEventStatus.Validated,
+            DeliveryProofs = new List<BzaClosureDeliveryProof>
+            {
+                new() { Id = 1, TenantId = Tenant, BzaClosureEventId = 30, BzaCollectorGroupId = null, ImageUrl = "firma.jpg", UploadedAt = DateTime.UtcNow.AddDays(-3) },
+            },
+            CustomerTotals = new List<BzaClosureCustomerTotal>
+            {
+                new() { Id = 1, TenantId = Tenant, BzaClosureEventId = 30, BzaCustomerId = 1, Customer = customer, UploadToken = "tok-firma", Status = BzaClosureCustomerTotalStatus.Validated },
+            },
+        });
+        await ctx.SaveChangesAsync(default);
+
+        var (notif, replies) = NotifCapturing();
+        var sender = new Mock<ISender>();
+        sender
+            .Setup(s => s.Send(It.IsAny<IdentifyWhatsAppSenderQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new IdentifyWhatsAppSenderResultDto
+            {
+                NormalizedPhone = "5511112222",
+                Role = WhatsAppSenderRole.Unknown,
+            });
+
+        var handler = new ProcessWhatsAppWebhookHandler(
+            ctx, notif.Object, sender.Object, Mock.Of<ICacheService>(), Config(),
+            NullLogger<ProcessWhatsAppWebhookHandler>.Instance);
+
+        await handler.Handle(new ProcessWhatsAppWebhookCommand(
+            new List<WhatsAppWebhookStatusInput>(),
+            new List<WhatsAppWebhookTextInput>
+            {
+                new("wamid-in-4", "5511112222", "text", "firmas"),
+            }), default);
+
+        Assert.Single(replies);
+        Assert.Contains("Bazar Firmas", replies[0]);
+        Assert.Contains("https://portal.test/comprobante/tok-firma", replies[0]);
     }
 
     [Fact]
