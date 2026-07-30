@@ -4,7 +4,7 @@ using BusinessCloud.Application.Common.Interfaces;
 
 namespace BusinessCloud.Application.Bazares.Queries.GetBzaCustomers;
 
-public record BzaCustomerDto(int Id, string Name, string Phone, string? FacebookName, int Status, string CollectorName, bool IsBlocked, bool IsPendingInfo);
+public record BzaCustomerDto(int Id, string Name, string Phone, string? FacebookName, int Status, string CollectorName, bool IsBlocked, bool IsPendingInfo, bool HasNoWhatsApp);
 
 public record GetBzaCustomersQuery : IRequest<List<BzaCustomerDto>>;
 
@@ -17,7 +17,7 @@ public class GetBzaCustomersHandler : IRequestHandler<GetBzaCustomersQuery, List
     {
         var customers = await _context.Customers
             .Include(c => c.Collector)
-            .Select(c => new { c.Id, c.Name, c.Phone, c.FacebookName, c.Status, CollectorName = c.Collector.Name, c.IsPendingInfo })
+            .Select(c => new { c.Id, c.Name, c.Phone, c.FacebookName, c.Status, CollectorName = c.Collector.Name, c.IsPendingInfo, c.HasNoWhatsApp })
             .ToListAsync(ct);
 
         var blocks = await _context.BlockedCustomers
@@ -37,7 +37,8 @@ public class GetBzaCustomersHandler : IRequestHandler<GetBzaCustomersQuery, List
             blockedIds.Contains(c.Id)
                 || blockedNames.Contains((c.Name ?? string.Empty).Trim().ToLower())
                 || (!string.IsNullOrWhiteSpace(c.FacebookName) && blockedFbs.Contains(c.FacebookName!.Trim().ToLower())),
-            c.IsPendingInfo
+            c.IsPendingInfo,
+            c.HasNoWhatsApp
         )).ToList();
     }
 }

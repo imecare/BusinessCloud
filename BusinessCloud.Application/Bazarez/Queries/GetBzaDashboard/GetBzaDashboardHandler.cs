@@ -119,7 +119,8 @@ public class GetBzaDashboardHandler(
             : await _identityContext.TenantMessageBalances
                 .AsNoTracking()
                 .Where(b => b.TenantId == tenantId)
-                .Select(b => (int?)b.Available)
+                // Saldo pagado menos cortesía consumida: negativo mientras se usa la cortesía.
+                .Select(b => (int?)(b.Available - b.CourtesyUsed))
                 .FirstOrDefaultAsync(ct) ?? 0;
 
         return new BzaDashboardDto

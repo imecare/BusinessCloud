@@ -123,6 +123,9 @@ public class ValidateBzaCustomersImportHandler(IBazaresDbContext context)
                 dto.MatchStatus = "new";
             }
 
+            // Fila sin telÃ©fono: se marcarÃ¡ como cliente sin nÃºmero de WhatsApp al confirmar.
+            dto.WillHaveNoWhatsApp = dto.PhoneFromFile.Length == 0;
+
             // Conflicto de teléfono: pertenece a OTRO cliente distinto al coincidente.
             if (dto.PhoneFromFile.Length > 0
                 && phoneOwners.TryGetValue(dto.PhoneFromFile, out var owner)

@@ -56,6 +56,9 @@ public class PurchasePackageHandler(
             _context.TenantMessageBalances.Add(balance);
         }
 
+        // Al contratar un paquete NO se descuenta la cortesía consumida: se perdona.
+        // La empresa recibe el paquete completo y su saldo de cortesía queda de nuevo disponible.
+        balance.CourtesyUsed = 0;
         balance.Available += messages;
         balance.TotalPurchased += messages;
         balance.UpdatedAt = DateTime.UtcNow;

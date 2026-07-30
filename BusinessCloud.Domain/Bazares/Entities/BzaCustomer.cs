@@ -46,6 +46,15 @@ public class BzaCustomer : BaseAuditableEntity
     /// </summary>
     public bool IsPendingInfo { get; set; } = false;
 
+    /// <summary>
+    /// true cuando el cliente no proporcionó número de WhatsApp. En ese caso el campo
+    /// <see cref="Phone"/> guarda un número placeholder de 10 dígitos consecutivo por
+    /// bazar (0000000001, 0000000002, …) para respetar la restricción de teléfono
+    /// único e irrepetible, pero NO se le intenta enviar WhatsApp. Se limpia cuando el
+    /// cliente aporta su teléfono real.
+    /// </summary>
+    public bool HasNoWhatsApp { get; set; } = false;
+
     // ─────────────────────────────────────────────────────────────────────────
     // Relaciones
     // ─────────────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Application.Bazares.Common;
@@ -8,10 +8,12 @@ namespace BusinessCloud.Application.Bazares.Commands.UpdateBzaCustomer;
 public class UpdateBzaCustomerHandler : IRequestHandler<UpdateBzaCustomerCommand>
 {
     private readonly IBazaresDbContext _context;
+    private readonly ICurrentUserService _currentUser;
 
-    public UpdateBzaCustomerHandler(IBazaresDbContext context)
+    public UpdateBzaCustomerHandler(IBazaresDbContext context, ICurrentUserService currentUser)
     {
         _context = context;
+        _currentUser = currentUser;
     }
 
     public async Task Handle(UpdateBzaCustomerCommand request, CancellationToken cancellationToken)
@@ -32,32 +34,45 @@ public class UpdateBzaCustomerHandler : IRequestHandler<UpdateBzaCustomerCommand
             throw new Exception($"El recolector con ID {request.BzaCollectorId} no existe.");
         }
 
-        // El teléfono es la llave para el envío de totales: se normaliza y debe ser único entre clientes.
-        var phone = NormalizePhone(request.Phone);
         var facebookName = FacebookMessengerProfile.Normalize(request.FacebookName);
 
-        var duplicate = await _context.Customers
-            .AnyAsync(c => c.Phone == phone && c.Id != request.Id, cancellationToken);
-
-        if (duplicate)
+        if (request.HasNoWhatsApp)
         {
-            throw new InvalidOperationException(
-                $"Ya existe otro cliente registrado con el teléfono {phone}. El teléfono debe ser único.");
+            // Cliente sin número de WhatsApp: conserva su placeholder si ya lo tenía;
+            // si venía con teléfono real (o sin placeholder), se le asigna uno nuevo.
+            if (!entity.HasNoWhatsApp || !NoWhatsAppNumber.IsPlaceholder(entity.Phone))
+            {
+                var tenantId = _currentUser.TenantId ?? string.Empty;
+                entity.Phone = await NoWhatsAppNumber.ReserveNextAsync(_context, tenantId, cancellationToken);
+            }
+            entity.HasNoWhatsApp = true;
+        }
+        else
+        {
+            // Teléfono real: es la llave para el envío de totales, único entre clientes.
+            var phone = PhoneNumberNormalizer.Normalize(request.Phone);
+
+            var duplicate = await _context.Customers
+                .AnyAsync(c => c.Phone == phone && c.Id != request.Id, cancellationToken);
+
+            if (duplicate)
+            {
+                throw new InvalidOperationException(
+                    $"Ya existe otro cliente registrado con el teléfono {phone}. El teléfono debe ser único.");
+            }
+
+            entity.Phone = phone;
+            entity.HasNoWhatsApp = false;
         }
 
         entity.Name = request.Name;
         entity.FacebookName = facebookName;
-        entity.Phone = phone;
         entity.Status = request.Status;
         entity.BzaCollectorId = request.BzaCollectorId;
-        // Al editar/completar el cliente ya se cuenta con teléfono y recolector reales:
+        // Al editar/completar el cliente ya se cuenta con recolector real:
         // deja de estar "pendiente de completar información" (alta rápida).
         entity.IsPendingInfo = false;
 
         await _context.SaveChangesAsync(cancellationToken);
     }
-
-    /// <summary>Deja solo los dígitos del teléfono y antepone el código de país (52) cuando falte.</summary>
-    private static string NormalizePhone(string? phone)
-        => PhoneNumberNormalizer.Normalize(phone);
 }

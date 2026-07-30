@@ -6,11 +6,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BusinessCloud.Application.Bazares.Commands.CommitBzaCustomersImport;
 
-public class CommitBzaCustomersImportHandler(IBazaresDbContext context, IMongoContext mongoContext)
+public class CommitBzaCustomersImportHandler(
+    IBazaresDbContext context,
+    IMongoContext mongoContext,
+    ICurrentUserService currentUser)
     : IRequestHandler<CommitBzaCustomersImportCommand, CommitBzaCustomersImportResult>
 {
     private readonly IBazaresDbContext _context = context;
     private readonly IMongoContext _mongoContext = mongoContext;
+    private readonly ICurrentUserService _currentUser = currentUser;
 
     public async Task<CommitBzaCustomersImportResult> Handle(CommitBzaCustomersImportCommand request, CancellationToken ct)
     {
@@ -65,6 +69,8 @@ public class CommitBzaCustomersImportHandler(IBazaresDbContext context, IMongoCo
             .GroupBy(c => c.Phone.Trim(), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First().Name, StringComparer.OrdinalIgnoreCase);
 
+        var tenantId = _currentUser.TenantId ?? string.Empty;
+
         foreach (var dto in request.Customers)
         {
             var name = dto.Name?.Trim();
@@ -103,10 +109,19 @@ public class CommitBzaCustomersImportHandler(IBazaresDbContext context, IMongoCo
                 continue;
             }
 
+            // Fila sin teléfono: no se puede enviar WhatsApp. Se marca como cliente sin
+            // número y se le asigna un placeholder consecutivo por bazar.
+            var noWhatsApp = phone.Length == 0;
+            if (noWhatsApp)
+            {
+                phone = await NoWhatsAppNumber.ReserveNextAsync(_context, tenantId, ct);
+            }
+
             var customer = new BzaCustomer
             {
                 Name = name,
                 Phone = phone,
+                HasNoWhatsApp = noWhatsApp,
                 FacebookName = string.IsNullOrWhiteSpace(dto.FacebookName) ? null : dto.FacebookName.Trim(),
                 BzaCollectorId = collector.Id,
                 Status = 1,
@@ -116,8 +131,7 @@ public class CommitBzaCustomersImportHandler(IBazaresDbContext context, IMongoCo
             await _context.SaveChangesAsync(ct);
 
             existingNames.Add(name);
-            if (phone.Length > 0)
-                phoneOwners[phone] = name;
+            phoneOwners[phone] = name;
             result.CustomersCreated++;
         }
 

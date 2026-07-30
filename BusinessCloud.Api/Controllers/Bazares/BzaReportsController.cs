@@ -1,6 +1,7 @@
 using BusinessCloud.Api.Authorization;
 using BusinessCloud.Application.Bazares.Queries.GetBzaEventsReport;
 using BusinessCloud.Application.Bazares.Queries.GetCancelledSalesReport;
+using BusinessCloud.Application.Bazares.Queries.GetNoWhatsAppCustomers;
 using BusinessCloud.Application.Bazares.Queries.GetPendingWithdrawalsReport;
 using BusinessCloud.Application.Bazares.Queries.GetRejectedProofsReport;
 using MediatR;
@@ -45,6 +46,14 @@ public class BzaReportsController(ISender mediator) : ControllerBase
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null)
         => await mediator.Send(new GetPendingWithdrawalsReportQuery(from, to));
+
+    /// <summary>
+    /// Reporte de clientes marcados como "sin número de WhatsApp": clientes con número
+    /// placeholder a los que hay que capturarles su teléfono real cuando lo proporcionen.
+    /// </summary>
+    [HttpGet("no-whatsapp-customers")]
+    public async Task<ActionResult<NoWhatsAppCustomersReportDto>> NoWhatsAppCustomers()
+        => await mediator.Send(new GetNoWhatsAppCustomersQuery());
 
     /// <summary>
     /// Descarga un Excel con el detalle de los Eventos de Venta seleccionados: cliente,

@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Application.Bazares.Common;
@@ -27,7 +27,6 @@ public class CreateBzaCustomerHandler : IRequestHandler<CreateBzaCustomerCommand
 
     public async Task<int> Handle(CreateBzaCustomerCommand request, CancellationToken cancellationToken)
     {
-        var phone = PhoneNumberNormalizer.Normalize(request.Phone);
         var facebookName = FacebookMessengerProfile.Normalize(request.FacebookName);
 
         var nameLower = (request.Name ?? string.Empty).Trim().ToLower();
@@ -68,13 +67,26 @@ public class CreateBzaCustomerHandler : IRequestHandler<CreateBzaCustomerCommand
             }
         }
 
-        var duplicate = await _context.Customers
-            .AnyAsync(c => c.Phone == phone, cancellationToken);
-
-        if (duplicate)
+        string phone;
+        if (request.HasNoWhatsApp)
         {
-            throw new InvalidOperationException(
-                $"Ya existe un cliente registrado con el teléfono {phone}. El teléfono debe ser único.");
+            // Cliente sin número de WhatsApp: se le asigna un placeholder consecutivo
+            // por bazar (10 dígitos) para respetar la restricción de teléfono único.
+            var tenantId = _currentUser.TenantId ?? string.Empty;
+            phone = await NoWhatsAppNumber.ReserveNextAsync(_context, tenantId, cancellationToken);
+        }
+        else
+        {
+            phone = PhoneNumberNormalizer.Normalize(request.Phone);
+
+            var duplicate = await _context.Customers
+                .AnyAsync(c => c.Phone == phone, cancellationToken);
+
+            if (duplicate)
+            {
+                throw new InvalidOperationException(
+                    $"Ya existe un cliente registrado con el teléfono {phone}. El teléfono debe ser único.");
+            }
         }
 
         var entity = new BzaCustomer
@@ -82,6 +94,7 @@ public class CreateBzaCustomerHandler : IRequestHandler<CreateBzaCustomerCommand
             Name = request.Name ?? string.Empty,
             FacebookName = facebookName,
             Phone = phone,
+            HasNoWhatsApp = request.HasNoWhatsApp,
             BzaCollectorId = request.BzaCollectorId,
             Status = 1
         };
@@ -91,7 +104,4 @@ public class CreateBzaCustomerHandler : IRequestHandler<CreateBzaCustomerCommand
 
         return entity.Id;
     }
-
-    private static string NormalizePhone(string? phone)
-        => PhoneNumberNormalizer.Normalize(phone);
 }

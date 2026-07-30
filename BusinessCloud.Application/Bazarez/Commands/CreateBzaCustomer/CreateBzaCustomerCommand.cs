@@ -9,6 +9,12 @@ public record CreateBzaCustomerCommand : IRequest<int>
     public string Phone { get; init; } = string.Empty;
     public int BzaCollectorId { get; init; }
 
+    /// <summary>
+    /// Cuando es true, el cliente no dio número de WhatsApp: se ignora <see cref="Phone"/>
+    /// y el sistema le asigna un número placeholder consecutivo por bazar.
+    /// </summary>
+    public bool HasNoWhatsApp { get; init; }
+
     /// <summary>Desafío OTP (SuperAdmin) para forzar el alta de un cliente bloqueado. Alternativa al PIN.</summary>
     public string? ChallengeId { get; init; }
     public string? VerificationCode { get; init; }

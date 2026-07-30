@@ -22,6 +22,22 @@ public class SendClosureWhatsAppResultDto
     public int Total { get; set; }
     public int Sent { get; set; }
     public int Failed { get; set; }
+
+    /// <summary>Clientes marcados como "sin número de WhatsApp": no se les intentó enviar.</summary>
+    public int NoWhatsApp { get; set; }
+
+    /// <summary>true si el envío se bloqueó por falta de transacciones (saldo + cortesía).</summary>
+    public bool Blocked { get; set; }
+
+    /// <summary>Transacciones disponibles (saldo pagado) tras el envío.</summary>
+    public int Available { get; set; }
+
+    /// <summary>Transacciones de cortesía otorgadas/consumidas en este envío.</summary>
+    public int CourtesyGranted { get; set; }
+
+    /// <summary>Mensaje explicativo (p. ej. motivo del bloqueo o aviso de cortesía).</summary>
+    public string? Message { get; set; }
+
     public List<SendClosureWhatsAppItemDto> Items { get; set; } = new();
 }
 
@@ -31,7 +47,10 @@ public record SendClosureWhatsAppItemDto(
     string CustomerName,
     string ToPhone,
     bool Sent,
-    string? Error);
+    string? Error,
+    bool NoWhatsApp = false,
+    string? FacebookName = null,
+    string? MessengerText = null);
 
 public class SendClosureWhatsAppHandler(
     IBazaresDbContext context,
@@ -68,6 +87,33 @@ public class SendClosureWhatsAppHandler(
             ? closure.CustomerTotals.Where(t => customerIds.Contains(t.BzaCustomerId)).ToList()
             : closure.CustomerTotals.ToList();
 
+        // --- Presupuesto de transacciones (saldo pagado + cortesía) ---
+        var tenantId = currentUser.TenantId;
+        var balance = string.IsNullOrEmpty(tenantId)
+            ? null
+            : await identityContext.TenantMessageBalances
+                .FirstOrDefaultAsync(b => b.TenantId == tenantId, ct);
+
+        // Solo consumen transacción los totales que aún no fueron cobrados (evita cobro doble en reintentos).
+        var pendingCharge = targets.Count(t => !t.TransactionCharged);
+        var available = balance?.Available ?? 0;
+        var courtesyLeft = Math.Max(0, TransactionPolicy.CourtesyLimit - (balance?.CourtesyUsed ?? 0));
+
+        if (pendingCharge > available + courtesyLeft)
+        {
+            result.Total = targets.Count;
+            result.Blocked = true;
+            result.Available = available - (balance?.CourtesyUsed ?? 0);
+            result.Message =
+                $"No tienes transacciones suficientes para este envío. " +
+                $"Necesitas {pendingCharge} y solo cuentas con {available} disponibles" +
+                (courtesyLeft > 0 ? $" más {courtesyLeft} de cortesía" : string.Empty) +
+                ". Contrata más transacciones para continuar.";
+            return result;
+        }
+
+        var chargedThisSend = 0;
+
         foreach (var total in targets)
         {
             var customer = total.Customer;
@@ -81,14 +127,25 @@ public class SendClosureWhatsAppHandler(
                     ? d
                     : closure.OfficialDeliveryDate;
 
+            var uploadUrl = $"{baseUrl}/comprobante/{total.UploadToken}";
+            var effectiveDeliveryDate = deliveryDate ?? closure.PaymentDeadline;
+
             WhatsAppSendResult send;
-            if (string.IsNullOrEmpty(phone))
+            bool noWhatsApp = customer?.HasNoWhatsApp == true;
+            string? messengerText = null;
+
+            if (noWhatsApp)
+            {
+                // Cliente sin WhatsApp: NO se intenta enviar a Meta. Se reporta para que
+                // el operador le mande el mensaje manualmente por Messenger.
+                send = new WhatsAppSendResult(false, null, null, "El cliente está marcado como sin WhatsApp.");
+            }
+            else if (string.IsNullOrEmpty(phone))
             {
                 send = new WhatsAppSendResult(false, null, null, "El cliente no tiene telefono registrado.");
             }
             else
             {
-                var uploadUrl = $"{baseUrl}/comprobante/{total.UploadToken}";
                 var closureTotalsTemplateName = _configuration["WhatsApp:ClosureTotalsTemplateName"];
 
                 if (!string.IsNullOrWhiteSpace(closureTotalsTemplateName))
@@ -102,7 +159,7 @@ public class SendClosureWhatsAppHandler(
                     {
                         name,
                         total.TotalAmount.ToString("N2", Culture),
-                        FormatLongDate(deliveryDate ?? closure.PaymentDeadline),
+                        FormatLongDate(effectiveDeliveryDate),
                         FormatLongDate(closure.PaymentDeadline),
                     };
 
@@ -122,6 +179,21 @@ public class SendClosureWhatsAppHandler(
                 }
             }
 
+            // Los no enviados (sin WhatsApp o con fallo, p. ej. plantilla) se acompañan del texto
+            // y el Facebook del cliente para que el operador los mande manualmente por Messenger.
+            string? facebookName = null;
+            if (!send.Success)
+            {
+                messengerText = BuildMessengerText(
+                    name,
+                    string.IsNullOrWhiteSpace(bazarName) ? "el bazar" : bazarName!.Trim(),
+                    total.TotalAmount,
+                    effectiveDeliveryDate,
+                    closure.PaymentDeadline,
+                    uploadUrl);
+                facebookName = customer?.FacebookName;
+            }
+
             context.WhatsAppMessages.Add(new BzaWhatsAppMessage
             {
                 TenantId = total.TenantId,
@@ -130,39 +202,53 @@ public class SendClosureWhatsAppHandler(
                 Purpose = "totals",
                 BzaCustomerId = total.BzaCustomerId,
                 BzaClosureCustomerTotalId = total.Id,
-                Status = send.Success ? "sent" : "failed",
+                Status = noWhatsApp ? "sin_whatsapp" : (send.Success ? "sent" : "failed"),
                 ErrorCode = int.TryParse(send.ErrorCode, out var ec) ? ec : null,
                 ErrorMessage = send.ErrorMessage,
                 SentAt = now,
             });
 
-            if (send.Success)
+            if (noWhatsApp)
+                result.NoWhatsApp++;
+            else if (send.Success)
                 result.Sent++;
             else
                 result.Failed++;
 
+            // Se cobra 1 transacción cuando el total efectivamente sale (WhatsApp con éxito o
+            // manual "sin WhatsApp"), y solo una vez por cliente/cierre. Los fallos no cobran.
+            if ((send.Success || noWhatsApp) && !total.TransactionCharged)
+            {
+                total.TransactionCharged = true;
+                chargedThisSend++;
+            }
+
             result.Items.Add(new SendClosureWhatsAppItemDto(
-                total.Id, total.BzaCustomerId, name, phone, send.Success, send.Success ? null : send.ErrorMessage));
+                total.Id, total.BzaCustomerId, name, phone, send.Success,
+                send.Success ? null : send.ErrorMessage,
+                noWhatsApp,
+                facebookName,
+                messengerText));
         }
 
-        await context.SaveChangesAsync(ct);
-
-        if (result.Sent > 0)
+        // Consumo del saldo: primero las transacciones pagadas y luego la cortesía.
+        if (balance is not null && chargedThisSend > 0)
         {
-            var tenantId = currentUser.TenantId;
-            if (!string.IsNullOrEmpty(tenantId))
-            {
-                var balance = await identityContext.TenantMessageBalances
-                    .FirstOrDefaultAsync(b => b.TenantId == tenantId, ct);
+            var fromPaid = Math.Min(chargedThisSend, balance.Available);
+            var fromCourtesy = chargedThisSend - fromPaid;
+            balance.Available -= fromPaid;
+            balance.CourtesyUsed += fromCourtesy;
+            balance.TotalUsed += chargedThisSend;
+            balance.UpdatedAt = DateTime.UtcNow;
+            result.CourtesyGranted = fromCourtesy;
+        }
 
-                if (balance is not null)
-                {
-                    balance.Available = Math.Max(0, balance.Available - result.Sent);
-                    balance.TotalUsed += result.Sent;
-                    balance.UpdatedAt = DateTime.UtcNow;
-                    await identityContext.SaveChangesAsync(ct);
-                }
-            }
+        result.Available = (balance?.Available ?? 0) - (balance?.CourtesyUsed ?? 0);
+
+        await context.SaveChangesAsync(ct);
+        if (balance is not null && chargedThisSend > 0)
+        {
+            await identityContext.SaveChangesAsync(ct);
         }
 
         return result;
@@ -231,5 +317,22 @@ public class SendClosureWhatsAppHandler(
     {
         var text = date.ToString("dddd dd 'de' MMMM", Culture);
         return text.Length > 0 ? char.ToUpper(text[0], Culture) + text[1..] : text;
+    }
+
+    /// <summary>
+    /// Texto plano equivalente a la notificación de cobro, para que el operador lo
+    /// copie y lo envíe manualmente por Messenger a los clientes sin WhatsApp.
+    /// </summary>
+    private static string BuildMessengerText(
+        string name, string bazarName, decimal totalAmount,
+        DateTime deliveryDate, DateTime paymentDeadline, string uploadUrl)
+    {
+        var total = totalAmount.ToString("N2", Culture);
+        return
+            $"Hola {name}, te escribimos de {bazarName}. " +
+            $"El total de tu compra es de ${total}. " +
+            $"Fecha de entrega: {FormatLongDate(deliveryDate)}. " +
+            $"Fecha límite de pago: {FormatLongDate(paymentDeadline)}. " +
+            $"Sube tu comprobante de pago aquí: {uploadUrl}";
     }
 }

@@ -42,6 +42,12 @@ namespace BusinessCloud.Domain.Common.Entities
         public int TotalPurchased { get; set; }
         public int TotalUsed { get; set; }
 
+        /// <summary>
+        /// Transacciones de cortesía ya consumidas (pool vitalicio único por empresa).
+        /// El límite máximo lo define <c>TransactionPolicy.CourtesyLimit</c>.
+        /// </summary>
+        public int CourtesyUsed { get; set; }
+
         public DateTime? UpdatedAt { get; set; }
     }
 }

@@ -11,7 +11,8 @@ public record BzaCustomerSearchDto(
     string Phone,
     string? FacebookName,
     int Status,
-    string? CollectorName);
+    string? CollectorName,
+    bool HasNoWhatsApp = false);
 
 /// <summary>Busca clientes por nombre o número telefónico (llave de envío de totales).</summary>
 public record SearchBzaCustomersQuery(string? Query) : IRequest<List<BzaCustomerSearchDto>>;
@@ -55,7 +56,8 @@ public class SearchBzaCustomersHandler : IRequestHandler<SearchBzaCustomersQuery
                 c.Phone,
                 c.FacebookName,
                 c.Status,
-                c.Collector != null ? c.Collector.Name : null))
+                c.Collector != null ? c.Collector.Name : null,
+                c.HasNoWhatsApp))
             .ToListAsync(ct);
     }
 }

@@ -44,6 +44,7 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
     public DbSet<BzaWhatsAppMessage> WhatsAppMessages => Set<BzaWhatsAppMessage>();
     public DbSet<BzaCustomerNotificationSubscription> CustomerNotificationSubscriptions => Set<BzaCustomerNotificationSubscription>();
     public DbSet<BzaNotificationLog> NotificationLogs => Set<BzaNotificationLog>();
+    public DbSet<BzaNoWhatsAppSequence> NoWhatsAppSequences => Set<BzaNoWhatsAppSequence>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -286,6 +287,13 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
             .HasDatabaseName("UX_Bza_Customers_TenantId_Phone")
             .HasFilter("[Phone] IS NOT NULL AND [Phone] <> ''");
 
+        // ─────────────────────────────────────────────────────────────
+        // Secuencia de números placeholder por bazar (clientes sin WhatsApp)
+        // ─────────────────────────────────────────────────────────────
+        modelBuilder.Entity<BzaNoWhatsAppSequence>().ToTable("Bza_NoWhatsAppSequences");
+        modelBuilder.Entity<BzaNoWhatsAppSequence>().HasKey(s => s.TenantId);
+        modelBuilder.Entity<BzaNoWhatsAppSequence>().Property(s => s.TenantId).HasMaxLength(450);
+
         // ───────────────────────────────────────────────
         // Configuración general del bazar (identidad, contacto y redes)
         // ───────────────────────────────────────────────
@@ -341,6 +349,7 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         modelBuilder.Entity<BzaSaleCancellation>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaCustomerNotificationSubscription>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaNotificationLog>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaNoWhatsAppSequence>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

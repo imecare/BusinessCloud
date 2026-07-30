@@ -34,6 +34,7 @@ public interface IBazaresDbContext
     DbSet<BzaWhatsAppMessage> WhatsAppMessages { get; }
     DbSet<BzaCustomerNotificationSubscription> CustomerNotificationSubscriptions { get; }
     DbSet<BzaNotificationLog> NotificationLogs { get; }
+    DbSet<BzaNoWhatsAppSequence> NoWhatsAppSequences { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

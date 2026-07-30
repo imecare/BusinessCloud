@@ -21,6 +21,12 @@ namespace BusinessCloud.Domain.Common.Entities
         public bool IsActive { get; set; } = true;
         public string? Description { get; set; }
 
+        /// <summary>
+        /// true = paquete "extra" de transacciones (recarga puntual). Solo se ofrece cuando a la
+        /// empresa le quedan pocas transacciones. false = paquete mensual del plan normal.
+        /// </summary>
+        public bool IsExtra { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
     }

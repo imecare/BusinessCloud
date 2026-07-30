@@ -103,4 +103,10 @@ public class BzaClosureCustomerTotal : BaseAuditableEntity
 
     /// <summary>Fecha de la cancelación de la venta.</summary>
     public DateTime? CancelledAt { get; set; }
+
+    /// <summary>
+    /// Indica que este total ya consumió una transacción del saldo de la empresa.
+    /// Evita cobrar más de una vez por cliente/cierre (p. ej. en reintentos de envío).
+    /// </summary>
+    public bool TransactionCharged { get; set; }
 }

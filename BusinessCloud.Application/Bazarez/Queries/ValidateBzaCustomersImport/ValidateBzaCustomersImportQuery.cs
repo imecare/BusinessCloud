@@ -50,6 +50,12 @@ public class ImportCustomerRowDto
 
     /// <summary>Nombre del cliente dueño del teléfono en conflicto (si aplica).</summary>
     public string? PhoneConflictCustomerName { get; set; }
+
+    /// <summary>
+    /// true cuando la fila no trae telefono: al confirmar, el cliente se creara como
+    /// "sin numero de WhatsApp" y se le asignara un placeholder consecutivo por bazar.
+    /// </summary>
+    public bool WillHaveNoWhatsApp { get; set; }
 }
 
 public class ImportCollectorDto

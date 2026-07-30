@@ -11,6 +11,7 @@ public class PackageDto
     public int IncludedMessages { get; set; }
     public bool IsActive { get; set; }
     public string? Description { get; set; }
+    public bool IsExtra { get; set; }
 }
 
 /// <summary>Compra de paquete / mensajes de una empresa.</summary>
