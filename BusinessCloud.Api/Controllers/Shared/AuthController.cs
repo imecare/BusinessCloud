@@ -16,6 +16,15 @@ namespace BusinessCloud.Api.Controllers.Shared;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
+    /// <summary>
+    /// Numero de WhatsApp autorizado que recibe SIEMPRE los codigos de recuperacion
+    /// de contrasena, sin importar la cuenta que solicite el restablecimiento.
+    /// </summary>
+    private const string ForgotPasswordWhatsAppNumber = "3121232192";
+
+    /// <summary>Proposito del OTP para el flujo publico de recuperacion de contrasena.</summary>
+    private const string ForgotPasswordPurpose = "password.forgot";
+
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly IdentityDbContext _identityContext;
@@ -772,6 +781,130 @@ public class AuthController : ControllerBase
         await _userManager.UpdateAsync(user);
 
         return Ok(new { success = true, message = "Contraseña temporal asignada. El usuario deberá cambiarla al iniciar sesión." });
+    }
+
+    /// <summary>
+    /// Inicia el flujo publico de recuperacion de contrasena: genera un codigo OTP y lo
+    /// envia SIEMPRE por WhatsApp al numero autorizado (no al correo del usuario).
+    /// Respuesta no enumerable: si el correo no existe o esta inactivo se responde igual,
+    /// pero solo se genera/envia el codigo cuando la cuenta es valida.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("forgot-password/request")]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> ForgotPasswordRequest([FromBody] ForgotPasswordRequest request)
+    {
+        var email = request.Email?.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(email))
+            return BadRequest(new { success = false, message = "El correo es obligatorio." });
+
+        var user = await _userManager.FindByEmailAsync(email);
+        var eligible = user is not null && user.IsActive;
+
+        // Respuesta base identica para no revelar si la cuenta existe.
+        var genericResponse = new
+        {
+            success = true,
+            challengeId = (string?)null,
+            expiresInSeconds = 0,
+            sentTo = MaskPhone(ForgotPasswordWhatsAppNumber),
+            message = "Si el correo esta registrado, enviamos un codigo de verificacion por WhatsApp al numero autorizado."
+        };
+
+        if (!eligible)
+            return Ok(genericResponse);
+
+        var (challengeId, code) = _verification.Create(ForgotPasswordPurpose, email, TimeSpan.FromMinutes(10));
+
+        var sendResult = await _whatsApp.SendOtpWithResultAsync(ForgotPasswordWhatsAppNumber, code);
+        var delivered = sendResult.Success;
+
+        // Registrar el mensaje para dar seguimiento a su estatus via webhooks de Meta.
+        try
+        {
+            _bazaresDb.WhatsAppMessages.Add(new Domain.Bazares.Entities.BzaWhatsAppMessage
+            {
+                WaMessageId = sendResult.MessageId,
+                ToPhone = new string(ForgotPasswordWhatsAppNumber.Where(char.IsDigit).ToArray()),
+                Purpose = "otp",
+                Status = delivered ? "sent" : "failed",
+                ErrorCode = int.TryParse(sendResult.ErrorCode, out var ec) ? ec : null,
+                ErrorMessage = sendResult.ErrorMessage,
+                SentAt = DateTime.UtcNow,
+            });
+            await _bazaresDb.SaveChangesAsync(default);
+        }
+        catch (Exception logEx)
+        {
+            _logger.LogWarning(logEx, "No se pudo registrar el mensaje de WhatsApp para seguimiento.");
+        }
+
+        // En desarrollo, registrar el codigo para poder probar aunque el envio no llegue.
+        _logger.LogInformation(
+            "OTP {Purpose} para {Email}: {Code} | entregado={Delivered}",
+            ForgotPasswordPurpose, email, code, delivered);
+
+        return Ok(new
+        {
+            success = true,
+            challengeId,
+            expiresInSeconds = 600,
+            sentTo = MaskPhone(ForgotPasswordWhatsAppNumber),
+            delivered,
+            message = delivered
+                ? "Enviamos un codigo de verificacion por WhatsApp al numero autorizado."
+                : "No se pudo entregar el WhatsApp (revisa la configuracion/lista de destinatarios). El codigo quedo registrado en el servidor."
+        });
+    }
+
+    /// <summary>
+    /// Confirma el codigo OTP recibido por WhatsApp y asigna la nueva contrasena
+    /// a la cuenta indicada. Flujo publico (sin autenticar).
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("forgot-password/reset")]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> ForgotPasswordReset([FromBody] ResetForgotPasswordRequest request)
+    {
+        var email = request.Email?.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(email))
+            return BadRequest(new { success = false, message = "El correo es obligatorio." });
+
+        if (string.IsNullOrWhiteSpace(request.ChallengeId) || string.IsNullOrWhiteSpace(request.VerificationCode))
+            return BadRequest(new { success = false, message = "El codigo de verificacion es obligatorio." });
+
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
+            return BadRequest(new { success = false, message = "La nueva contrasena debe tener al menos 6 caracteres." });
+
+        if (!_verification.Validate(request.ChallengeId, request.VerificationCode, ForgotPasswordPurpose, email))
+        {
+            return StatusCode(403, new
+            {
+                success = false,
+                message = "El codigo de verificacion es invalido o expiro.",
+                code = "VERIFICATION_INVALID"
+            });
+        }
+
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user is null || !user.IsActive)
+            return BadRequest(new { success = false, message = "No fue posible restablecer la contrasena." });
+
+        // Reemplazar la contrasena sin requerir token providers.
+        await _userManager.RemovePasswordAsync(user);
+        var result = await _userManager.AddPasswordAsync(user, request.NewPassword);
+
+        if (!result.Succeeded)
+            return BadRequest(new { success = false, message = string.Join(" ", result.Errors.Select(e => e.Description)) });
+
+        // El usuario definio su propia contrasena: no forzar cambio adicional.
+        user.MustChangePassword = false;
+        user.PasswordChangedAt = DateTime.UtcNow;
+        await _userManager.UpdateAsync(user);
+
+        _logger.LogInformation("Contrasena restablecida por WhatsApp OTP para {Email}.", email);
+
+        return Ok(new { success = true, message = "Contrasena actualizada correctamente. Ya puedes iniciar sesion." });
     }
 
     /// <summary>
