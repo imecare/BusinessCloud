@@ -7,6 +7,7 @@ public static class NotificationType
     public const int SaleCancelled = 3;
     public const int ProofValidated = 4;
     public const int WithdrawalValidated = 6;
+    public const int OrderPacked = 7;
 }
 
 public static class NotificationChannelStrategy

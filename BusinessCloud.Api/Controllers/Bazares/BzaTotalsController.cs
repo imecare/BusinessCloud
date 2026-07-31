@@ -15,6 +15,8 @@ using BusinessCloud.Application.Bazares.Commands.SendTotals;
 using BusinessCloud.Application.Bazares.Commands.StartClosureDelivery;
 using BusinessCloud.Application.Bazares.Commands.UploadClosureProof;
 using BusinessCloud.Application.Bazares.Commands.UploadDeliveryProof;
+using BusinessCloud.Application.Bazares.Commands.UploadPackedOrderPhotos;
+using BusinessCloud.Application.Bazares.Commands.DeletePackedOrderPhoto;
 using BusinessCloud.Application.Bazares.Commands.ValidateClosureProof;
 using BusinessCloud.Application.Bazares.Queries.GetClosureDeliveryProofs;
 using BusinessCloud.Application.Bazares.Queries.GetClosureEventDetail;
@@ -53,7 +55,7 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
 
     /// <summary>
     /// Cancela un cierre draft generado al previsualizar mensajes, para permitir
-    /// corregir fechas y generar nuevamente el envío de totales.
+    /// corregir fechas y generar nuevamente el envï¿½o de totales.
     /// </summary>
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> DeleteDraft(int id)
@@ -237,6 +239,40 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
     public async Task<ActionResult<CancelPendingSalesResultDto>> CancelPendingSales(int id)
         => await mediator.Send(new CancelPendingSalesCommand(id));
 
+    /// <summary>Sube una o varias fotos del pedido empacado para un cliente del cierre.</summary>
+    [HttpPost("totals/{totalId:int}/packed-photos")]
+    [RequestSizeLimit(60_000_000)]
+    public async Task<ActionResult<UploadPackedOrderPhotosResultDto>> UploadPackedOrderPhotos(
+        int totalId,
+        [FromForm] List<IFormFile> files)
+    {
+        var incoming = (files ?? [])
+            .Where(file => file is not null && file.Length > 0)
+            .ToList();
+
+        var streams = new List<Stream>();
+        try
+        {
+            var inputs = incoming.Select(file =>
+            {
+                var stream = file.OpenReadStream();
+                streams.Add(stream);
+                return new PackedOrderPhotoFileInput(stream, file.FileName, file.ContentType);
+            }).ToList();
+
+            return await mediator.Send(new UploadPackedOrderPhotosCommand(totalId, inputs));
+        }
+        finally
+        {
+            foreach (var stream in streams)
+                await stream.DisposeAsync();
+        }
+    }
+
+    /// <summary>Elimina una foto del pedido empacado subida por error.</summary>
+    [HttpDelete("packed-photos/{photoId:int}")]
+    public async Task<ActionResult<DeletePackedOrderPhotoResultDto>> DeletePackedOrderPhoto(int photoId)
+        => await mediator.Send(new DeletePackedOrderPhotoCommand(photoId));
     /// <summary>
     /// Detalle de entrega de un evento de cierre: grupos participantes y comprobantes
     /// de entrega (firmas/fotos de recibido) ya subidos.

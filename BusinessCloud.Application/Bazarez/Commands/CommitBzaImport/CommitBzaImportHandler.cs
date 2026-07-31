@@ -6,11 +6,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BusinessCloud.Application.Bazares.Commands.CommitBzaImport;
 
-public class CommitBzaImportHandler(IBazaresDbContext context, IMongoContext mongoContext)
+public class CommitBzaImportHandler(
+    IBazaresDbContext context,
+    IMongoContext mongoContext,
+    ICurrentUserService currentUser)
     : IRequestHandler<CommitBzaImportCommand, CommitBzaImportResult>
 {
     private readonly IBazaresDbContext _context = context;
     private readonly IMongoContext _mongoContext = mongoContext;
+    private readonly ICurrentUserService _currentUser = currentUser;
 
     public async Task<CommitBzaImportResult> Handle(CommitBzaImportCommand request, CancellationToken ct)
     {
@@ -177,6 +181,14 @@ public class CommitBzaImportHandler(IBazaresDbContext context, IMongoContext mon
 
                 var newCustomerPhone = PhoneNumberNormalizer.Normalize(nc.Phone);
 
+                if (nc.HasNoWhatsApp)
+                {
+                    newCustomerPhone = await NoWhatsAppNumber.ReserveNextAsync(
+                        _context,
+                        _currentUser.TenantId ?? string.Empty,
+                        ct);
+                }
+
                 // El teléfono es único por tenant. Si ya pertenece a otro cliente se IGNORA
                 // este registro (no se crea el cliente ni su venta) y se detalla el conflicto,
                 // permitiendo que el resto de la importación continúe.
@@ -194,6 +206,7 @@ public class CommitBzaImportHandler(IBazaresDbContext context, IMongoContext mon
                 {
                     Name = nc.Name.Trim(),
                     Phone = newCustomerPhone,
+                    HasNoWhatsApp = nc.HasNoWhatsApp,
                     FacebookName = string.IsNullOrWhiteSpace(nc.FacebookName) ? null : nc.FacebookName.Trim(),
                     BzaCollectorId = collector.Id,
                     Status = 1,

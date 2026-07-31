@@ -29,6 +29,8 @@ public class ClosureCustomerPublicDto
     public string? ProofImageUrl { get; set; }
     /// <summary>Todos los comprobantes subidos por el cliente (varios depósitos).</summary>
     public List<ClosureProofDto> Proofs { get; set; } = new();
+    /// <summary>Fotos del pedido empacado subidas por el bazar.</summary>
+    public List<PackedOrderPhotoDto> PackedOrderPhotos { get; set; } = [];
     public string ClosureDescription { get; set; } = string.Empty;
     /// <summary>Estado del total: 1=Pendiente, 2=ComprobanteRecibido, 3=Validado, 4=Rechazado, 5=Cancelada.</summary>
     public int Status { get; set; }
@@ -106,6 +108,7 @@ public class GetClosureCustomerByTokenHandler(IBazaresDbContext context, IConfig
             .IgnoreQueryFilters()
             .Include(t => t.Customer)
             .Include(t => t.Proofs)
+            .Include(t => t.PackedOrderPhotos)
             .Include(t => t.ClosureEvent)
                 .ThenInclude(c => c.GroupDeliveries)
             .Include(t => t.ClosureEvent)
@@ -224,6 +227,11 @@ public class GetClosureCustomerByTokenHandler(IBazaresDbContext context, IConfig
             Proofs = total.Proofs
                 .OrderBy(p => p.UploadedAt)
                 .Select(p => new ClosureProofDto(p.Id, p.ImageUrl, p.UploadedAt))
+                .ToList(),
+            PackedOrderPhotos = total.PackedOrderPhotos
+                .OrderBy(p => p.UploadedAt)
+                .ThenBy(p => p.Id)
+                .Select(p => new PackedOrderPhotoDto(p.Id, p.ImageUrl, p.UploadedAt))
                 .ToList(),
             ClosureDescription = total.ClosureEvent.Description,
             Status = total.Status,

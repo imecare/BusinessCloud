@@ -1,4 +1,4 @@
-﻿using BusinessCloud.Domain.Bazares.Entities;
+using BusinessCloud.Domain.Bazares.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace BusinessCloud.Application.Common.Interfaces;
@@ -27,6 +27,7 @@ public interface IBazaresDbContext
     DbSet<BzaClosureGroupDelivery> ClosureGroupDeliveries { get; }
     DbSet<BzaClosureCustomerTotal> ClosureCustomerTotals { get; }
     DbSet<BzaClosureProof> ClosureProofs { get; }
+    DbSet<BzaPackedOrderPhoto> PackedOrderPhotos { get; }
     DbSet<BzaClosureDeliveryProof> ClosureDeliveryProofs { get; }
     DbSet<BzaProofRejection> ProofRejections { get; }
     DbSet<BzaSaleCancellation> SaleCancellations { get; }

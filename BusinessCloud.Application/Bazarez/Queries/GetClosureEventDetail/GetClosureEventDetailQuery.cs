@@ -49,7 +49,8 @@ public record ClosureCustomerTotalDto(
     string? CustomerReference,
     bool ProofUploadedByBazar,
     bool ValidatedWithoutProof,
-    string? ValidationNote);
+    string? ValidationNote,
+    List<PackedOrderPhotoDto> PackedOrderPhotos);
 
 public class GetClosureEventDetailHandler(IBazaresDbContext context)
     : IRequestHandler<GetClosureEventDetailQuery, ClosureEventDetailDto>
@@ -66,6 +67,8 @@ public class GetClosureEventDetailHandler(IBazaresDbContext context)
                 .ThenInclude(t => t.Customer)
             .Include(c => c.CustomerTotals)
                 .ThenInclude(t => t.Proofs)
+            .Include(c => c.CustomerTotals)
+                .ThenInclude(t => t.PackedOrderPhotos)
             .FirstOrDefaultAsync(c => c.Id == request.ClosureEventId, cancellationToken)
             ?? throw new KeyNotFoundException("El evento de pago no existe.");
 
@@ -128,7 +131,12 @@ public class GetClosureEventDetailHandler(IBazaresDbContext context)
                 t.CustomerReference,
                 t.ProofUploadedByBazar,
                 t.ValidatedWithoutProof,
-                t.ValidationNote))
+                t.ValidationNote,
+                t.PackedOrderPhotos
+                    .OrderBy(p => p.UploadedAt)
+                    .ThenBy(p => p.Id)
+                    .Select(p => new PackedOrderPhotoDto(p.Id, p.ImageUrl, p.UploadedAt))
+                    .ToList()))
             .OrderBy(c => c.CustomerName)
             .ToList();
 

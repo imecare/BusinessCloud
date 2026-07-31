@@ -45,6 +45,7 @@ public class CommitImportNewCustomerDto
 {
     public string Name { get; set; } = string.Empty;
     public string? Phone { get; set; }
+    public bool HasNoWhatsApp { get; set; }
 
     /// <summary>Recolector del cliente, por nombre (existente o uno de los nuevos a crear).</summary>
     public string CollectorName { get; set; } = string.Empty;

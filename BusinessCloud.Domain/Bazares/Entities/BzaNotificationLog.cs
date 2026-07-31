@@ -18,7 +18,7 @@ public class BzaNotificationLog : BaseAuditableEntity
     public int BzaCustomerId { get; set; }
     public BzaCustomer Customer { get; set; } = null!;
 
-    /// <summary>1=Recordatorio,2=VenceHoy,3=Cancelacion,4=Validado.</summary>
+    /// <summary>1=Recordatorio,2=VenceHoy,3=Cancelacion,4=Validado,6=Retiro,7=PedidoEmpacado.</summary>
     public int NotificationType { get; set; }
 
     /// <summary>1=WebPush,2=WhatsApp.</summary>

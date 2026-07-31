@@ -47,6 +47,7 @@ public class SendBulkNotificationsHandler(
         var totals = await context.ClosureCustomerTotals
             .Include(t => t.Customer)
             .Include(t => t.ClosureEvent)
+            .Include(t => t.PackedOrderPhotos)
             .Where(t => ids.Contains(t.Id))
             .ToListAsync(cancellationToken);
 
@@ -241,11 +242,12 @@ public class SendBulkNotificationsHandler(
                     : $"{customerName}, tu comprobante fue validado. Gracias por tu pago.",
                 actionUrl),
 
+            NotificationType.OrderPacked => BuildOrderPackedTemplate(customerName, total, actionUrl),
             NotificationType.WithdrawalValidated => new NotificationTemplateData(
                 "Retiro realizado",
                 !string.IsNullOrWhiteSpace(settings?.WithdrawalValidatedMessage)
                     ? settings!.WithdrawalValidatedMessage
-                    : $"{customerName}, tu retiro fue realizado y tu venta quedÛ validada. Gracias por tu pago.",
+                    : $"{customerName}, tu retiro fue realizado y tu venta quedÔøΩ validada. Gracias por tu pago.",
                 actionUrl),
 
             _ => BuildReminderTemplate(customerName, total, actionUrl),
@@ -258,6 +260,24 @@ public class SendBulkNotificationsHandler(
     /// volver a subir el comprobante, acompanado del link. En cualquier otro caso, se conserva
     /// el comportamiento existente (mensaje de cobro con el enlace embebido).
     /// </summary>
+    private static NotificationTemplateData BuildOrderPackedTemplate(
+        string customerName,
+        BzaClosureCustomerTotal total,
+        string? actionUrl)
+    {
+        var photoLinks = total.PackedOrderPhotos
+            .OrderBy(photo => photo.UploadedAt)
+            .ThenBy(photo => photo.Id)
+            .Select((photo, index) => $"Foto {index + 1}: {photo.ImageUrl}")
+            .ToList();
+
+        if (photoLinks.Count == 0)
+            throw new InvalidOperationException($"El pedido de {customerName} no tiene fotos empacadas.");
+
+        var body = $"{customerName}, tu pedido se encuentra empacado y listo. Mira las fotos de tu pedido:\n\n{string.Join("\n", photoLinks)}";
+        body = AppendLink(body, actionUrl);
+        return new NotificationTemplateData("Tu pedido est√° empacado", body, actionUrl);
+    }
     private static NotificationTemplateData BuildReminderTemplate(string customerName, BzaClosureCustomerTotal total, string? actionUrl)
     {
         if (total.Status == BzaClosureCustomerTotalStatus.Rejected)

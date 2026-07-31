@@ -37,6 +37,7 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
     public DbSet<BzaClosureGroupDelivery> ClosureGroupDeliveries => Set<BzaClosureGroupDelivery>();
     public DbSet<BzaClosureCustomerTotal> ClosureCustomerTotals => Set<BzaClosureCustomerTotal>();
     public DbSet<BzaClosureProof> ClosureProofs => Set<BzaClosureProof>();
+    public DbSet<BzaPackedOrderPhoto> PackedOrderPhotos => Set<BzaPackedOrderPhoto>();
     public DbSet<BzaClosureDeliveryProof> ClosureDeliveryProofs => Set<BzaClosureDeliveryProof>();
     public DbSet<BzaProofRejection> ProofRejections => Set<BzaProofRejection>();
     public DbSet<BzaSaleCancellation> SaleCancellations => Set<BzaSaleCancellation>();
@@ -75,14 +76,25 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         modelBuilder.Entity<BzaClosureGroupDelivery>().ToTable("Bza_ClosureGroupDeliveries");
         modelBuilder.Entity<BzaClosureCustomerTotal>().ToTable("Bza_ClosureCustomerTotals");
         modelBuilder.Entity<BzaClosureProof>().ToTable("Bza_ClosureProofs");
+        modelBuilder.Entity<BzaPackedOrderPhoto>().ToTable("Bza_PackedOrderPhotos");
         modelBuilder.Entity<BzaClosureDeliveryProof>().ToTable("Bza_ClosureDeliveryProofs");
         modelBuilder.Entity<BzaProofRejection>().ToTable("Bza_ProofRejections");
         modelBuilder.Entity<BzaSaleCancellation>().ToTable("Bza_SaleCancellations");
         modelBuilder.Entity<BzaBlockedCustomer>().ToTable("Bza_BlockedCustomers");
         modelBuilder.Entity<BzaWhatsAppMessage>().ToTable("Bza_WhatsAppMessages");
+        modelBuilder.Entity<BzaPackedOrderPhoto>()
+            .HasOne(p => p.Total)
+            .WithMany(t => t.PackedOrderPhotos)
+            .HasForeignKey(p => p.BzaClosureCustomerTotalId)
+            .OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<BzaCustomerNotificationSubscription>().ToTable("Bza_CustomerNotificationSubscriptions");
         modelBuilder.Entity<BzaNotificationLog>().ToTable("Bza_NotificationLogs");
         modelBuilder.Entity<BzaWhatsAppMessage>().HasIndex(m => m.WaMessageId);
+        modelBuilder.Entity<BzaPackedOrderPhoto>()
+            .HasOne(p => p.Total)
+            .WithMany(t => t.PackedOrderPhotos)
+            .HasForeignKey(p => p.BzaClosureCustomerTotalId)
+            .OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<BzaCustomerNotificationSubscription>().HasIndex(x => new { x.TenantId, x.BzaCustomerId, x.Endpoint }).IsUnique();
         modelBuilder.Entity<BzaNotificationLog>().HasIndex(x => new { x.TenantId, x.BzaClosureEventId, x.BzaClosureCustomerTotalId, x.SentAt });
 
@@ -224,26 +236,51 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
             .HasForeignKey(p => p.BzaClosureCustomerTotalId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        modelBuilder.Entity<BzaPackedOrderPhoto>()
+            .HasOne(p => p.Total)
+            .WithMany(t => t.PackedOrderPhotos)
+            .HasForeignKey(p => p.BzaClosureCustomerTotalId)
+            .OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<BzaCustomerNotificationSubscription>()
             .HasOne(s => s.Customer)
             .WithMany()
             .HasForeignKey(s => s.BzaCustomerId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        modelBuilder.Entity<BzaPackedOrderPhoto>()
+            .HasOne(p => p.Total)
+            .WithMany(t => t.PackedOrderPhotos)
+            .HasForeignKey(p => p.BzaClosureCustomerTotalId)
+            .OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<BzaCustomerNotificationSubscription>()
             .HasOne(s => s.ClosureCustomerTotal)
             .WithMany()
             .HasForeignKey(s => s.BzaClosureCustomerTotalId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        modelBuilder.Entity<BzaPackedOrderPhoto>()
+            .HasOne(p => p.Total)
+            .WithMany(t => t.PackedOrderPhotos)
+            .HasForeignKey(p => p.BzaClosureCustomerTotalId)
+            .OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<BzaCustomerNotificationSubscription>()
             .Property(s => s.Endpoint)
             .HasMaxLength(1000);
 
+        modelBuilder.Entity<BzaPackedOrderPhoto>()
+            .HasOne(p => p.Total)
+            .WithMany(t => t.PackedOrderPhotos)
+            .HasForeignKey(p => p.BzaClosureCustomerTotalId)
+            .OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<BzaCustomerNotificationSubscription>()
             .Property(s => s.P256dh)
             .HasMaxLength(300);
 
+        modelBuilder.Entity<BzaPackedOrderPhoto>()
+            .HasOne(p => p.Total)
+            .WithMany(t => t.PackedOrderPhotos)
+            .HasForeignKey(p => p.BzaClosureCustomerTotalId)
+            .OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<BzaCustomerNotificationSubscription>()
             .Property(s => s.Auth)
             .HasMaxLength(200);
@@ -345,8 +382,14 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         modelBuilder.Entity<BzaClosureGroupDelivery>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaClosureCustomerTotal>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaClosureProof>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaPackedOrderPhoto>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaProofRejection>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaSaleCancellation>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaPackedOrderPhoto>()
+            .HasOne(p => p.Total)
+            .WithMany(t => t.PackedOrderPhotos)
+            .HasForeignKey(p => p.BzaClosureCustomerTotalId)
+            .OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<BzaCustomerNotificationSubscription>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaNotificationLog>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaNoWhatsAppSequence>().HasQueryFilter(x => x.TenantId == _userService.TenantId);

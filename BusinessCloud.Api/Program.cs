@@ -1,4 +1,4 @@
-﻿using BusinessCloud.Api.Middleware;
+using BusinessCloud.Api.Middleware;
 using BusinessCloud.Application;
 using BusinessCloud.Api.Common;
 using BusinessCloud.Application.Common.Interfaces;
@@ -297,6 +297,15 @@ try
         BusinessCloud.Api.Authorization.ModuleRequirementHandler>();
 
     var app = builder.Build();
+
+    // Apply pending Bazares schema changes before serving requests. EF serializes concurrent
+    // migration attempts, so scaled-out instances cannot apply the same migration twice.
+    await using (var migrationScope = app.Services.CreateAsyncScope())
+    {
+        var bazaresDb = migrationScope.ServiceProvider.GetRequiredService<BazaresDbContext>();
+        await bazaresDb.Database.MigrateAsync();
+        Log.Information("Migraciones de Bazares aplicadas correctamente.");
+    }
 
     // --- 2. Middleware ---
 

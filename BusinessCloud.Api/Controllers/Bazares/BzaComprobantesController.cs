@@ -51,6 +51,15 @@ public class BzaComprobantesController(ISender mediator) : ControllerBase
                 .ToList();
         }
 
+        if (result.PackedOrderPhotos.Count > 0)
+        {
+            result.PackedOrderPhotos = result.PackedOrderPhotos
+                .Select(photo => new PackedOrderPhotoDto(
+                    photo.Id,
+                    BuildAbsoluteUrl(photo.Url, baseUrl),
+                    photo.UploadedAt))
+                .ToList();
+        }
         // Construir URLs para otros bazares pendientes
         if (result.OtherPendingAccounts != null && result.OtherPendingAccounts.Count > 0)
         {
@@ -68,6 +77,14 @@ public class BzaComprobantesController(ISender mediator) : ControllerBase
         }
 
         return result;
+    }
+
+    private static string BuildAbsoluteUrl(string url, string baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(url) || url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            return url;
+
+        return url.StartsWith('/') ? $"{baseUrl}{url}" : $"{baseUrl}/{url}";
     }
 
     /// <summary>

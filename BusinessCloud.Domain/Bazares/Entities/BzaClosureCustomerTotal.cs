@@ -59,6 +59,9 @@ public class BzaClosureCustomerTotal : BaseAuditableEntity
     /// <summary>Comprobantes subidos por el cliente (permite varios depósitos).</summary>
     public ICollection<BzaClosureProof> Proofs { get; set; } = new List<BzaClosureProof>();
 
+    /// <summary>Fotos del pedido empacado subidas por el bazar.</summary>
+    public ICollection<BzaPackedOrderPhoto> PackedOrderPhotos { get; set; } = new List<BzaPackedOrderPhoto>();
+
     /// <summary>Estado: 1=Pendiente, 2=ComprobanteRecibido, 3=Validado, 4=Rechazado.</summary>
     public int Status { get; set; } = BzaClosureCustomerTotalStatus.Pending;
 
