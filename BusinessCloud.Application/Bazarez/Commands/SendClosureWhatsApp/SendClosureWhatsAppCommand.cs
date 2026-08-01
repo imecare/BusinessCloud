@@ -50,7 +50,9 @@ public record SendClosureWhatsAppItemDto(
     string? Error,
     bool NoWhatsApp = false,
     string? FacebookName = null,
-    string? MessengerText = null);
+    string? MessengerText = null,
+    string DeliveryStatus = "processing",
+    bool InboxNotificationCreated = true);
 
 public class SendClosureWhatsAppHandler(
     IBazaresDbContext context,
@@ -86,6 +88,12 @@ public class SendClosureWhatsAppHandler(
         var targets = request.CustomerIds is { Count: > 0 } customerIds
             ? closure.CustomerTotals.Where(t => customerIds.Contains(t.BzaCustomerId)).ToList()
             : closure.CustomerTotals.ToList();
+
+        var targetTotalIds = targets.Select(t => t.Id).ToList();
+        var existingInboxTotalIds = await context.CustomerInboxNotifications
+            .Where(n => targetTotalIds.Contains(n.BzaClosureCustomerTotalId))
+            .Select(n => n.BzaClosureCustomerTotalId)
+            .ToHashSetAsync(ct);
 
         // --- Presupuesto de transacciones (saldo pagado + cortesía) ---
         var tenantId = currentUser.TenantId;
@@ -129,6 +137,16 @@ public class SendClosureWhatsAppHandler(
 
             var uploadUrl = $"{baseUrl}/comprobante/{total.UploadToken}";
             var effectiveDeliveryDate = deliveryDate ?? closure.PaymentDeadline;
+            var notificationMessage = BuildMessengerText(
+                name,
+                string.IsNullOrWhiteSpace(bazarName) ? "el bazar" : bazarName!.Trim(),
+                total.TotalAmount,
+                effectiveDeliveryDate,
+                closure.PaymentDeadline,
+                uploadUrl);
+
+            if (!existingInboxTotalIds.Contains(total.Id))
+                AddInboxNotification(context, total, notificationMessage);
 
             WhatsAppSendResult send;
             bool noWhatsApp = customer?.HasNoWhatsApp == true;
@@ -184,13 +202,8 @@ public class SendClosureWhatsAppHandler(
             string? facebookName = null;
             if (!send.Success)
             {
-                messengerText = BuildMessengerText(
-                    name,
-                    string.IsNullOrWhiteSpace(bazarName) ? "el bazar" : bazarName!.Trim(),
-                    total.TotalAmount,
-                    effectiveDeliveryDate,
-                    closure.PaymentDeadline,
-                    uploadUrl);
+                messengerText = notificationMessage;
+
                 facebookName = customer?.FacebookName;
             }
 
@@ -228,7 +241,9 @@ public class SendClosureWhatsAppHandler(
                 send.Success ? null : send.ErrorMessage,
                 noWhatsApp,
                 facebookName,
-                messengerText));
+                messengerText,
+                noWhatsApp ? "no_whatsapp" : send.Success ? "processing" : "failed",
+                true));
         }
 
         // Consumo del saldo: primero las transacciones pagadas y luego la cortesía.
@@ -252,6 +267,22 @@ public class SendClosureWhatsAppHandler(
         }
 
         return result;
+    }
+
+    private static void AddInboxNotification(
+        IBazaresDbContext context,
+        BzaClosureCustomerTotal total,
+        string message)
+    {
+        context.CustomerInboxNotifications.Add(new BzaCustomerInboxNotification
+        {
+            TenantId = total.TenantId,
+            BzaCustomerId = total.BzaCustomerId,
+            BzaClosureCustomerTotalId = total.Id,
+            Title = "Nuevo total de compra",
+            Message = message,
+            ActionUrl = $"/comprobante/{total.UploadToken}",
+        });
     }
 
     private static async Task<WhatsAppSendResult> TrySendClosureTemplateAsync(

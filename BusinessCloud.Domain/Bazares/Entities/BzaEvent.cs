@@ -35,6 +35,8 @@ public class BzaEvent : BaseAuditableEntity
     /// </summary>
     public ICollection<BzaSale> Sales { get; set; } = [];
 
+    public ICollection<BzaLiveSaleDraft> LiveSaleDrafts { get; set; } = [];
+
     /// <summary>
     /// Pagos recibidos de clientes para este evento de venta.
     /// </summary>

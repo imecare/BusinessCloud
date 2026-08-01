@@ -83,6 +83,8 @@ public class ClosureCustomerPublicDto
     /// <summary>Otras cuentas del mismo telefono en bazares distintos con saldo pendiente o rechazado.</summary>
     public List<OtherPendingAccountDto> OtherPendingAccounts { get; set; } = new();
 
+    public List<CustomerInboxNotificationDto> Notifications { get; set; } = [];
+
     /// <summary>Indica si el evento de cierre ya fue entregado (se subió comprobante de entrega).</summary>
     public bool Delivered { get; set; }
 
@@ -215,6 +217,16 @@ public class GetClosureCustomerByTokenHandler(IBazaresDbContext context, IConfig
                 .ToList();
         }
 
+        var notifications = await _context.CustomerInboxNotifications
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(n => n.TenantId == total.TenantId && n.BzaCustomerId == total.BzaCustomerId)
+            .OrderBy(n => n.ReadAt.HasValue)
+            .ThenByDescending(n => n.CreatedAt)
+            .Select(n => new CustomerInboxNotificationDto(
+                n.Id, n.Title, n.Message, n.ActionUrl, n.CreatedAt, n.ReadAt))
+            .ToListAsync(cancellationToken);
+
         return new ClosureCustomerPublicDto
         {
             CustomerName = total.Customer?.Name ?? "Cliente",
@@ -255,6 +267,7 @@ public class GetClosureCustomerByTokenHandler(IBazaresDbContext context, IConfig
             WebPushPublicKey = _configuration["WebPush:PublicKey"],
             WebPushEnabled = !string.IsNullOrWhiteSpace(_configuration["WebPush:PublicKey"]),
             OtherPendingAccounts = otherPendingAccounts,
+            Notifications = notifications,
             Delivered = total.ClosureEvent.Delivered,
             DeliveredAt = total.ClosureEvent.DeliveredAt,
             DeliveryProofImageUrl = deliveryProofUrl

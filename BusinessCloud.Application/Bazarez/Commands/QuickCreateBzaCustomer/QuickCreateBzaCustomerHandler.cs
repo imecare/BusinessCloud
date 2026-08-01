@@ -38,24 +38,32 @@ public class QuickCreateBzaCustomerHandler : IRequestHandler<QuickCreateBzaCusto
                 "Da de alta al cliente desde el formulario completo para autorizar el alta.");
         }
 
-        var placeholderCollector = await _context.Collectors
-            .FirstOrDefaultAsync(c => c.Name.ToLower() == PlaceholderCollectorName.ToLower(), cancellationToken);
+        var phone = request.Phone?.Trim() ?? string.Empty;
+        if (phone.Length > 0 && await _context.Customers.AsNoTracking().AnyAsync(c => c.Phone == phone, cancellationToken))
+            throw new InvalidOperationException("Ya existe un cliente con ese numero de WhatsApp.");
+
+        var collector = request.BzaCollectorId is not null
+            ? await _context.Collectors.FirstOrDefaultAsync(c => c.Id == request.BzaCollectorId, cancellationToken)
+                ?? throw new KeyNotFoundException("Recolector no encontrado.")
+            : await _context.Collectors.FirstOrDefaultAsync(
+                c => c.Name.ToLower() == PlaceholderCollectorName.ToLower(), cancellationToken);
 
         var entity = new BzaCustomer
         {
             Name = name,
-            Phone = string.Empty,
+            FacebookName = string.IsNullOrWhiteSpace(request.FacebookName) ? null : request.FacebookName.Trim(),
+            Phone = phone,
             Status = 1,
             IsPendingInfo = true,
         };
 
-        if (placeholderCollector is null)
+        if (collector is null)
         {
-            placeholderCollector = new BzaCollector { Name = PlaceholderCollectorName, IsActive = true };
-            _context.Collectors.Add(placeholderCollector);
+            collector = new BzaCollector { Name = PlaceholderCollectorName, IsActive = true };
+            _context.Collectors.Add(collector);
         }
 
-        entity.Collector = placeholderCollector;
+        entity.Collector = collector;
 
         _context.Customers.Add(entity);
         await _context.SaveChangesAsync(cancellationToken);

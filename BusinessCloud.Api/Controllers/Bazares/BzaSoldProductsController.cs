@@ -2,6 +2,9 @@ using BusinessCloud.Application.Bazares.Commands.CreateBzaSaleWithProducts;
 using BusinessCloud.Application.Bazares.Commands.CreateBzaSoldProduct;
 using BusinessCloud.Application.Bazares.Commands.DeleteBzaSoldProduct;
 using BusinessCloud.Application.Bazares.Commands.UpdateBzaSoldProduct;
+using BusinessCloud.Application.Bazares.Commands.SaveLiveSaleRow;
+using BusinessCloud.Application.Bazares.Commands.DeleteLiveSaleDrafts;
+using BusinessCloud.Application.Bazares.Queries.GetLiveSaleDrafts;
 using BusinessCloud.Application.Bazares.Queries.GetSoldProductsBySale;
 using BusinessCloud.Api.Authorization;
 using MediatR;
@@ -45,6 +48,19 @@ public class BzaSoldProductsController(ISender mediator) : ControllerBase
         var result = await _mediator.Send(command);
         return CreatedAtAction(nameof(GetBySale), new { saleId = command.BzaEventId }, result);
     }
+
+    [HttpPut("live-row")]
+    public async Task<ActionResult<SaveLiveSaleRowResult>> SaveLiveRow(SaveLiveSaleRowCommand command)
+        => await _mediator.Send(command);
+
+    [HttpGet("live-drafts/{eventId:int}")]
+    public async Task<ActionResult<List<LiveSaleDraftDto>>> GetLiveDrafts(int eventId)
+        => await _mediator.Send(new GetLiveSaleDraftsQuery(eventId));
+
+    [HttpDelete("live-drafts/{eventId:int}")]
+    public async Task<ActionResult<int>> DeleteLiveDrafts(int eventId, [FromQuery] int? draftId)
+        => await _mediator.Send(new DeleteLiveSaleDraftsCommand(eventId, draftId));
+
 
     /// <summary>
     /// Obtener todos los productos vendidos de un Evento de Venta específico.

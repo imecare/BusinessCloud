@@ -1,5 +1,6 @@
 using BusinessCloud.Application.Bazares.Commands.UploadClosureProof;
 using BusinessCloud.Application.Bazares.Commands.DeleteClosureProof;
+using BusinessCloud.Application.Bazares.Commands.MarkCustomerNotificationRead;
 using BusinessCloud.Application.Bazares.Commands.Notifications;
 using BusinessCloud.Application.Bazares.Queries.GetClosureCustomerByToken;
 using BusinessCloud.Application.Bazares.Common;
@@ -78,6 +79,12 @@ public class BzaComprobantesController(ISender mediator) : ControllerBase
 
         return result;
     }
+
+    [HttpPost("{token}/notifications/{notificationId:int}/read")]
+    public async Task<ActionResult<CustomerInboxNotificationDto>> MarkNotificationRead(string token, int notificationId)
+        => await mediator.Send(new MarkCustomerNotificationReadCommand(
+            token, notificationId, CustomerNotificationAccessKind.ClosureTotal));
+
 
     private static string BuildAbsoluteUrl(string url, string baseUrl)
     {

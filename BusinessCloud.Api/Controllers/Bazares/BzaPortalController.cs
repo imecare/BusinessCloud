@@ -1,3 +1,5 @@
+using BusinessCloud.Application.Bazares.Commands.MarkCustomerNotificationRead;
+using BusinessCloud.Application.Bazares.Common;
 using BusinessCloud.Application.Bazares.Queries.GetCustomerPortal;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -21,4 +23,10 @@ public class BzaPortalController : ControllerBase
         var result = await _mediator.Send(new GetCustomerPortalQuery(token));
         return Ok(result);
     }
+
+    [HttpPost("{token}/notifications/{notificationId:int}/read")]
+    public async Task<ActionResult<CustomerInboxNotificationDto>> MarkNotificationRead(string token, int notificationId)
+        => await _mediator.Send(new MarkCustomerNotificationReadCommand(
+            token, notificationId, CustomerNotificationAccessKind.Portal));
+
 }

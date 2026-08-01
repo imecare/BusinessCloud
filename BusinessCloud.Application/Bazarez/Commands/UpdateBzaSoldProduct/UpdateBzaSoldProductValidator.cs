@@ -9,6 +9,9 @@ public class UpdateBzaSoldProductValidator : AbstractValidator<UpdateBzaSoldProd
         RuleFor(x => x.Id)
             .GreaterThan(0).WithMessage("El ID del producto vendido es requerido.");
 
+        RuleFor(x => x.BzaCustomerId)
+            .GreaterThan(0).When(x => x.BzaCustomerId.HasValue).WithMessage("El ID del cliente debe ser mayor a 0.");
+
         RuleFor(x => x.Description)
             .NotEmpty().WithMessage("La descripción del producto es requerida.")
             .MaximumLength(500).WithMessage("La descripción no puede exceder 500 caracteres.");

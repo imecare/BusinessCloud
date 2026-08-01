@@ -12,6 +12,7 @@ public interface IBazaresDbContext
     DbSet<BzaEvent> Events { get; }
     DbSet<BzaSale> Sales { get; }
     DbSet<BzaSoldProduct> SoldProducts { get; }
+    DbSet<BzaLiveSaleDraft> LiveSaleDrafts { get; }
     DbSet<BzaPayment> Payments { get; }
     DbSet<BzaDispatchSheet> DispatchSheets { get; }
     DbSet<BzaDispatchItem> DispatchItems { get; }
@@ -33,6 +34,7 @@ public interface IBazaresDbContext
     DbSet<BzaSaleCancellation> SaleCancellations { get; }
     DbSet<BzaBlockedCustomer> BlockedCustomers { get; }
     DbSet<BzaWhatsAppMessage> WhatsAppMessages { get; }
+    DbSet<BzaCustomerInboxNotification> CustomerInboxNotifications { get; }
     DbSet<BzaCustomerNotificationSubscription> CustomerNotificationSubscriptions { get; }
     DbSet<BzaNotificationLog> NotificationLogs { get; }
     DbSet<BzaNoWhatsAppSequence> NoWhatsAppSequences { get; }

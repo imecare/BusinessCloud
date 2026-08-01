@@ -1,3 +1,4 @@
+using BusinessCloud.Application.Bazares.Common;
 using BusinessCloud.Application.Common.Interfaces;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -53,6 +54,16 @@ public class GetCustomerPortalHandler(IBazaresDbContext context)
                 };
             }).ToList();
 
+        var notifications = await _context.CustomerInboxNotifications
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(n => n.TenantId == customer.TenantId && n.BzaCustomerId == customer.Id)
+            .OrderBy(n => n.ReadAt.HasValue)
+            .ThenByDescending(n => n.CreatedAt)
+            .Select(n => new CustomerInboxNotificationDto(
+                n.Id, n.Title, n.Message, n.ActionUrl, n.CreatedAt, n.ReadAt))
+            .ToListAsync(ct);
+
         return new CustomerPortalDto
         {
             CustomerName = customer.Name,
@@ -60,7 +71,8 @@ public class GetCustomerPortalHandler(IBazaresDbContext context)
             CollectorGroup = customer.Collector.CollectorGroup?.Description,
             ActiveSales = salesGrouped.Where(s => s.Status < 4).ToList(),
             History = salesGrouped.Where(s => s.Status >= 4).ToList(),
-            TotalPending = salesGrouped.Where(s => s.Status < 4).Sum(s => s.Remaining)
+            TotalPending = salesGrouped.Where(s => s.Status < 4).Sum(s => s.Remaining),
+            Notifications = notifications
         };
     }
 }

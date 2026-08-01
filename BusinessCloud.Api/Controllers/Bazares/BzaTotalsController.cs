@@ -21,6 +21,7 @@ using BusinessCloud.Application.Bazares.Commands.ValidateClosureProof;
 using BusinessCloud.Application.Bazares.Queries.GetClosureDeliveryProofs;
 using BusinessCloud.Application.Bazares.Queries.GetClosureEventDetail;
 using BusinessCloud.Application.Bazares.Queries.GetClosureEvents;
+using BusinessCloud.Application.Bazares.Queries.GetClosureWhatsAppStatus;
 using BusinessCloud.Application.Bazares.Queries.GetDeliveryLabelData;
 using BusinessCloud.Application.Bazares.Queries.GetPendingMoveOptions;
 using BusinessCloud.Application.Bazares.Queries.GetReactivationOptions;
@@ -79,6 +80,10 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
     [HttpPost("{id:int}/send-whatsapp-retry")]
     public async Task<ActionResult<SendClosureWhatsAppResultDto>> RetryWhatsApp(int id, [FromBody] RetryWhatsAppRequest body)
         => await mediator.Send(new SendClosureWhatsAppCommand(id, body?.PortalBaseUrl ?? string.Empty, body?.CustomerIds));
+
+    [HttpGet("{id:int}/whatsapp-status")]
+    public async Task<ActionResult<ClosureWhatsAppStatusDto>> GetWhatsAppStatus(int id)
+        => await mediator.Send(new GetClosureWhatsAppStatusQuery(id));
 
     /// <summary>
     /// Envia notificaciones masivas para clientes seleccionados usando el canal elegido.

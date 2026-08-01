@@ -10,4 +10,7 @@ namespace BusinessCloud.Application.Bazares.Commands.QuickCreateBzaCustomer;
 public record QuickCreateBzaCustomerCommand : IRequest<int>
 {
     public string Name { get; init; } = string.Empty;
+    public string? FacebookName { get; init; }
+    public string? Phone { get; init; }
+    public int? BzaCollectorId { get; init; }
 }

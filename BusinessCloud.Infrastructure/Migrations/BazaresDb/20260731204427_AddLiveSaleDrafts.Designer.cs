@@ -4,6 +4,7 @@ using BusinessCloud.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BusinessCloud.Infrastructure.Migrations.BazaresDb
 {
     [DbContext(typeof(BazaresDbContext))]
-    partial class BazaresDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260731204427_AddLiveSaleDrafts")]
+    partial class AddLiveSaleDrafts
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -663,68 +666,6 @@ namespace BusinessCloud.Infrastructure.Migrations.BazaresDb
                         .HasFilter("[Phone] IS NOT NULL AND [Phone] <> ''");
 
                     b.ToTable("Bza_Customers", (string)null);
-                });
-
-            modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaCustomerInboxNotification", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ActionUrl")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("BzaClosureCustomerTotalId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("BzaCustomerId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<DateTime?>("ReadAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("TenantId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BzaClosureCustomerTotalId");
-
-                    b.HasIndex("BzaCustomerId");
-
-                    b.HasIndex("TenantId", "BzaClosureCustomerTotalId")
-                        .IsUnique();
-
-                    b.HasIndex("TenantId", "BzaCustomerId", "ReadAt");
-
-                    b.ToTable("Bza_CustomerInboxNotifications", (string)null);
                 });
 
             modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaCustomerNotificationSubscription", b =>
@@ -1854,25 +1795,6 @@ namespace BusinessCloud.Infrastructure.Migrations.BazaresDb
                         .IsRequired();
 
                     b.Navigation("Collector");
-                });
-
-            modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaCustomerInboxNotification", b =>
-                {
-                    b.HasOne("BusinessCloud.Domain.Bazares.Entities.BzaClosureCustomerTotal", "ClosureCustomerTotal")
-                        .WithMany()
-                        .HasForeignKey("BzaClosureCustomerTotalId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("BusinessCloud.Domain.Bazares.Entities.BzaCustomer", "Customer")
-                        .WithMany()
-                        .HasForeignKey("BzaCustomerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("ClosureCustomerTotal");
-
-                    b.Navigation("Customer");
                 });
 
             modelBuilder.Entity("BusinessCloud.Domain.Bazares.Entities.BzaCustomerNotificationSubscription", b =>

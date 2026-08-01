@@ -1,3 +1,4 @@
+using BusinessCloud.Application.Bazares.Common;
 using MediatR;
 
 namespace BusinessCloud.Application.Bazares.Queries.GetCustomerPortal;
@@ -13,6 +14,7 @@ public class CustomerPortalDto
     public List<CustomerPortalSaleDto> History { get; set; } = new();
     public decimal TotalPending { get; set; }
     public string? BankInfo { get; set; }
+    public List<CustomerInboxNotificationDto> Notifications { get; set; } = [];
 }
 
 public class CustomerPortalSaleDto

@@ -8,6 +8,7 @@ namespace BusinessCloud.Application.Bazares.Commands.UpdateBzaSoldProduct;
 public record UpdateBzaSoldProductCommand : IRequest<bool>
 {
     public int Id { get; init; }
+    public int? BzaCustomerId { get; init; }
     public string Description { get; init; } = string.Empty;
     public decimal Price { get; init; }
 }
