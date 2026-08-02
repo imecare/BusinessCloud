@@ -143,6 +143,7 @@ public class SendClosureWhatsAppHandler(
                 total.TotalAmount,
                 effectiveDeliveryDate,
                 closure.PaymentDeadline,
+                settings?.PaymentCutoffTime,
                 uploadUrl);
 
             if (!existingInboxTotalIds.Contains(total.Id))
@@ -178,7 +179,7 @@ public class SendClosureWhatsAppHandler(
                         name,
                         total.TotalAmount.ToString("N2", Culture),
                         FormatLongDate(effectiveDeliveryDate),
-                        FormatLongDate(closure.PaymentDeadline),
+                        FormatDeadlineWithTime(closure.PaymentDeadline, settings?.PaymentCutoffTime),
                     };
 
                     send = await TrySendClosureTemplateAsync(
@@ -298,7 +299,7 @@ public class SendClosureWhatsAppHandler(
         var langs = GetLanguageCandidates(configuredLang);
         WhatsAppSendResult last = new(false, null, null, "No se pudo enviar la plantilla de WhatsApp.");
 
-        // total_compra_v2: el nombre del bazar va en el HEADER y el cuerpo lleva 5 parametros
+        // total_compra_v3: el nombre del bazar va en el HEADER y el cuerpo lleva 5 parametros
         // (cliente, total, fecha de entrega, fecha limite y el enlace del comprobante).
         var bodyParams = bodyCommonParams.Concat(new[] { uploadUrl }).ToArray();
 
@@ -351,19 +352,51 @@ public class SendClosureWhatsAppHandler(
     }
 
     /// <summary>
+    /// Fecha límite con la hora configurada: "día a las hh:mm tt". Si el cierre ya trae
+    /// hora propia se usa esa; si no, se usa la hora límite general del bazar (HH:mm).
+    /// Si no hay hora disponible, se devuelve solo la fecha.
+    /// </summary>
+    private static string FormatDeadlineWithTime(DateTime deadline, string? cutoffTime)
+    {
+        var fecha = FormatLongDate(deadline);
+
+        if (deadline.Hour != 0 || deadline.Minute != 0)
+        {
+            return $"{fecha} a las {FormatTime(deadline.Hour, deadline.Minute)}";
+        }
+
+        var time = (cutoffTime ?? string.Empty).Trim();
+        var match = System.Text.RegularExpressions.Regex.Match(time, "^([01]?[0-9]|2[0-3]):([0-5][0-9])$");
+        if (match.Success)
+        {
+            var hour = int.Parse(match.Groups[1].Value, Culture);
+            var minute = int.Parse(match.Groups[2].Value, Culture);
+            return $"{fecha} a las {FormatTime(hour, minute)}";
+        }
+
+        return fecha;
+    }
+
+    private static string FormatTime(int hour, int minute)
+    {
+        var reference = new DateTime(2000, 1, 1, hour, minute, 0);
+        return reference.ToString("hh:mm tt", Culture);
+    }
+
+    /// <summary>
     /// Texto plano equivalente a la notificación de cobro, para que el operador lo
     /// copie y lo envíe manualmente por Messenger a los clientes sin WhatsApp.
     /// </summary>
     private static string BuildMessengerText(
         string name, string bazarName, decimal totalAmount,
-        DateTime deliveryDate, DateTime paymentDeadline, string uploadUrl)
+        DateTime deliveryDate, DateTime paymentDeadline, string? paymentCutoffTime, string uploadUrl)
     {
         var total = totalAmount.ToString("N2", Culture);
         return
             $"Hola {name}, te escribimos de {bazarName}. " +
             $"El total de tu compra es de ${total}. " +
             $"Fecha de entrega: {FormatLongDate(deliveryDate)}. " +
-            $"Fecha límite de pago: {FormatLongDate(paymentDeadline)}. " +
+            $"Fecha límite de pago: {FormatDeadlineWithTime(paymentDeadline, paymentCutoffTime)}. " +
             $"Sube tu comprobante de pago aquí: {uploadUrl}";
     }
 }

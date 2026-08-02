@@ -62,7 +62,7 @@ public class CustomerInboxNotificationTests
             .ReturnsAsync(new WhatsAppSendResult(true, "wamid-1", null, null));
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["WhatsApp:ClosureTotalsTemplateName"] = "total_compra_v2",
+            ["WhatsApp:ClosureTotalsTemplateName"] = "total_compra_v3",
             ["WhatsApp:ClosureTotalsTemplateLang"] = "es",
         }).Build();
         var handler = new SendClosureWhatsAppHandler(
@@ -76,6 +76,77 @@ public class CustomerInboxNotificationTests
         Assert.Contains("$450.00", notification.Message);
         Assert.True(Assert.Single(first.Items).InboxNotificationCreated);
         Assert.True(Assert.Single(second.Items).InboxNotificationCreated);
+    }
+
+    [Fact]
+    public async Task SendClosureWhatsApp_IncludesConfiguredCutoffTimeInDeadline()
+    {
+        using var context = BazaresContextFactory.Create();
+        var customer = new BzaCustomer
+        {
+            Id = 1,
+            TenantId = Tenant,
+            Name = "Cliente Uno",
+            Phone = "5511112222",
+        };
+        var total = new BzaClosureCustomerTotal
+        {
+            Id = 10,
+            TenantId = Tenant,
+            BzaCustomerId = customer.Id,
+            Customer = customer,
+            TotalAmount = 450m,
+            UploadToken = "upload-token",
+        };
+        context.BazarSettings.Add(new BzaBazarSettings
+        {
+            Id = 1,
+            TenantId = Tenant,
+            BazarName = "Bazar Test",
+            PaymentCutoffTime = "18:30",
+        });
+        context.ClosureEvents.Add(new BzaClosureEvent
+        {
+            Id = 20,
+            TenantId = Tenant,
+            Description = "Cierre semanal",
+            PaymentDeadline = new DateTime(2026, 7, 31, 0, 0, 0, DateTimeKind.Utc),
+            CustomerTotals = [total],
+        });
+        await context.SaveChangesAsync(default);
+
+        var identityOptions = new DbContextOptionsBuilder<IdentityDbContext>()
+            .UseInMemoryDatabase($"identity-{Guid.NewGuid():N}")
+            .Options;
+        await using var identityContext = new IdentityDbContext(identityOptions);
+        var currentUser = new Mock<ICurrentUserService>();
+        currentUser.SetupGet(x => x.TenantId).Returns(Tenant);
+
+        IReadOnlyList<string>? capturedBody = null;
+        var whatsApp = new Mock<IWhatsAppSender>();
+        whatsApp.Setup(x => x.SendTemplateWithResultAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<string?>()))
+            .Callback<string, string, string, IReadOnlyList<string>, CancellationToken, string?, string?>(
+                (_, _, _, body, _, _, _) => capturedBody = body)
+            .ReturnsAsync(new WhatsAppSendResult(true, "wamid-1", null, null));
+
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["WhatsApp:ClosureTotalsTemplateName"] = "total_compra_v3",
+            ["WhatsApp:ClosureTotalsTemplateLang"] = "es",
+        }).Build();
+        var handler = new SendClosureWhatsAppHandler(
+            context, whatsApp.Object, identityContext, currentUser.Object, configuration);
+
+        await handler.Handle(new SendClosureWhatsAppCommand(20, "https://portal.test"), default);
+
+        Assert.NotNull(capturedBody);
+        // El 4o parametro del cuerpo es la fecha limite; debe incluir la hora configurada (18:30 -> 06:30 p. m.).
+        var deadlineParam = capturedBody![3];
+        Assert.Contains("a las", deadlineParam);
+        Assert.Contains("06:30", deadlineParam);
     }
 
     [Fact]
