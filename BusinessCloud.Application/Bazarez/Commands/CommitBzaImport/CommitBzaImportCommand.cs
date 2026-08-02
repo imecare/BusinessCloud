@@ -71,5 +71,36 @@ public class CommitBzaImportResult
     /// <summary>Registros de cliente omitidos (p. ej. teléfono duplicado). Ver <see cref="Errors"/> para el detalle.</summary>
     public int IgnoredRecords { get; set; }
 
+    /// <summary>
+    /// Registros de cliente que no se pudieron guardar (p. ej. telefono duplicado) pero cuyos
+    /// datos se conservan para que el usuario los corrija (telefono/nombre) y reintente sin
+    /// tener que volver a subir el archivo.
+    /// </summary>
+    public List<CommitImportFailedRecord> FailedRecords { get; set; } = [];
+
     public List<string> Errors { get; set; } = [];
+}
+
+/// <summary>
+/// Datos completos de un cliente nuevo cuyo alta fallo, con el motivo del conflicto,
+/// para permitir corregirlo (telefono/nombre) y reintentar la importacion del registro.
+/// </summary>
+public class CommitImportFailedRecord
+{
+    public string Name { get; set; } = string.Empty;
+    public string? Phone { get; set; }
+    public bool HasNoWhatsApp { get; set; }
+    public string CollectorName { get; set; } = string.Empty;
+    public string? FacebookName { get; set; }
+    public List<CommitImportProductDto> Products { get; set; } = [];
+
+    /// <summary>Tipo de conflicto que impidio guardar el registro (p. ej. "PhoneDuplicate").</summary>
+    public string ConflictType { get; set; } = string.Empty;
+
+    /// <summary>Mensaje legible que explica el motivo y como corregirlo.</summary>
+    public string Reason { get; set; } = string.Empty;
+
+    /// <summary>Cliente existente con el que se produjo el conflicto (cuando aplica).</summary>
+    public int? ConflictCustomerId { get; set; }
+    public string? ConflictCustomerName { get; set; }
 }

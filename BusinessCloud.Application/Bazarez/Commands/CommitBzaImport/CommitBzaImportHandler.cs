@@ -195,9 +195,25 @@ public class CommitBzaImportHandler(
                 if (newCustomerPhone.Length > 0
                     && phoneOwners.TryGetValue(newCustomerPhone, out var owner))
                 {
-                    result.Errors.Add(
-                        $"Cliente '{nc.Name.Trim()}' IGNORADO: el teléfono '{newCustomerPhone}' ya está registrado " +
-                        $"para el cliente '{owner.Name}'. Corrige el teléfono y vuelve a importar este registro.");
+                    // No se pierde el registro: se conservan sus datos y productos para que el
+                    // usuario corrija el teléfono o el nombre y reintente sin volver a subir el archivo.
+                    result.FailedRecords.Add(new CommitImportFailedRecord
+                    {
+                        Name = nc.Name.Trim(),
+                        Phone = newCustomerPhone,
+                        HasNoWhatsApp = nc.HasNoWhatsApp,
+                        CollectorName = nc.CollectorName?.Trim() ?? string.Empty,
+                        FacebookName = string.IsNullOrWhiteSpace(nc.FacebookName) ? null : nc.FacebookName.Trim(),
+                        Products = customerDto.Products
+                            .Select(p => new CommitImportProductDto { Description = p.Description, Price = p.Price })
+                            .ToList(),
+                        ConflictType = "PhoneDuplicate",
+                        ConflictCustomerId = owner.Id,
+                        ConflictCustomerName = owner.Name,
+                        Reason =
+                            $"El teléfono '{newCustomerPhone}' ya está registrado para el cliente '{owner.Name}'. " +
+                            "Asigna otro teléfono (o corrige el nombre si es la misma persona) y reintenta este registro.",
+                    });
                     result.IgnoredRecords++;
                     continue;
                 }
