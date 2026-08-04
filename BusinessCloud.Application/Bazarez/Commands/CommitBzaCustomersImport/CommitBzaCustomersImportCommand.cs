@@ -34,6 +34,7 @@ public class CommitBzaCustomersImportResult
 {
     public int CustomersCreated { get; set; }
     public int NewCollectorsCreated { get; set; }
+    public int PendingInfoCustomersCreated { get; set; }
 
     /// <summary>Clientes omitidos (ya existían o teléfono duplicado). Ver <see cref="Errors"/>.</summary>
     public int IgnoredRecords { get; set; }

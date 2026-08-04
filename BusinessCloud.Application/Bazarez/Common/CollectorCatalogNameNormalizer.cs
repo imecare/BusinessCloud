@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 
 namespace BusinessCloud.Application.Bazares.Common;
 
@@ -20,7 +20,7 @@ public static partial class CollectorCatalogNameNormalizer
     public static string ToComparisonKey(string? value)
         => Clean(value).ToUpperInvariant();
 
-    private static string CollapseSpaces(string? value)
+    public static string CollapseSpaces(string? value)
         => WhiteSpaceRegex().Replace(value?.Trim() ?? string.Empty, " ");
 
     [GeneratedRegex(@"\s+")]

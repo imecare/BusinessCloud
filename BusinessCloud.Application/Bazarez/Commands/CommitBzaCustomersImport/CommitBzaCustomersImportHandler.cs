@@ -1,5 +1,5 @@
-using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Application.Bazares.Common;
+using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Domain.Bazares.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -12,134 +12,151 @@ public class CommitBzaCustomersImportHandler(
     ICurrentUserService currentUser)
     : IRequestHandler<CommitBzaCustomersImportCommand, CommitBzaCustomersImportResult>
 {
-    private readonly IBazaresDbContext _context = context;
-    private readonly IMongoContext _mongoContext = mongoContext;
-    private readonly ICurrentUserService _currentUser = currentUser;
-
-    public async Task<CommitBzaCustomersImportResult> Handle(CommitBzaCustomersImportCommand request, CancellationToken ct)
+    public async Task<CommitBzaCustomersImportResult> Handle(
+        CommitBzaCustomersImportCommand request,
+        CancellationToken ct)
     {
         var result = new CommitBzaCustomersImportResult();
+        var tenantId = currentUser.GetRequiredTenantId();
 
-        // 1. Catálogos en memoria
-        var collectors = await _context.Collectors.ToListAsync(ct);
-        var collectorByName = new Dictionary<string, BzaCollector>(StringComparer.OrdinalIgnoreCase);
-        foreach (var c in collectors)
-            collectorByName.TryAdd(c.Name.Trim(), c);
-
-        // 1.a. Dar de alta los recolectores NUEVOS (solo los que no existen) con su grupo
-        foreach (var nc in request.NewCollectors)
+        await context.ExecuteInTransactionAsync(async transactionCt =>
         {
-            var name = nc.Name?.Trim();
-            if (string.IsNullOrEmpty(name) || collectorByName.ContainsKey(name))
-                continue;
+            var collectors = await context.Collectors.ToListAsync(transactionCt);
+            var collectorByKey = collectors
+                .GroupBy(collector => CollectorCatalogNameNormalizer.ToComparisonKey(collector.Name), StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.Ordinal);
 
-            var groupExists = await _context.CollectorGroups.AnyAsync(g => g.Id == nc.GroupId, ct);
-            if (!groupExists)
+            foreach (var requestedCollector in request.NewCollectors)
             {
-                result.Errors.Add($"Grupo inválido para el recolector nuevo '{name}'.");
-                continue;
+                var name = CollectorCatalogNameNormalizer.Clean(requestedCollector.Name);
+                var key = CollectorCatalogNameNormalizer.ToComparisonKey(name);
+                if (key.Length == 0 || key == "SIN ASIGNAR")
+                {
+                    result.Errors.Add($"Recolector nuevo '{requestedCollector.Name}' IGNORADO: el nombre no es válido.");
+                    continue;
+                }
+
+                if (collectorByKey.ContainsKey(key))
+                    continue;
+
+                var groupExists = await context.CollectorGroups
+                    .AnyAsync(group => group.Id == requestedCollector.GroupId, transactionCt);
+                if (!groupExists)
+                {
+                    result.Errors.Add($"Grupo inválido para el recolector nuevo '{name}'.");
+                    continue;
+                }
+
+                var collector = new BzaCollector
+                {
+                    Name = name,
+                    BzaCollectorGroupId = requestedCollector.GroupId,
+                    IsActive = true,
+                };
+                context.Collectors.Add(collector);
+                collectorByKey[key] = [collector];
+                result.NewCollectorsCreated++;
             }
 
-            var collector = new BzaCollector
+            var existingCustomers = await context.Customers
+                .Select(customer => new { customer.Name, customer.Phone })
+                .ToListAsync(transactionCt);
+            var existingNames = existingCustomers
+                .Select(customer => NormalizeCustomerKey(customer.Name))
+                .ToHashSet(StringComparer.Ordinal);
+            var phoneOwners = existingCustomers
+                .Where(customer => !string.IsNullOrWhiteSpace(customer.Phone))
+                .GroupBy(customer => customer.Phone.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First().Name, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var dto in request.Customers)
             {
-                Name = name,
-                BzaCollectorGroupId = nc.GroupId,
-                IsActive = true,
-            };
-            _context.Collectors.Add(collector);
-            await _context.SaveChangesAsync(ct);
-            collectorByName[name] = collector;
-            result.NewCollectorsCreated++;
-        }
+                var name = CollectorCatalogNameNormalizer.CollapseSpaces(dto.Name);
+                var nameKey = NormalizeCustomerKey(name);
+                if (name.Length == 0)
+                {
+                    result.Errors.Add("Cliente sin nombre. Se omitió.");
+                    result.IgnoredRecords++;
+                    continue;
+                }
 
-        BzaCollector? ResolveCollector(string? name) =>
-            string.IsNullOrWhiteSpace(name) ? null
-            : collectorByName.TryGetValue(name.Trim(), out var c) ? c : null;
+                if (!existingNames.Add(nameKey))
+                {
+                    result.Errors.Add($"Cliente '{name}' IGNORADO: ya está registrado.");
+                    result.IgnoredRecords++;
+                    continue;
+                }
 
-        // Índices para detectar duplicados de nombre y teléfono (únicos por tenant).
-        var existing = await _context.Customers
-            .Select(c => new { c.Id, c.Name, c.Phone })
-            .ToListAsync(ct);
+                var collectorKey = CollectorCatalogNameNormalizer.ToComparisonKey(dto.CollectorName);
+                if (collectorKey.Length == 0 || collectorKey == "SIN ASIGNAR")
+                {
+                    result.Errors.Add($"Cliente '{name}' IGNORADO: debe tener un recolector real.");
+                    result.IgnoredRecords++;
+                    existingNames.Remove(nameKey);
+                    continue;
+                }
 
-        var existingNames = new HashSet<string>(
-            existing.Select(c => c.Name.Trim()), StringComparer.OrdinalIgnoreCase);
+                if (!collectorByKey.TryGetValue(collectorKey, out var collectorMatches))
+                {
+                    result.Errors.Add($"Cliente '{name}' IGNORADO: recolector '{dto.CollectorName}' no encontrado.");
+                    result.IgnoredRecords++;
+                    existingNames.Remove(nameKey);
+                    continue;
+                }
 
-        var phoneOwners = existing
-            .Where(c => !string.IsNullOrWhiteSpace(c.Phone))
-            .GroupBy(c => c.Phone.Trim(), StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First().Name, StringComparer.OrdinalIgnoreCase);
+                if (collectorMatches.Count != 1)
+                {
+                    result.Errors.Add(
+                        $"Cliente '{name}' IGNORADO: el recolector '{dto.CollectorName}' es ambiguo entre varios grupos.");
+                    result.IgnoredRecords++;
+                    existingNames.Remove(nameKey);
+                    continue;
+                }
 
-        var tenantId = _currentUser.TenantId ?? string.Empty;
+                var phone = PhoneNumberNormalizer.Normalize(dto.Phone);
+                if (phone.Length > 0 && phoneOwners.TryGetValue(phone, out var owner))
+                {
+                    result.Errors.Add(
+                        $"Cliente '{name}' IGNORADO: el teléfono '{phone}' ya está registrado para '{owner}'.");
+                    result.IgnoredRecords++;
+                    existingNames.Remove(nameKey);
+                    continue;
+                }
 
-        foreach (var dto in request.Customers)
-        {
-            var name = dto.Name?.Trim();
-            if (string.IsNullOrEmpty(name))
-            {
-                result.Errors.Add("Cliente sin nombre. Se omitió.");
-                result.IgnoredRecords++;
-                continue;
+                var facebookName = FacebookMessengerProfile.Normalize(dto.FacebookName);
+                var hasNoWhatsApp = phone.Length == 0;
+                if (hasNoWhatsApp)
+                    phone = await NoWhatsAppNumber.ReserveNextAsync(context, tenantId, transactionCt);
+
+                var isPendingInfo = hasNoWhatsApp && facebookName is null;
+                var collector = collectorMatches[0];
+                context.Customers.Add(new BzaCustomer
+                {
+                    Name = name,
+                    Phone = phone,
+                    HasNoWhatsApp = hasNoWhatsApp,
+                    FacebookName = facebookName,
+                    BzaCollectorId = collector.Id,
+                    Collector = collector,
+                    Status = 1,
+                    IsPendingInfo = isPendingInfo,
+                    PortalToken = Guid.NewGuid().ToString("N")[..12],
+                });
+
+                phoneOwners[phone] = name;
+                result.CustomersCreated++;
+                if (isPendingInfo)
+                    result.PendingInfoCustomersCreated++;
             }
 
-            // Ya existe un cliente con ese nombre -> se omite.
-            if (existingNames.Contains(name))
-            {
-                result.Errors.Add($"Cliente '{name}' IGNORADO: ya está registrado.");
-                result.IgnoredRecords++;
-                continue;
-            }
+            await context.SaveChangesAsync(transactionCt);
+        }, ct);
 
-            var collector = ResolveCollector(dto.CollectorName);
-            if (collector is null)
-            {
-                result.Errors.Add($"Cliente '{name}' IGNORADO: recolector '{dto.CollectorName}' inválido.");
-                result.IgnoredRecords++;
-                continue;
-            }
-
-            var phone = NormalizePhone(dto.Phone);
-
-            // Teléfono único por tenant: si ya pertenece a otro cliente, se omite el registro.
-            if (phone.Length > 0 && phoneOwners.TryGetValue(phone, out var owner))
-            {
-                result.Errors.Add(
-                    $"Cliente '{name}' IGNORADO: el teléfono '{phone}' ya está registrado para el cliente '{owner}'. " +
-                    "Corrige el teléfono y vuelve a importar este registro.");
-                result.IgnoredRecords++;
-                continue;
-            }
-
-            // Fila sin teléfono: no se puede enviar WhatsApp. Se marca como cliente sin
-            // número y se le asigna un placeholder consecutivo por bazar.
-            var noWhatsApp = phone.Length == 0;
-            if (noWhatsApp)
-            {
-                phone = await NoWhatsAppNumber.ReserveNextAsync(_context, tenantId, ct);
-            }
-
-            var customer = new BzaCustomer
-            {
-                Name = name,
-                Phone = phone,
-                HasNoWhatsApp = noWhatsApp,
-                FacebookName = string.IsNullOrWhiteSpace(dto.FacebookName) ? null : dto.FacebookName.Trim(),
-                BzaCollectorId = collector.Id,
-                Status = 1,
-                PortalToken = Guid.NewGuid().ToString("N")[..12],
-            };
-            _context.Customers.Add(customer);
-            await _context.SaveChangesAsync(ct);
-
-            existingNames.Add(name);
-            phoneOwners[phone] = name;
-            result.CustomersCreated++;
-        }
-
-        // Auditoría en MongoDB
-        await _mongoContext.InsertAuditLogAsync(new
+        await mongoContext.InsertAuditLogAsync(new
         {
             Event = "Bza_CustomersImportedFromExcel",
             result.CustomersCreated,
+            result.PendingInfoCustomersCreated,
             result.NewCollectorsCreated,
             result.IgnoredRecords,
             Source = "Excel",
@@ -149,7 +166,6 @@ public class CommitBzaCustomersImportHandler(
         return result;
     }
 
-    /// <summary>Deja solo los dígitos del teléfono y antepone el código de país (52) cuando falte.</summary>
-    private static string NormalizePhone(string? phone)
-        => PhoneNumberNormalizer.Normalize(phone);
+    private static string NormalizeCustomerKey(string? value)
+        => CollectorCatalogNameNormalizer.CollapseSpaces(value).ToUpperInvariant();
 }
