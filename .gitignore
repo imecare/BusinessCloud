@@ -498,3 +498,6 @@ secrets/
 
 # Archivos subidos localmente (comprobantes de prueba, no deben ir al repo)
 BusinessCloud.Api/uploads/
+
+# Scripts SQL locales
+/scripts/
