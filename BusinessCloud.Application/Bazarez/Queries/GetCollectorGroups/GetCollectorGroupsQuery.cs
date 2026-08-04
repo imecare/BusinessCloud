@@ -4,7 +4,7 @@ using BusinessCloud.Application.Common.Interfaces;
 
 namespace BusinessCloud.Application.Bazares.Queries.GetCollectorGroups;
 
-public record CollectorGroupDto(int Id, string Description, int? DeliveryDay, bool IsActive, int CollectorCount, int ActiveCollectorCount);
+public record CollectorGroupDto(int Id, string Description, int? DeliveryDay, string? DeliveryFrequency, bool IsActive, int CollectorCount, int ActiveCollectorCount);
 
 public record GetCollectorGroupsQuery(bool IncludeInactive = false) : IRequest<List<CollectorGroupDto>>;
 
@@ -25,6 +25,7 @@ public class GetCollectorGroupsHandler(IBazaresDbContext context)
                 g.Id,
                 g.Description,
                 g.DeliveryDay,
+                g.DeliveryFrequency,
                 g.IsActive,
                 g.Collectors.Count,
                 g.Collectors.Count(c => c.IsActive)))

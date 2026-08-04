@@ -16,5 +16,9 @@ public class UpdateCollectorGroupValidator : AbstractValidator<UpdateCollectorGr
         RuleFor(x => x.DeliveryDay)
             .InclusiveBetween(0, 6).WithMessage("El día de entrega debe estar entre 0 (Domingo) y 6 (Sábado)")
             .When(x => x.DeliveryDay.HasValue);
+
+        RuleFor(x => x.DeliveryFrequency)
+            .MaximumLength(50).WithMessage("La frecuencia de entrega no puede exceder 50 caracteres")
+            .When(x => !string.IsNullOrWhiteSpace(x.DeliveryFrequency));
     }
 }

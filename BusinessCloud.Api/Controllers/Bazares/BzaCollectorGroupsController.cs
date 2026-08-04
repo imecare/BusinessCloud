@@ -8,6 +8,9 @@ using BusinessCloud.Application.Bazares.Commands.DeleteCollectorGroup;
 using BusinessCloud.Application.Bazares.Commands.ActivateCollectorGroup;
 using BusinessCloud.Application.Bazares.Commands.DeactivateCollectorGroup;
 using BusinessCloud.Application.Bazares.Queries.GetCollectorGroups;
+using BusinessCloud.Application.Bazares.Queries.GetGlobalCollectorGroups;
+using BusinessCloud.Application.Bazares.Commands.ImportGlobalCollectorGroups;
+using BusinessCloud.Shared.Responses;
 
 namespace BusinessCloud.Api.Controllers.Bazares;
 
@@ -20,6 +23,32 @@ public class BzaCollectorGroupsController(ISender mediator) : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<CollectorGroupDto>>> GetAll([FromQuery] bool includeInactive = false)
         => await mediator.Send(new GetCollectorGroupsQuery(includeInactive));
+
+    [HttpGet("global-catalog")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<GlobalCollectorGroupDto>>>> GetGlobalCatalog()
+    {
+        var groups = await mediator.Send(new GetGlobalCollectorGroupsQuery());
+        return Ok(new ApiResponse<IReadOnlyList<GlobalCollectorGroupDto>>
+        {
+            Success = true,
+            Message = $"Se encontraron {groups.Count} grupos en la Base general.",
+            Data = groups,
+        });
+    }
+
+    [HttpPost("import-global")]
+    public async Task<ActionResult<ApiResponse<ImportGlobalCollectorGroupsResult>>> ImportGlobal(
+        ImportGlobalCollectorGroupsCommand command)
+    {
+        var result = await mediator.Send(command);
+        return Ok(new ApiResponse<ImportGlobalCollectorGroupsResult>
+        {
+            Success = true,
+            Message = $"Importación completada: {result.GroupsCreated} grupos y {result.CollectorsCreated} recolectores creados; " +
+                      $"{result.GroupsReused} grupos reutilizados y {result.CollectorsSkipped} recolectores omitidos por duplicado.",
+            Data = result,
+        });
+    }
 
     [HttpPost]
     public async Task<ActionResult<int>> Create(CreateCollectorGroupCommand command)

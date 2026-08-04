@@ -5,7 +5,7 @@ using BusinessCloud.Domain.Bazares.Entities;
 
 namespace BusinessCloud.Application.Bazares.Commands.CreateCollectorGroup;
 
-public record CreateCollectorGroupCommand(string Description, int? DeliveryDay = null) : IRequest<int>;
+public record CreateCollectorGroupCommand(string Description, int? DeliveryDay = null, string? DeliveryFrequency = null) : IRequest<int>;
 
 public class CreateCollectorGroupHandler(IBazaresDbContext context)
     : IRequestHandler<CreateCollectorGroupCommand, int>
@@ -24,7 +24,10 @@ public class CreateCollectorGroupHandler(IBazaresDbContext context)
         var entity = new BzaCollectorGroup
         {
             Description = description,
-            DeliveryDay = request.DeliveryDay
+            DeliveryDay = request.DeliveryDay,
+            DeliveryFrequency = string.IsNullOrWhiteSpace(request.DeliveryFrequency)
+                ? null
+                : request.DeliveryFrequency.Trim()
         };
 
         context.CollectorGroups.Add(entity);

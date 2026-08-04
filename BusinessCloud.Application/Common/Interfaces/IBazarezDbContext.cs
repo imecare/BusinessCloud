@@ -7,6 +7,8 @@ public interface IBazaresDbContext
 {
     DbSet<BzaCollectorGroup> CollectorGroups { get; }
     DbSet<BzaCollector> Collectors { get; }
+    DbSet<BzaGlobalCollectorGroup> GlobalCollectorGroups { get; }
+    DbSet<BzaGlobalCollector> GlobalCollectors { get; }
     DbSet<BzaCustomer> Customers { get; }
     DbSet<BzaDate> Dates { get; }
     DbSet<BzaEvent> Events { get; }
@@ -39,5 +41,6 @@ public interface IBazaresDbContext
     DbSet<BzaNotificationLog> NotificationLogs { get; }
     DbSet<BzaNoWhatsAppSequence> NoWhatsAppSequences { get; }
 
+    Task ExecuteInTransactionAsync(Func<CancellationToken, Task> operation, CancellationToken cancellationToken);
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

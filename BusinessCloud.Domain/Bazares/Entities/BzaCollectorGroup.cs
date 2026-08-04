@@ -12,6 +12,7 @@ public class BzaCollectorGroup : BaseAuditableEntity
     /// Valores según <see cref="DayOfWeek"/> (0=Domingo ... 6=Sábado). Null si no está definido.
     /// </summary>
     public int? DeliveryDay { get; set; }
+    public string? DeliveryFrequency { get; set; }
 
     public bool IsActive { get; set; } = true;
     public ICollection<BzaCollector> Collectors { get; set; } = new List<BzaCollector>();

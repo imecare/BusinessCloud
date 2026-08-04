@@ -4,7 +4,7 @@ using BusinessCloud.Application.Common.Interfaces;
 
 namespace BusinessCloud.Application.Bazares.Commands.UpdateCollectorGroup;
 
-public record UpdateCollectorGroupCommand(int Id, string Description, int? DeliveryDay = null) : IRequest;
+public record UpdateCollectorGroupCommand(int Id, string Description, int? DeliveryDay = null, string? DeliveryFrequency = null) : IRequest;
 
 public class UpdateCollectorGroupHandler(IBazaresDbContext context)
     : IRequestHandler<UpdateCollectorGroupCommand>
@@ -26,6 +26,9 @@ public class UpdateCollectorGroupHandler(IBazaresDbContext context)
 
         entity.Description = description;
         entity.DeliveryDay = request.DeliveryDay;
+        entity.DeliveryFrequency = string.IsNullOrWhiteSpace(request.DeliveryFrequency)
+            ? null
+            : request.DeliveryFrequency.Trim();
         await context.SaveChangesAsync(ct);
     }
 }

@@ -17,6 +17,8 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
 
     public DbSet<BzaCollectorGroup> CollectorGroups => Set<BzaCollectorGroup>();
     public DbSet<BzaCollector> Collectors => Set<BzaCollector>();
+    public DbSet<BzaGlobalCollectorGroup> GlobalCollectorGroups => Set<BzaGlobalCollectorGroup>();
+    public DbSet<BzaGlobalCollector> GlobalCollectors => Set<BzaGlobalCollector>();
     public DbSet<BzaCustomer> Customers => Set<BzaCustomer>();
     public DbSet<BzaDate> Dates => Set<BzaDate>();
     public DbSet<BzaEvent> Events => Set<BzaEvent>();
@@ -58,6 +60,25 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         // ─────────────────────────────────────────────────────────────────────
         modelBuilder.Entity<BzaCollectorGroup>().ToTable("Bza_CollectorGroups");
         modelBuilder.Entity<BzaCollector>().ToTable("Bza_Collectors");
+        modelBuilder.Entity<BzaCollectorGroup>().Property(group => group.DeliveryFrequency).HasMaxLength(50);
+
+        modelBuilder.Entity<BzaGlobalCollectorGroup>(entity =>
+        {
+            entity.ToTable("Bza_GlobalCollectorGroups");
+            entity.Property(group => group.Description).IsRequired().HasMaxLength(200);
+            entity.Property(group => group.DeliveryFrequency).HasMaxLength(50);
+            entity.HasIndex(group => group.Description).IsUnique();
+        });
+        modelBuilder.Entity<BzaGlobalCollector>(entity =>
+        {
+            entity.ToTable("Bza_GlobalCollectors");
+            entity.Property(collector => collector.Name).IsRequired().HasMaxLength(200);
+            entity.HasIndex(collector => new { collector.BzaGlobalCollectorGroupId, collector.Name }).IsUnique();
+            entity.HasOne(collector => collector.CollectorGroup)
+                .WithMany(group => group.Collectors)
+                .HasForeignKey(collector => collector.BzaGlobalCollectorGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
         modelBuilder.Entity<BzaCustomer>().ToTable("Bza_Customers");
         modelBuilder.Entity<BzaDate>().ToTable("Bza_Dates");
         modelBuilder.Entity<BzaEvent>().ToTable("Bza_Events");
@@ -426,6 +447,27 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         modelBuilder.Entity<BzaNotificationLog>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaCustomerInboxNotification>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaNoWhatsAppSequence>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+    }
+
+    public async Task ExecuteInTransactionAsync(
+        Func<CancellationToken, Task> operation,
+        CancellationToken cancellationToken)
+    {
+        if (!Database.IsRelational())
+        {
+            await operation(cancellationToken);
+            return;
+        }
+
+        var strategy = Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await Database.BeginTransactionAsync(
+                System.Data.IsolationLevel.Serializable,
+                cancellationToken);
+            await operation(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        });
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
