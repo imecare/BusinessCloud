@@ -5,6 +5,8 @@ using BusinessCloud.Application.Bazares.Commands.MergeBzaCustomers;
 using BusinessCloud.Application.Bazares.Commands.UpdateBzaCustomer;
 using BusinessCloud.Application.Bazares.Commands.CommitBzaCustomersImport;
 using BusinessCloud.Application.Bazares.Queries.GetBzaCustomers;
+using BusinessCloud.Application.Bazares.Queries.GetBzaCustomersPage;
+using BusinessCloud.Application.Bazares.Queries.GetPendingBzaCustomers;
 using BusinessCloud.Application.Bazares.Queries.GetBlockedCustomers;
 using BusinessCloud.Application.Bazares.Queries.GetBzaCustomersTemplate;
 using BusinessCloud.Application.Bazares.Queries.GetMergeCandidates;
@@ -29,6 +31,14 @@ public class BzaCustomersController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<BzaCustomerDto>>> GetAll()
         => await _mediator.Send(new GetBzaCustomersQuery());
+
+    [HttpGet("page")]
+    public async Task<ActionResult<BzaCustomersPageDto>> GetPage([FromQuery] string? query, [FromQuery] int skip = 0, [FromQuery] int take = 200)
+        => await _mediator.Send(new GetBzaCustomersPageQuery(query, skip, take));
+
+    [HttpGet("pending")]
+    public async Task<ActionResult<PendingBzaCustomersPageDto>> GetPending([FromQuery] string? query, [FromQuery] int skip = 0, [FromQuery] int take = 200)
+        => await _mediator.Send(new GetPendingBzaCustomersQuery(query, skip, take));
 
     [HttpGet("search")]
     public async Task<ActionResult<List<BzaCustomerSearchDto>>> Search([FromQuery] string? query)

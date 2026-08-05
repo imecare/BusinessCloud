@@ -6,10 +6,4 @@
     <!-- Estas son dependencias transitivas que se actualizarán cuando MongoDB.Driver las actualice -->
     <NoWarn>$(NoWarn);NU1902;NU1903</NoWarn>
   </PropertyGroup>
-  
-  <!-- Rutas de salida personalizadas solo en desarrollo local Windows -->
-  <PropertyGroup Condition="'$(CI)' == '' AND $([MSBuild]::IsOSPlatform('Windows'))">
-    <BaseOutputPath>D:\Builds\</BaseOutputPath>
-    <BaseIntermediateOutputPath>D:\Builds\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
-  </PropertyGroup>
 </Project>
