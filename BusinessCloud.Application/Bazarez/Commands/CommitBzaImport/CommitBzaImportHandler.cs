@@ -1,4 +1,4 @@
-using BusinessCloud.Application.Common.Interfaces;
+﻿using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Application.Bazares.Common;
 using BusinessCloud.Domain.Bazares.Entities;
 using MediatR;
@@ -27,15 +27,15 @@ public class CommitBzaImportHandler(
         if (saleEvent.Status == 5)
             throw new InvalidOperationException("No se puede importar en un evento cancelado.");
 
-        // Si el evento ya está en proceso de pago (tiene ventas enviadas a cobro),
-        // no se pueden agregar más ventas mediante el importador.
+        // Si el evento ya estÃ¡ en proceso de pago (tiene ventas enviadas a cobro),
+        // no se pueden agregar mÃ¡s ventas mediante el importador.
         var eventInPayment = await _context.Sales
             .AnyAsync(s => s.BzaEventId == request.EventId && s.BzaClosureEventId != null, ct);
         if (eventInPayment)
             throw new InvalidOperationException(
-                "El evento ya está en proceso de pago (se enviaron totales a los clientes). No se pueden agregar más ventas a este evento.");
+                "El evento ya estÃ¡ en proceso de pago (se enviaron totales a los clientes). No se pueden agregar mÃ¡s ventas a este evento.");
 
-        // 2. Catálogos en memoria
+        // 2. CatÃ¡logos en memoria
         var collectors = await _context.Collectors.ToListAsync(ct);
         var collectorByName = new Dictionary<string, BzaCollector>(StringComparer.OrdinalIgnoreCase);
         foreach (var c in collectors)
@@ -51,7 +51,7 @@ public class CommitBzaImportHandler(
             var groupExists = await _context.CollectorGroups.AnyAsync(g => g.Id == nc.GroupId, ct);
             if (!groupExists)
             {
-                result.Errors.Add($"Grupo inválido para el recolector nuevo '{name}'.");
+                result.Errors.Add($"Grupo invÃ¡lido para el recolector nuevo '{name}'.");
                 continue;
             }
 
@@ -77,9 +77,9 @@ public class CommitBzaImportHandler(
             .ToListAsync(ct))
             .ToDictionary(s => s.BzaCustomerId);
 
-        // Índice de teléfonos ya usados (por tenant): el teléfono es único por tenant,
-        // por eso se valida antes de crear/actualizar y así poder ignorar el registro
-        // conflictivo sin abortar toda la importación.
+        // Ãndice de telÃ©fonos ya usados (por tenant): el telÃ©fono es Ãºnico por tenant,
+        // por eso se valida antes de crear/actualizar y asÃ­ poder ignorar el registro
+        // conflictivo sin abortar toda la importaciÃ³n.
         var phoneOwners = (await _context.Customers
                 .Where(c => c.Phone != null && c.Phone != "")
                 .Select(c => new { c.Id, c.Name, c.Phone })
@@ -119,7 +119,7 @@ public class CommitBzaImportHandler(
                     }
                 }
 
-                // 3.b. Cambio de datos del cliente (Facebook / Teléfono) confirmado
+                // 3.b. Cambio de datos del cliente (Facebook / TelÃ©fono) confirmado
                 var customerUpdated = false;
 
                 if (customerDto.ChangeFacebookNameTo is not null)
@@ -139,15 +139,15 @@ public class CommitBzaImportHandler(
                     var newPhone = PhoneNumberNormalizer.Normalize(customerDto.ChangePhoneTo);
                     if (!string.Equals(customer.Phone, newPhone, StringComparison.Ordinal))
                     {
-                        // El teléfono es único por tenant: si ya pertenece a OTRO cliente,
+                        // El telÃ©fono es Ãºnico por tenant: si ya pertenece a OTRO cliente,
                         // no se aplica el cambio y se informa (no se ignora la venta).
                         if (newPhone.Length > 0
                             && phoneOwners.TryGetValue(newPhone, out var phoneOwner)
                             && phoneOwner.Id != customer.Id)
                         {
                             result.Errors.Add(
-                                $"Cliente '{customer.Name}': no se cambió el teléfono a '{newPhone}' porque ya está registrado " +
-                                $"para el cliente '{phoneOwner.Name}'. Se conservó su teléfono actual.");
+                                $"Cliente '{customer.Name}': no se cambiÃ³ el telÃ©fono a '{newPhone}' porque ya estÃ¡ registrado " +
+                                $"para el cliente '{phoneOwner.Name}'. Se conservÃ³ su telÃ©fono actual.");
                         }
                         else
                         {
@@ -175,7 +175,7 @@ public class CommitBzaImportHandler(
                 var collector = ResolveCollector(nc.CollectorName);
                 if (collector is null)
                 {
-                    result.Errors.Add($"Recolector '{nc.CollectorName}' inválido para el cliente '{nc.Name}'.");
+                    result.Errors.Add($"Recolector '{nc.CollectorName}' invÃ¡lido para el cliente '{nc.Name}'.");
                     continue;
                 }
 
@@ -189,14 +189,14 @@ public class CommitBzaImportHandler(
                         ct);
                 }
 
-                // El teléfono es único por tenant. Si ya pertenece a otro cliente se IGNORA
+                // El telÃ©fono es Ãºnico por tenant. Si ya pertenece a otro cliente se IGNORA
                 // este registro (no se crea el cliente ni su venta) y se detalla el conflicto,
-                // permitiendo que el resto de la importación continúe.
+                // permitiendo que el resto de la importaciÃ³n continÃºe.
                 if (newCustomerPhone.Length > 0
                     && phoneOwners.TryGetValue(newCustomerPhone, out var owner))
                 {
                     // No se pierde el registro: se conservan sus datos y productos para que el
-                    // usuario corrija el teléfono o el nombre y reintente sin volver a subir el archivo.
+                    // usuario corrija el telÃ©fono o el nombre y reintente sin volver a subir el archivo.
                     result.FailedRecords.Add(new CommitImportFailedRecord
                     {
                         Name = nc.Name.Trim(),
@@ -211,8 +211,8 @@ public class CommitBzaImportHandler(
                         ConflictCustomerId = owner.Id,
                         ConflictCustomerName = owner.Name,
                         Reason =
-                            $"El teléfono '{newCustomerPhone}' ya está registrado para el cliente '{owner.Name}'. " +
-                            "Asigna otro teléfono (o corrige el nombre si es la misma persona) y reintenta este registro.",
+                            $"El telÃ©fono '{newCustomerPhone}' ya estÃ¡ registrado para el cliente '{owner.Name}'. " +
+                            "Asigna otro telÃ©fono (o corrige el nombre si es la misma persona) y reintenta este registro.",
                     });
                     result.IgnoredRecords++;
                     continue;
@@ -258,9 +258,9 @@ public class CommitBzaImportHandler(
             // 5. Agregar productos
             foreach (var p in customerDto.Products)
             {
-                if (string.IsNullOrWhiteSpace(p.Description) || p.Price <= 0)
+                if (string.IsNullOrWhiteSpace(p.Description) || p.Price < 0)
                 {
-                    result.Errors.Add($"Producto inválido para '{customer.Name}': '{p.Description}'.");
+                    result.Errors.Add($"Producto invÃ¡lido para '{customer.Name}': '{p.Description}'.");
                     continue;
                 }
 
@@ -276,7 +276,7 @@ public class CommitBzaImportHandler(
 
         await _context.SaveChangesAsync(ct);
 
-        // 6. Auditoría en MongoDB (fire-and-forget con manejo de errores aislado)
+        // 6. AuditorÃ­a en MongoDB (fire-and-forget con manejo de errores aislado)
         await _mongoContext.InsertAuditLogAsync(new
         {
             Event = "Bza_ProductsImportedFromExcel",
@@ -297,3 +297,4 @@ public class CommitBzaImportHandler(
         return result;
     }
 }
+
