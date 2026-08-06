@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: read #This is required for actions/checkout
 
@@ -21,13 +21,13 @@ jobs:
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "10.x"
+          dotnet-version: '10.x'
 
       - name: Build with dotnet
-        run: dotnet build BusinessCloud.Api/BusinessCloud.Api.csproj --configuration Release
+        run: dotnet build --configuration Release
 
       - name: dotnet publish
-        run: dotnet publish BusinessCloud.Api/BusinessCloud.Api.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp
+        run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -36,7 +36,7 @@ jobs:
           path: ${{env.DOTNET_ROOT}}/myapp
 
   deploy:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     needs: build
     permissions:
       id-token: write #This is required for requesting the JWT
@@ -47,21 +47,19 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: .net-app
-
+      
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_67DDF1A2669D47AEBEF0D43B7BCABBD9 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_BB68F3D6FB5D431096CE78351E064AB6 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_7A3B8A386D4A46D99222B7A310D7D743 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_13F29A2759C74E4AB00426115F83AA57 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_E51F82B565CA4684ADE1230885B01970 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_F5AE044E0C7E40208995877A25D245DF }}
 
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: "api-bcloud-shared"
-          slot-name: "Production"
+          app-name: 'api-bcloud-shared'
+          slot-name: 'Production'
           package: .
-          clean: true
-          restart: true
-
+          
