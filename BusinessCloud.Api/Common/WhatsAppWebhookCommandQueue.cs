@@ -1,5 +1,5 @@
-using System.Threading.Channels;
-using BusinessCloud.Application.Bazares.Commands.ProcessWhatsAppWebhook;
+﻿using System.Threading.Channels;
+using BusinessCloud.Application.Bazarez.Commands.ProcessWhatsAppWebhook;
 using MediatR;
 
 namespace BusinessCloud.Api.Common;

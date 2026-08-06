@@ -76,9 +76,9 @@ public class ValidateBzaImportHandler(IBazaresDbContext context)
                 continue;
             }
 
-            // Precio: si es inválido NO se descarta el producto; se marca para que
+            // Precio: si es invalido NO se descarta el producto; se marca para que
             // el usuario lo capture en la pantalla de validación antes de confirmar.
-            var hasValidPrice = decimal.TryParse(priceStr, out var price) && price > 0;
+            var hasValidPrice = decimal.TryParse(priceStr, out var price) && price >= 0;
             if (!hasValidPrice)
                 price = 0m;
 
@@ -109,6 +109,7 @@ public class ValidateBzaImportHandler(IBazaresDbContext context)
                 Description = productDesc,
                 Price = price,
                 PriceMissing = !hasValidPrice,
+                PriceZeroWarning = hasValidPrice && price == 0m,
                 RawPrice = hasValidPrice ? null : priceStr,
             });
             group.Total += price;
@@ -373,3 +374,6 @@ public class ValidateBzaImportHandler(IBazaresDbContext context)
         return d[n, m];
     }
 }
+
+
+

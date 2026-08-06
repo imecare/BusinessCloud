@@ -101,7 +101,10 @@ public class ImportProductLineDto
     public decimal Price { get; set; }
 
     /// <summary>El precio del archivo es inválido o falta; el usuario debe capturarlo antes de confirmar.</summary>
-    public bool PriceMissing { get; set; }
+        public bool PriceMissing { get; set; }
+
+    /// <summary>El precio es 0 y solo se muestra como advertencia amarilla.</summary>
+    public bool PriceZeroWarning { get; set; }
 
     /// <summary>Texto original del precio en el archivo (para mostrarlo como referencia).</summary>
     public string? RawPrice { get; set; }
@@ -134,3 +137,5 @@ public class ImportDuplicatePairDto
     public string NameA { get; set; } = string.Empty;
     public string NameB { get; set; } = string.Empty;
 }
+
+

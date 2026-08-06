@@ -1,7 +1,7 @@
-namespace BusinessCloud.Infrastructure.Common.Options;
+﻿namespace BusinessCloud.Infrastructure.Common.Options;
 
 /// <summary>
-/// Configuración de la integración con WhatsApp Cloud API (Meta).
+/// Configuracion de la integracion con WhatsApp Cloud API (Meta).
 /// El AccessToken debe almacenarse como secreto (user-secrets / variable de entorno),
 /// nunca en el control de versiones.
 /// </summary>
@@ -15,30 +15,27 @@ public class WhatsAppOptions
     public string AppSecret { get; set; } = string.Empty;
 
     /// <summary>
-    /// Código de país por defecto (solo dígitos, sin '+') que se antepone a los números
-    /// que se envían sin él (por ejemplo, 10 dígitos nacionales). Por defecto México (52).
+    /// Numero publico del WhatsApp del bazar o del canal de soporte.
+    /// Se usa para crear enlaces wa.me en flujos de recuperacion.
+    /// </summary>
+    public string PublicNumber { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Codigo de pais por defecto (solo digitos, sin '+') que se antepone a los numeros
+    /// que se envian sin el (por ejemplo, 10 digitos nacionales). Por defecto Mexico (52).
     /// </summary>
     public string DefaultCountryCode { get; set; } = "52";
 
-    /// <summary>
-    /// Nombre de la plantilla de autenticación aprobada para enviar el código OTP.
-    /// Si está vacío, se envía un mensaje de texto (válido en la ventana de 24h / pruebas).
-    /// </summary>
     public string? OtpTemplateName { get; set; }
 
-    /// <summary>Idioma de la plantilla OTP (por ejemplo "es" o "es_MX").</summary>
     public string OtpTemplateLang { get; set; } = "es";
 
-    /// <summary>Nombre de la plantilla aprobada para enviar los totales de compra.</summary>
     public string? ClosureTotalsTemplateName { get; set; }
 
-    /// <summary>Idioma de la plantilla de totales (por ejemplo "es" o "es_MX").</summary>
     public string ClosureTotalsTemplateLang { get; set; } = "es";
 
-    /// <summary>Token de verificación del webhook de Meta (hub.verify_token). Debe coincidir con el configurado en Meta.</summary>
     public string? WebhookVerifyToken { get; set; }
 
-    /// <summary>Base pública del portal para construir enlaces a /comprobante/{token}.</summary>
     public string PublicPortalBaseUrl { get; set; } = "https://bazares.bcloud.com.mx";
 
     public bool IsConfigured =>

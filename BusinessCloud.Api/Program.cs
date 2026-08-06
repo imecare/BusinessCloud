@@ -1,4 +1,4 @@
-using BusinessCloud.Api.Middleware;
+﻿using BusinessCloud.Api.Middleware;
 using BusinessCloud.Application;
 using BusinessCloud.Api.Common;
 using BusinessCloud.Application.Common.Interfaces;
@@ -19,7 +19,7 @@ using System.Threading.RateLimiting;
 // Evita que ASP.NET Core cambie los nombres de los claims
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
-// --- CONFIGURACI�N DE SERILOG TEMPRANA ---
+// --- CONFIGURACIï¿½N DE SERILOG TEMPRANA ---
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .Enrich.FromLogContext()
@@ -91,7 +91,7 @@ try
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
         options.Lockout.AllowedForNewUsers = true;
 
-        // Evita revelar si un email existe y exige emails únicos
+        // Evita revelar si un email existe y exige emails Ãºnicos
         options.User.RequireUniqueEmail = true;
     })
     .AddErrorDescriber<BusinessCloud.Api.Common.SpanishIdentityErrorDescriber>()
@@ -119,7 +119,7 @@ try
         )
     );
 
-    // Configuraci�n de Redis (opcional)
+    // Configuraciï¿½n de Redis (opcional)
     var redisConnection = builder.Configuration.GetConnectionString("Redis");
     if (!string.IsNullOrWhiteSpace(redisConnection) && redisConnection != "localhost:6379")
     {
@@ -135,18 +135,24 @@ try
     {
         builder.Services.AddDistributedMemoryCache();
         builder.Services.AddScoped<ICacheService, RedisCacheService>();
-        Log.Warning("Redis no configurado. Usando caché distribuida en memoria.");
+        Log.Warning("Redis no configurado. Usando cachÃ© distribuida en memoria.");
     }
 
     builder.Services.AddScoped<JwtTokenService>();
 
-    // WhatsApp Cloud API (Meta) + verificación OTP para operaciones sensibles de usuarios
+    // WhatsApp Cloud API (Meta) + verificaciÃ³n OTP para operaciones sensibles de usuarios
     builder.Services.Configure<BusinessCloud.Infrastructure.Common.Options.WhatsAppOptions>(
         builder.Configuration.GetSection(BusinessCloud.Infrastructure.Common.Options.WhatsAppOptions.SectionName));
+    builder.Services.Configure<BusinessCloud.Infrastructure.Common.Options.EmailOptions>(
+        builder.Configuration.GetSection(BusinessCloud.Infrastructure.Common.Options.EmailOptions.SectionName));
     builder.Services.AddHttpClient<BusinessCloud.Application.Common.Interfaces.IWhatsAppSender,
         BusinessCloud.Infrastructure.Common.Services.WhatsAppSender>();
     builder.Services.AddScoped<BusinessCloud.Application.Common.Interfaces.IWhatsAppNotificationService,
         BusinessCloud.Infrastructure.Common.Services.WhatsAppNotificationService>();
+    builder.Services.AddScoped<BusinessCloud.Application.Common.Interfaces.IEmailSender,
+        BusinessCloud.Infrastructure.Common.Services.AzureEmailSender>();
+    builder.Services.AddSingleton<BusinessCloud.Application.Common.Interfaces.IPasswordRecoverySessionStore,
+        BusinessCloud.Infrastructure.Common.Services.PasswordRecoverySessionStore>();
     builder.Services.AddSingleton<IWhatsAppWebhookCommandQueue, WhatsAppWebhookCommandQueue>();
     builder.Services.AddHostedService<WhatsAppWebhookBackgroundService>();
     builder.Services.Configure<BusinessCloud.Infrastructure.Common.Options.WebPushOptions>(
@@ -159,14 +165,14 @@ try
             builder.Services.AddScoped<BusinessCloud.Application.Common.Interfaces.IAdminPinService,
                 BusinessCloud.Infrastructure.Common.Services.AdminPinService>();
 
-    // Configuración de MongoDB (opcional)
+    // ConfiguraciÃ³n de MongoDB (opcional)
     var mongoConnectionString = builder.Configuration.GetConnectionString("MongoDb");
     if (!string.IsNullOrWhiteSpace(mongoConnectionString) && !mongoConnectionString.Contains("localhost"))
     {
         builder.Services.AddSingleton<MongoDB.Driver.IMongoClient>(sp =>
         {
-            // Timeout corto: si el clúster de Mongo no responde, que falle rápido (no 30s por default)
-            // para no bloquear los endpoints que dependen de auditoría/historial (best-effort).
+            // Timeout corto: si el clÃºster de Mongo no responde, que falle rÃ¡pido (no 30s por default)
+            // para no bloquear los endpoints que dependen de auditorÃ­a/historial (best-effort).
             var settings = MongoDB.Driver.MongoClientSettings.FromConnectionString(mongoConnectionString);
             settings.ServerSelectionTimeout = TimeSpan.FromSeconds(5);
             settings.ConnectTimeout = TimeSpan.FromSeconds(5);
@@ -179,10 +185,10 @@ try
     else
     {
         builder.Services.AddScoped<IMongoContext, NoOpMongoContext>();
-        Log.Warning("MongoDB no configurado. Funciones de auditoría e historial deshabilitadas.");
+        Log.Warning("MongoDB no configurado. Funciones de auditorÃ­a e historial deshabilitadas.");
     }
 
-    // Configuración de Azure Blob Storage
+    // ConfiguraciÃ³n de Azure Blob Storage
     var blobConnectionString = builder.Configuration.GetConnectionString("AzureBlobStorage");
     if (string.Equals(blobConnectionString, "Local", StringComparison.OrdinalIgnoreCase))
     {
@@ -198,7 +204,7 @@ try
     else
     {
         builder.Services.AddScoped<IBlobStorageService, NoOpBlobStorageService>();
-        Log.Warning("Azure Blob Storage no configurado. Usando implementación no-op (subida de archivos deshabilitada).");
+        Log.Warning("Azure Blob Storage no configurado. Usando implementaciÃ³n no-op (subida de archivos deshabilitada).");
     }
 
     // CORS
@@ -228,18 +234,18 @@ try
     builder.Services.AddApplication();
     builder.Services.AddControllers();
 
-    // Rate Limiting para endpoints p�blicos
+    // Rate Limiting para endpoints pï¿½blicos
     builder.Services.AddRateLimiter(options =>
     {
         options.AddFixedWindowLimiter("public-history", opt =>
         {
-            opt.PermitLimit = 10;          // m�ximo 10 requests
+            opt.PermitLimit = 10;          // mï¿½ximo 10 requests
             opt.Window = TimeSpan.FromMinutes(1); // por minuto
             opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
             opt.QueueLimit = 2;
         });
 
-        // Anti fuerza bruta en autenticaci�n: l�mite por IP en login/registro.
+        // Anti fuerza bruta en autenticaciï¿½n: lï¿½mite por IP en login/registro.
         options.AddPolicy("auth", httpContext =>
             RateLimitPartition.GetFixedWindowLimiter(
                 partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -254,10 +260,10 @@ try
         options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     });
 
-    // --- CONFIGURACI�N JWT ---
+    // --- CONFIGURACIï¿½N JWT ---
     var jwtKey = builder.Configuration["Jwt:Key"];
     if (string.IsNullOrWhiteSpace(jwtKey))
-        throw new InvalidOperationException("La clave JWT no está configurada en 'Jwt:Key'. Configúrala vía user-secrets (desarrollo) o variable de entorno 'Jwt__Key' (producción).");
+        throw new InvalidOperationException("La clave JWT no estÃ¡ configurada en 'Jwt:Key'. ConfigÃºrala vÃ­a user-secrets (desarrollo) o variable de entorno 'Jwt__Key' (producciÃ³n).");
     var key = Encoding.UTF8.GetBytes(jwtKey);
 
     builder.Services.AddAuthentication(options =>
@@ -321,25 +327,25 @@ try
         await next();
     });
 
-    // Swagger solo en desarrollo (no exponer la superficie de la API en producción)
+    // Swagger solo en desarrollo (no exponer la superficie de la API en producciÃ³n)
     if (app.Environment.IsDevelopment())
     {
         app.UseSwagger();
         app.UseSwaggerUI(c =>
         {
             c.SwaggerEndpoint("/swagger/v1/swagger.json", "BusinessCloud API v1");
-            c.RoutePrefix = string.Empty; // Esto hace que Swagger salga en la raíz de la URL
+            c.RoutePrefix = string.Empty; // Esto hace que Swagger salga en la raÃ­z de la URL
         });
     }
 
     app.UseCors("AllowFrontend");
     app.UseMiddleware<WhatsAppWebhookSignatureMiddleware>();
-    // REGISTRA TU MIDDLEWARE AQU� PARA QUE sea EL QUE DICTA EL FORMATO
+    // REGISTRA TU MIDDLEWARE AQUï¿½ PARA QUE sea EL QUE DICTA EL FORMATO
     app.UseMiddleware<ExceptionMiddleware>();
 
     // Sirve los archivos subidos localmente (comprobantes, logos) en la ruta /uploads.
-    // Solo tiene efecto cuando el almacenamiento local está habilitado; la carpeta se
-    // crea siempre para evitar errores si aún no existe.
+    // Solo tiene efecto cuando el almacenamiento local estÃ¡ habilitado; la carpeta se
+    // crea siempre para evitar errores si aÃºn no existe.
     var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
     Directory.CreateDirectory(uploadsPath);
     app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
@@ -358,7 +364,7 @@ try
     app.MapControllers();
 
     // --- Seeding del administrador global del SaaS (PlatformAdmin) ---
-    // Las credenciales se leen de configuración segura (user-secrets / variables de entorno):
+    // Las credenciales se leen de configuraciÃ³n segura (user-secrets / variables de entorno):
     //   PlatformAdmin:Email, PlatformAdmin:Password, PlatformAdmin:FirstName, PlatformAdmin:LastName
     // Nunca se guardan en el control de versiones.
     try
@@ -397,9 +403,9 @@ try
     }
     catch (Exception seedEx)
     {
-        // El seeding es best-effort: si la base de datos no está disponible (p. ej. Azure SQL
+        // El seeding es best-effort: si la base de datos no estÃ¡ disponible (p. ej. Azure SQL
         // en pausa), no debe impedir el arranque de la API. Reintentar al reiniciar.
-        Log.Warning(seedEx, "No se pudo sembrar el PlatformAdmin (¿base de datos no disponible?). La API continúa el arranque.");
+        Log.Warning(seedEx, "No se pudo sembrar el PlatformAdmin (Â¿base de datos no disponible?). La API continÃºa el arranque.");
     }
 
     app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
@@ -408,9 +414,9 @@ try
 }
 catch (Exception ex)
 {
-    Log.Fatal(ex, "Fallo grave durante el arranque de la aplicaci�n (Application Startup Failed)");
+    Log.Fatal(ex, "Fallo grave durante el arranque de la aplicaciï¿½n (Application Startup Failed)");
 
-    // Crear una app m�nima que muestre el error para diagn�stico en Azure
+    // Crear una app mï¿½nima que muestre el error para diagnï¿½stico en Azure
     var errorApp = WebApplication.CreateBuilder(args).Build();
     var errorMessage = ex.ToString();
     errorApp.MapGet("/{**path}", () => Results.Text(

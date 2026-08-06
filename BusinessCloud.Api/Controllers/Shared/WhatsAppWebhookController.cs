@@ -1,5 +1,5 @@
-using BusinessCloud.Api.Common;
-using BusinessCloud.Application.Bazares.Commands.ProcessWhatsAppWebhook;
+﻿using BusinessCloud.Api.Common;
+using BusinessCloud.Application.Bazarez.Commands.ProcessWhatsAppWebhook;
 using BusinessCloud.Application.Common.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,11 +7,11 @@ using Microsoft.AspNetCore.Mvc;
 namespace BusinessCloud.Api.Controllers.Shared;
 
 /// <summary>
-/// Webhooks de WhatsApp Cloud API (Meta). Endpoint público:
-/// - GET: verificación del webhook (hub.challenge / hub.verify_token).
-/// - POST: recepción de eventos (estatus de entrega de mensajes: sent/delivered/read/failed).
-/// El estatus se guarda en Bza_WhatsAppMessages para mostrar al bazar si el mensaje llegó
-/// al cliente o el motivo por el que no se entregó.
+/// Webhooks de WhatsApp Cloud API (Meta). Endpoint publico:
+/// - GET: verificacion del webhook (hub.challenge / hub.verify_token).
+/// - POST: recepcion de eventos (estatus de entrega de mensajes: sent/delivered/read/failed).
+/// El estatus se guarda en Bza_WhatsAppMessages para mostrar al bazar si el mensaje llego
+/// al cliente o el motivo por el que no se entrego.
 /// </summary>
 [AllowAnonymous]
 [ApiController]
@@ -20,19 +20,22 @@ public class WhatsAppWebhookController : ControllerBase
 {
     private readonly IWhatsAppWebhookCommandQueue _queue;
     private readonly IConfiguration _config;
+    private readonly IPasswordRecoverySessionStore _passwordRecoverySessions;
     private readonly ILogger<WhatsAppWebhookController> _logger;
 
     public WhatsAppWebhookController(
         IWhatsAppWebhookCommandQueue queue,
         IConfiguration config,
+        IPasswordRecoverySessionStore passwordRecoverySessions,
         ILogger<WhatsAppWebhookController> logger)
     {
         _queue = queue;
         _config = config;
+        _passwordRecoverySessions = passwordRecoverySessions;
         _logger = logger;
     }
 
-    /// <summary>Verificación del webhook por parte de Meta al suscribirlo.</summary>
+    /// <summary>Verificacion del webhook por parte de Meta al suscribirlo.</summary>
     [HttpGet]
     public IActionResult Verify(
         [FromQuery(Name = "hub.mode")] string? mode,
@@ -43,15 +46,14 @@ public class WhatsAppWebhookController : ControllerBase
 
         if (mode == "subscribe" && !string.IsNullOrEmpty(expected) && verifyToken == expected)
         {
-            // Meta espera que se devuelva el challenge tal cual, con 200.
             return Content(challenge ?? string.Empty, "text/plain");
         }
 
-        _logger.LogWarning("Verificación de webhook de WhatsApp rechazada (mode={Mode}).", mode);
-        return StatusCode(403, "Verificación fallida.");
+        _logger.LogWarning("Verificacion de webhook de WhatsApp rechazada (mode={Mode}).", mode);
+        return StatusCode(403, "Verificacion fallida.");
     }
 
-    /// <summary>Recepción de eventos del webhook (estatus de mensajes e inbound).</summary>
+    /// <summary>Recepcion de eventos del webhook (estatus de mensajes e inbound).</summary>
     [HttpPost]
     public async Task<IActionResult> Receive([FromBody] WhatsAppWebhookPayload body, CancellationToken ct)
     {
