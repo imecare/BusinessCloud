@@ -1,4 +1,4 @@
-using BusinessCloud.Application.Bazares.Common;
+﻿using BusinessCloud.Application.Bazares.Common;
 using FluentValidation;
 
 namespace BusinessCloud.Application.Bazares.Commands.CommitBzaCustomersImport;
@@ -16,9 +16,10 @@ public class CommitBzaCustomersImportValidator : AbstractValidator<CommitBzaCust
                 .NotEmpty().WithMessage("El nombre del cliente es obligatorio.")
                 .MaximumLength(200);
             customer.RuleFor(item => item.CollectorName)
-                .NotEmpty().WithMessage("Cada cliente debe tener un recolector real.")
+                .NotEmpty().WithMessage("Cada cliente debe tener un recolector real o marcarse como 'Aún sin recolector'.")
                 .MaximumLength(200)
-                .Must(IsRealCollectorName).WithMessage("El recolector Sin asignar no es válido para importar clientes.");
+                .Must(IsRealCollectorName).WithMessage("El recolector Sin asignar no es válido para importar clientes.")
+                .When(item => !item.HasNoCollector);
             customer.RuleFor(item => item.Phone)
                 .Must(IsValidOptionalPhone).WithMessage("El WhatsApp debe tener 10 dígitos válidos.");
             customer.RuleFor(item => item.FacebookName)

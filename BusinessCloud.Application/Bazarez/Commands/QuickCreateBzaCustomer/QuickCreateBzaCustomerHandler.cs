@@ -54,7 +54,7 @@ public class QuickCreateBzaCustomerHandler : IRequestHandler<QuickCreateBzaCusto
             FacebookName = string.IsNullOrWhiteSpace(request.FacebookName) ? null : request.FacebookName.Trim(),
             Phone = phone,
             Status = 1,
-            IsPendingInfo = true,
+            IsPendingInfo = string.IsNullOrWhiteSpace(phone) && string.IsNullOrWhiteSpace(request.FacebookName),
         };
 
         if (collector is null)

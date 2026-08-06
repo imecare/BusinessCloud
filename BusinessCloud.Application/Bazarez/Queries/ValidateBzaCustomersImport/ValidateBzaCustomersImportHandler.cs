@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using BusinessCloud.Application.Bazares.Common;
 using BusinessCloud.Application.Common.Interfaces;
@@ -24,7 +24,7 @@ public class ValidateBzaCustomersImportHandler(IBazaresDbContext context)
 
         if (worksheet is null)
         {
-            result.Errors.Add("No se encontró ninguna hoja en el archivo Excel.");
+            result.Errors.Add("No se encontrÃ³ ninguna hoja en el archivo Excel.");
             return result;
         }
 
@@ -89,7 +89,7 @@ public class ValidateBzaCustomersImportHandler(IBazaresDbContext context)
                 dto.CollectorConflictNames = collectorNames.OrderBy(name => name).ToList();
                 result.CollectorConflictCount++;
                 result.Errors.Add(
-                    $"Cliente '{first.Name}' omitido de la resolución automática: aparece con recolectores distintos " +
+                    $"Cliente '{first.Name}' omitido de la resoluciÃ³n automÃ¡tica: aparece con recolectores distintos " +
                     $"({string.Join(" / ", dto.CollectorConflictNames)}). Selecciona el correcto antes de importar.");
             }
 
@@ -100,7 +100,7 @@ public class ValidateBzaCustomersImportHandler(IBazaresDbContext context)
         {
             result.Errors.Insert(0,
                 $"Se deduplicaron {result.ExactDuplicateRows} fila(s) por coincidencia exacta de nombre, " +
-                "ignorando mayúsculas/minúsculas y espacios repetidos.");
+                "ignorando mayÃºsculas/minÃºsculas y espacios repetidos.");
         }
 
         var collectors = await context.Collectors
@@ -137,16 +137,7 @@ public class ValidateBzaCustomersImportHandler(IBazaresDbContext context)
             var dto = entry.Value;
             var collectorKey = CollectorCatalogNameNormalizer.ToComparisonKey(dto.CollectorNameFromFile);
 
-            if (collectorKey == "SIN ASIGNAR")
-            {
-                result.Errors.Add($"Cliente '{dto.Name}': selecciona un recolector real; Sin asignar no es válido.");
-            }
-            else if (collectorKey.Length == 0)
-            {
-                if (!dto.HasCollectorConflict)
-                    result.Errors.Add($"Cliente '{dto.Name}': falta seleccionar un recolector.");
-            }
-            else if (collectorLookup.TryGetValue(collectorKey, out var matches))
+            if (collectorKey.Length > 0 && collectorKey != "SIN ASIGNAR" && collectorLookup.TryGetValue(collectorKey, out var matches))
             {
                 if (matches.Count == 1)
                 {
@@ -162,7 +153,6 @@ public class ValidateBzaCustomersImportHandler(IBazaresDbContext context)
                         "La fila no puede importarse hasta corregir esa ambigüedad.");
                 }
             }
-
             if (existingByName.TryGetValue(entry.Key, out var match))
             {
                 dto.MatchStatus = "existing";
@@ -248,3 +238,8 @@ public class ValidateBzaCustomersImportHandler(IBazaresDbContext context)
 
     private sealed record ImportColumns(int Name, int? Phone, int? Collector, int? Facebook);
 }
+
+
+
+
+

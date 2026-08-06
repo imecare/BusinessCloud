@@ -1,4 +1,4 @@
-using MediatR;
+﻿using MediatR;
 using Microsoft.EntityFrameworkCore;
 using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Application.Bazares.Common;
@@ -44,26 +44,26 @@ public class CreateBzaCustomerHandler : IRequestHandler<CreateBzaCustomerCommand
             var userId = _currentUser.UserId ?? string.Empty;
             bool authorized = false;
 
-            // Verificar por PIN si se proporcionó.
+            // Verificar por PIN si se proporcionÃ³.
             if (!string.IsNullOrWhiteSpace(request.AdminPin))
             {
                 authorized = await _adminPin.VerifyPinAsync(userId, request.AdminPin, cancellationToken);
                 if (!authorized)
                     throw new InvalidOperationException("PIN incorrecto. No se puede forzar el alta del cliente bloqueado.");
             }
-            // Verificar por OTP si se proporcionó challenge.
+            // Verificar por OTP si se proporcionÃ³ challenge.
             else if (!string.IsNullOrWhiteSpace(request.ChallengeId) && !string.IsNullOrWhiteSpace(request.VerificationCode))
             {
                 authorized = _verification.Validate(
                     request.ChallengeId!, request.VerificationCode!, "customer.block.override", userId);
                 if (!authorized)
-                    throw new InvalidOperationException("El código de verificación es inválido o expiró.");
+                    throw new InvalidOperationException("El cÃ³digo de verificaciÃ³n es invÃ¡lido o expirÃ³.");
             }
 
             if (!authorized)
             {
                 throw new InvalidOperationException(
-                    $"CLIENTE_BLOQUEADO: El cliente coincide con un registro de la lista de bloqueo (nombre o Facebook). Motivo: {block.Reason}. Se requiere autorización del SuperAdmin para darlo de alta.");
+                    $"CLIENTE_BLOQUEADO: El cliente coincide con un registro de la lista de bloqueo (nombre o Facebook). Motivo: {block.Reason}. Se requiere autorizaciÃ³n del SuperAdmin para darlo de alta.");
             }
         }
 
@@ -89,19 +89,32 @@ public class CreateBzaCustomerHandler : IRequestHandler<CreateBzaCustomerCommand
             }
         }
 
+        BzaCollector collector;
+        if (request.HasNoCollector)
+        {
+            collector = await NoCollectorCustomer.GetOrCreateAsync(_context, cancellationToken);
+        }
+        else
+        {
+            var collectorId = request.BzaCollectorId ?? 0;
+            collector = await _context.Collectors
+                .FirstOrDefaultAsync(c => c.Id == collectorId, cancellationToken)
+                ?? throw new InvalidOperationException($"El recolector con ID {collectorId} no existe.");
+        }
+
         var entity = new BzaCustomer
         {
             Name = request.Name ?? string.Empty,
             FacebookName = facebookName,
             Phone = phone,
             HasNoWhatsApp = request.HasNoWhatsApp,
-            BzaCollectorId = request.BzaCollectorId,
+            BzaCollectorId = collector.Id,
+            Collector = collector,
             Status = 1
-        };
-
-        _context.Customers.Add(entity);
+        };        _context.Customers.Add(entity);
         await _context.SaveChangesAsync(cancellationToken);
 
         return entity.Id;
     }
 }
+

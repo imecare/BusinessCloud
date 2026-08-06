@@ -1,11 +1,11 @@
-using MediatR;
+﻿using MediatR;
 
 namespace BusinessCloud.Application.Bazares.Commands.CommitBzaCustomersImport;
 
 /// <summary>
-/// Confirma y guarda en BD la importación de clientes previamente validada.
+/// Confirma y guarda en BD la importaciÃ³n de clientes previamente validada.
 /// Crea recolectores nuevos (con su grupo) y clientes nuevos. Omite los clientes
-/// ya existentes por nombre y los que tengan un teléfono duplicado, informándolos.
+/// ya existentes por nombre y los que tengan un telÃ©fono duplicado, informÃ¡ndolos.
 /// </summary>
 public record CommitBzaCustomersImportCommand(
     List<CommitNewCollectorDto> NewCollectors,
@@ -28,11 +28,15 @@ public class CommitImportCustomerDto
     public string CollectorName { get; set; } = string.Empty;
 
     public string? FacebookName { get; set; }
+
+    /// <summary>Cuando es true, el cliente se guarda como "Aún sin recolector".</summary>
+    public bool HasNoCollector { get; set; }
 }
 
 public class CommitBzaCustomersImportResult
 {
     public int CustomersCreated { get; set; }
+    public int CustomersUpdated { get; set; }
     public int NewCollectorsCreated { get; set; }
     public int PendingInfoCustomersCreated { get; set; }
 
@@ -41,3 +45,4 @@ public class CommitBzaCustomersImportResult
 
     public List<string> Errors { get; set; } = [];
 }
+

@@ -1,7 +1,8 @@
-using MediatR;
+﻿using MediatR;
 using Microsoft.EntityFrameworkCore;
 using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Application.Bazares.Common;
+using BusinessCloud.Domain.Bazares.Entities;
 
 namespace BusinessCloud.Application.Bazares.Commands.UpdateBzaCustomer;
 
@@ -26,20 +27,25 @@ public class UpdateBzaCustomerHandler : IRequestHandler<UpdateBzaCustomerCommand
             throw new Exception($"Cliente de bazar con ID {request.Id} no encontrado.");
         }
 
-        var collectorExists = await _context.Collectors
-            .AnyAsync(c => c.Id == request.BzaCollectorId, cancellationToken);
-
-        if (!collectorExists)
+        BzaCollector collector;
+        if (request.HasNoCollector)
         {
-            throw new Exception($"El recolector con ID {request.BzaCollectorId} no existe.");
+            collector = await NoCollectorCustomer.GetOrCreateAsync(_context, cancellationToken);
+        }
+        else
+        {
+            var collectorId = request.BzaCollectorId ?? 0;
+            collector = await _context.Collectors
+                .FirstOrDefaultAsync(c => c.Id == collectorId, cancellationToken)
+                ?? throw new Exception($"El recolector con ID {collectorId} no existe.");
         }
 
         var facebookName = FacebookMessengerProfile.Normalize(request.FacebookName);
 
         if (request.HasNoWhatsApp)
         {
-            // Cliente sin número de WhatsApp: conserva su placeholder si ya lo tenía;
-            // si venía con teléfono real (o sin placeholder), se le asigna uno nuevo.
+            // Cliente sin nÃºmero de WhatsApp: conserva su placeholder si ya lo tenÃ­a;
+            // si venÃ­a con telÃ©fono real (o sin placeholder), se le asigna uno nuevo.
             if (!entity.HasNoWhatsApp || !NoWhatsAppNumber.IsPlaceholder(entity.Phone))
             {
                 var tenantId = _currentUser.TenantId ?? string.Empty;
@@ -49,7 +55,7 @@ public class UpdateBzaCustomerHandler : IRequestHandler<UpdateBzaCustomerCommand
         }
         else
         {
-            // Teléfono real: es la llave para el envío de totales, único entre clientes.
+            // TelÃ©fono real: es la llave para el envÃ­o de totales, Ãºnico entre clientes.
             var phone = PhoneNumberNormalizer.Normalize(request.Phone);
 
             var duplicate = await _context.Customers
@@ -58,7 +64,7 @@ public class UpdateBzaCustomerHandler : IRequestHandler<UpdateBzaCustomerCommand
             if (duplicate)
             {
                 throw new InvalidOperationException(
-                    $"Ya existe otro cliente registrado con el teléfono {phone}. El teléfono debe ser único.");
+                    $"Ya existe otro cliente registrado con el telÃ©fono {phone}. El telÃ©fono debe ser Ãºnico.");
             }
 
             entity.Phone = phone;
@@ -68,9 +74,10 @@ public class UpdateBzaCustomerHandler : IRequestHandler<UpdateBzaCustomerCommand
         entity.Name = request.Name;
         entity.FacebookName = facebookName;
         entity.Status = request.Status;
-        entity.BzaCollectorId = request.BzaCollectorId;
+        entity.BzaCollectorId = collector.Id;
+        entity.Collector = collector;
         // Al editar/completar el cliente ya se cuenta con recolector real:
-        // deja de estar "pendiente de completar información" (alta rápida).
+        // deja de estar "pendiente de completar informaciÃ³n" (alta rÃ¡pida).
         entity.IsPendingInfo = false;
 
         await _context.SaveChangesAsync(cancellationToken);

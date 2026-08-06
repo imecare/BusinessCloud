@@ -1,4 +1,4 @@
-using BusinessCloud.Application.Bazares.Common;
+﻿using BusinessCloud.Application.Bazares.Common;
 using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Domain.Bazares.Entities;
 using MediatR;
@@ -32,7 +32,7 @@ public class CommitBzaCustomersImportHandler(
                 var key = CollectorCatalogNameNormalizer.ToComparisonKey(name);
                 if (key.Length == 0 || key == "SIN ASIGNAR")
                 {
-                    result.Errors.Add($"Recolector nuevo '{requestedCollector.Name}' IGNORADO: el nombre no es válido.");
+                    result.Errors.Add($"Recolector nuevo '{requestedCollector.Name}' IGNORADO: el nombre no es vÃ¡lido.");
                     continue;
                 }
 
@@ -43,7 +43,7 @@ public class CommitBzaCustomersImportHandler(
                     .AnyAsync(group => group.Id == requestedCollector.GroupId, transactionCt);
                 if (!groupExists)
                 {
-                    result.Errors.Add($"Grupo inválido para el recolector nuevo '{name}'.");
+                    result.Errors.Add($"Grupo invÃ¡lido para el recolector nuevo '{name}'.");
                     continue;
                 }
 
@@ -59,11 +59,13 @@ public class CommitBzaCustomersImportHandler(
             }
 
             var existingCustomers = await context.Customers
-                .Select(customer => new { customer.Name, customer.Phone })
+                .Select(customer => new { customer.Id, customer.Name, customer.Phone, customer.FacebookName, customer.BzaCollectorId })
                 .ToListAsync(transactionCt);
-            var existingNames = existingCustomers
-                .Select(customer => NormalizeCustomerKey(customer.Name))
-                .ToHashSet(StringComparer.Ordinal);
+            var existingNameMap = existingCustomers
+                .ToDictionary(
+                    customer => NormalizeCustomerKey(customer.Name),
+                    customer => customer,
+                    StringComparer.Ordinal);
             var phoneOwners = existingCustomers
                 .Where(customer => !string.IsNullOrWhiteSpace(customer.Phone))
                 .GroupBy(customer => customer.Phone.Trim(), StringComparer.OrdinalIgnoreCase)
@@ -80,46 +82,94 @@ public class CommitBzaCustomersImportHandler(
                     continue;
                 }
 
-                if (!existingNames.Add(nameKey))
+                // Verificar si el cliente ya existe por nombre
+                if (existingNameMap.TryGetValue(nameKey, out var existingCustomer))
                 {
-                    result.Errors.Add($"Cliente '{name}' IGNORADO: ya está registrado.");
-                    result.IgnoredRecords++;
+                    // Cliente ya existe: actualizar teléfono/facebook si cambiaron
+                    var newPhone = PhoneNumberNormalizer.Normalize(dto.Phone);
+                    var newFacebookName = FacebookMessengerProfile.Normalize(dto.FacebookName);
+                    
+                    // Validar nuevo teléfono contra otros clientes (si es diferente al actual)
+                    if (newPhone.Length > 0 && newPhone != existingCustomer.Phone && phoneOwners.TryGetValue(newPhone, out var phoneOwner))
+                    {
+                        result.Errors.Add(
+                            $"Cliente '{name}': no se cambió el teléfono a '{newPhone}' porque ya está registrado para '{phoneOwner}'. Se conservó su teléfono actual.");
+                        result.IgnoredRecords++;
+                        continue;
+                    }
+
+                    // Actualizar si hay cambios
+                    var phoneChanged = newPhone != existingCustomer.Phone;
+                    var facebookChanged = newFacebookName != existingCustomer.FacebookName;
+
+                    if (phoneChanged || facebookChanged)
+                    {
+                        var customerEntity = await context.Customers.FindAsync(new object[] { existingCustomer.Id }, cancellationToken: transactionCt);
+                        if (customerEntity != null)
+                        {
+                            if (phoneChanged)
+                            {
+                                // Remover teléfono viejo del track de propietarios
+                                if (!string.IsNullOrWhiteSpace(customerEntity.Phone))
+                                    phoneOwners.Remove(customerEntity.Phone.Trim());
+                                
+                                customerEntity.Phone = newPhone;
+                                customerEntity.HasNoWhatsApp = newPhone.Length == 0;
+                                if (customerEntity.HasNoWhatsApp)
+                                    customerEntity.Phone = await NoWhatsAppNumber.ReserveNextAsync(context, tenantId, transactionCt);
+                                
+                                phoneOwners[customerEntity.Phone] = name;
+                            }
+                            
+                            if (facebookChanged)
+                                customerEntity.FacebookName = newFacebookName;
+                            
+                            // Actualizar IsPendingInfo si cambió la información
+                            customerEntity.IsPendingInfo = string.IsNullOrWhiteSpace(customerEntity.Phone) && newFacebookName is null;
+                        }
+                        result.CustomersUpdated++;
+                    }
                     continue;
                 }
 
-                var collectorKey = CollectorCatalogNameNormalizer.ToComparisonKey(dto.CollectorName);
-                if (collectorKey.Length == 0 || collectorKey == "SIN ASIGNAR")
+                BzaCollector collector;
+                if (dto.HasNoCollector)
                 {
-                    result.Errors.Add($"Cliente '{name}' IGNORADO: debe tener un recolector real.");
-                    result.IgnoredRecords++;
-                    existingNames.Remove(nameKey);
-                    continue;
+                    collector = await NoCollectorCustomer.GetOrCreateAsync(context, transactionCt);
                 }
-
-                if (!collectorByKey.TryGetValue(collectorKey, out var collectorMatches))
+                else
                 {
-                    result.Errors.Add($"Cliente '{name}' IGNORADO: recolector '{dto.CollectorName}' no encontrado.");
-                    result.IgnoredRecords++;
-                    existingNames.Remove(nameKey);
-                    continue;
-                }
+                    var collectorKey = CollectorCatalogNameNormalizer.ToComparisonKey(dto.CollectorName);
+                    if (collectorKey.Length == 0 || collectorKey == "SIN ASIGNAR")
+                    {
+                        result.Errors.Add($"Cliente '{name}' IGNORADO: debe tener un recolector real o marcarse como 'Aún sin recolector'.");
+                        result.IgnoredRecords++;
+                        continue;
+                    }
 
-                if (collectorMatches.Count != 1)
-                {
-                    result.Errors.Add(
-                        $"Cliente '{name}' IGNORADO: el recolector '{dto.CollectorName}' es ambiguo entre varios grupos.");
-                    result.IgnoredRecords++;
-                    existingNames.Remove(nameKey);
-                    continue;
-                }
+                    if (!collectorByKey.TryGetValue(collectorKey, out var collectorMatches))
+                    {
+                        result.Errors.Add($"Cliente '{name}' IGNORADO: recolector '{dto.CollectorName}' no encontrado.");
+                        result.IgnoredRecords++;
+                        continue;
+                    }
 
+                    if (collectorMatches.Count != 1)
+                    {
+                        result.Errors.Add(
+                            $"Cliente '{name}' IGNORADO: el recolector '{dto.CollectorName}' es ambiguo entre varios grupos.");
+                        result.IgnoredRecords++;
+                        continue;
+                    }
+
+                    collector = collectorMatches[0];
+                }
                 var phone = PhoneNumberNormalizer.Normalize(dto.Phone);
                 if (phone.Length > 0 && phoneOwners.TryGetValue(phone, out var owner))
                 {
                     result.Errors.Add(
                         $"Cliente '{name}' IGNORADO: el teléfono '{phone}' ya está registrado para '{owner}'.");
                     result.IgnoredRecords++;
-                    existingNames.Remove(nameKey);
                     continue;
                 }
 
@@ -129,7 +179,7 @@ public class CommitBzaCustomersImportHandler(
                     phone = await NoWhatsAppNumber.ReserveNextAsync(context, tenantId, transactionCt);
 
                 var isPendingInfo = hasNoWhatsApp && facebookName is null;
-                var collector = collectorMatches[0];
+
                 context.Customers.Add(new BzaCustomer
                 {
                     Name = name,
@@ -169,3 +219,7 @@ public class CommitBzaCustomersImportHandler(
     private static string NormalizeCustomerKey(string? value)
         => CollectorCatalogNameNormalizer.CollapseSpaces(value).ToUpperInvariant();
 }
+
+
+
+
