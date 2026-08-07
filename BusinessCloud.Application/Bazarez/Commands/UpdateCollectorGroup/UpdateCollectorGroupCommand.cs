@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Domain.Bazares.Entities;
 
 namespace BusinessCloud.Application.Bazares.Commands.UpdateCollectorGroup;
 
@@ -25,7 +26,7 @@ public class UpdateCollectorGroupHandler(IBazaresDbContext context)
             throw new InvalidOperationException($"Ya existe un grupo con el nombre \"{description}\".");
 
         entity.Description = description;
-        entity.DeliveryDay = request.DeliveryDay;
+        entity.DeliveryDay = request.DeliveryDay ?? BzaCollectorGroup.DefaultDeliveryDay;
         entity.DeliveryFrequency = string.IsNullOrWhiteSpace(request.DeliveryFrequency)
             ? null
             : request.DeliveryFrequency.Trim();

@@ -1,4 +1,5 @@
 using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Domain.Bazares.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -77,13 +78,15 @@ public class PrepareTotalsHandler(IBazaresDbContext context)
                 {
                     GroupId = group?.Id ?? 0,
                     GroupName = group?.Description ?? "Sin grupo",
-                    DeliveryDay = group?.DeliveryDay
+                    DeliveryDay = group?.DeliveryDay ?? BzaCollectorGroup.DefaultDeliveryDay,
+                    DeliveryFrequency = group?.DeliveryFrequency
                 };
             })
             .Select(g => new TotalsGroupDto(
                 g.Key.GroupId,
                 g.Key.GroupName,
                 g.Key.DeliveryDay,
+                g.Key.DeliveryFrequency,
                 NextDeliveryDate(g.Key.DeliveryDay, today),
                 g.Select(x => x.Sale.BzaCustomerId).Distinct().Count(),
                 g.Sum(x => x.Pending)))

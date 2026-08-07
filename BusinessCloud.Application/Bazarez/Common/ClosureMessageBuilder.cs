@@ -60,7 +60,7 @@ public static class ClosureMessageBuilder
         return sb.ToString().TrimEnd();
     }
 
-    private static string? BuildWhatsAppLink(string? phone)
+    public static string? BuildWhatsAppLink(string? phone)
     {
         if (string.IsNullOrWhiteSpace(phone)) return null;
 

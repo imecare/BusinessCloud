@@ -73,7 +73,7 @@ public class ImportGlobalCollectorGroupsHandler(
                         TenantId = tenantId,
                         Description = catalogGroup.Description,
                         DeliveryFrequency = catalogGroup.DeliveryFrequency,
-                        DeliveryDay = catalogGroup.DeliveryDay,
+                        DeliveryDay = catalogGroup.DeliveryDay ?? BzaCollectorGroup.DefaultDeliveryDay,
                         IsActive = true,
                     };
                     context.CollectorGroups.Add(tenantGroup);
@@ -90,7 +90,7 @@ public class ImportGlobalCollectorGroupsHandler(
 
                     if (!tenantGroup.DeliveryDay.HasValue)
                     {
-                        tenantGroup.DeliveryDay = catalogGroup.DeliveryDay;
+                        tenantGroup.DeliveryDay = catalogGroup.DeliveryDay ?? BzaCollectorGroup.DefaultDeliveryDay;
                     }
                 }
 

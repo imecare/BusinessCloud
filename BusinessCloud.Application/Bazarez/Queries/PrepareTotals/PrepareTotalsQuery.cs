@@ -34,6 +34,7 @@ public record TotalsGroupDto(
     int GroupId,
     string GroupName,
     int? DeliveryDay,
+    string? DeliveryFrequency,
     DateTime SuggestedDeliveryDate,
     int CustomerCount,
     decimal Pending);

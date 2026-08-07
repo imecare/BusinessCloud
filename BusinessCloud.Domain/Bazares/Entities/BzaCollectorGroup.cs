@@ -4,6 +4,8 @@ namespace BusinessCloud.Domain.Bazares.Entities;
 
 public class BzaCollectorGroup : BaseAuditableEntity
 {
+    public const int DefaultDeliveryDay = (int)DayOfWeek.Friday;
+
     public int Id { get; set; }
     public string Description { get; set; } = string.Empty;
 

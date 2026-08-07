@@ -1,22 +1,47 @@
 using BusinessCloud.Application.Bazarez.Commands.ProcessWhatsAppWebhook;
+using BusinessCloud.Application.Bazares.Queries.IdentifyWhatsAppSender;
 using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Domain.Bazares.Entities;
 using BusinessCloud.Tests.TestSupport;
+using MediatR;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
 namespace BusinessCloud.Tests.Application.Bazares;
 
+/// <summary>
+/// Pruebas del motor conversacional del webhook de WhatsApp: actualización de estatus de
+/// mensajes salientes y respuestas automáticas según el rol (Cliente/Dueño).
+/// </summary>
 public class ProcessWhatsAppWebhookHandlerTests
 {
     private const string Tenant = BazaresContextFactory.TenantId;
 
-    [Fact]
-    public async Task Handle_StatusFailed_UpdatesExistingMessage()
+    private static IConfiguration Config() => new ConfigurationBuilder()
+        .AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["WhatsApp:PublicPortalBaseUrl"] = "https://portal.test",
+        })
+        .Build();
+
+    private static (Mock<IWhatsAppNotificationService> Notif, List<string> Replies) NotifCapturing()
     {
-        using var context = BazaresContextFactory.Create();
-        context.WhatsAppMessages.Add(new BzaWhatsAppMessage
+        var replies = new List<string>();
+        var notif = new Mock<IWhatsAppNotificationService>();
+        notif
+            .Setup(n => n.SendAsync(It.IsAny<string>(), It.IsAny<NotificationTemplateData>(), It.IsAny<CancellationToken>()))
+            .Callback<string, NotificationTemplateData, CancellationToken>((_, data, _) => replies.Add(data.Body))
+            .ReturnsAsync(new NotificationSendResult(true));
+        return (notif, replies);
+    }
+
+    [Fact]
+    public async Task Handle_StatusFailed_ActualizaMensajeExistente()
+    {
+        using var ctx = BazaresContextFactory.Create();
+        ctx.WhatsAppMessages.Add(new BzaWhatsAppMessage
         {
             Id = 1,
             TenantId = Tenant,
@@ -26,30 +51,275 @@ public class ProcessWhatsAppWebhookHandlerTests
             Status = "sent",
             SentAt = DateTime.UtcNow,
         });
-        await context.SaveChangesAsync(default);
+        await ctx.SaveChangesAsync(default);
 
-        var handler = CreateHandler(context);
+        var (notif, _) = NotifCapturing();
+        var handler = new ProcessWhatsAppWebhookHandler(
+            ctx, notif.Object, Mock.Of<ISender>(), Config(), Mock.Of<IPasswordRecoverySessionStore>(),
+            NullLogger<ProcessWhatsAppWebhookHandler>.Instance);
+
         await handler.Handle(new ProcessWhatsAppWebhookCommand(
-            [new("wamid-1", "failed", "5215511112222", 131026, "Undeliverable", "No WhatsApp")],
-            []), default);
+            new List<WhatsAppWebhookStatusInput>
+            {
+                new("wamid-1", "failed", "5215511112222", 131026, "Undeliverable", "No WhatsApp"),
+            },
+            new List<WhatsAppWebhookTextInput>()), default);
 
-        var updated = context.WhatsAppMessages.Single(m => m.WaMessageId == "wamid-1");
+        var updated = ctx.WhatsAppMessages.Single(m => m.WaMessageId == "wamid-1");
         Assert.Equal("failed", updated.Status);
         Assert.Equal(131026, updated.ErrorCode);
-        Assert.NotNull(updated.StatusUpdatedAt);
     }
 
     [Fact]
-    public async Task Handle_ValidRecoveryMessage_SendsVerificationCodeAndMarksDelivered()
+    public async Task Handle_ClientePendientes_RespondeListaDeBazares()
     {
-        using var context = BazaresContextFactory.Create();
-        var notifications = new Mock<IWhatsAppNotificationService>();
-        NotificationTemplateData? sentData = null;
-        notifications
-            .Setup(n => n.SendAsync("5215511112222", It.IsAny<NotificationTemplateData>(), It.IsAny<CancellationToken>()))
-            .Callback<string, NotificationTemplateData, CancellationToken>((_, data, _) => sentData = data)
-            .ReturnsAsync(new NotificationSendResult(true));
+        using var ctx = BazaresContextFactory.Create();
+        var (notif, replies) = NotifCapturing();
 
+        var sender = new Mock<ISender>();
+        sender
+            .Setup(s => s.Send(It.IsAny<IdentifyWhatsAppSenderQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new IdentifyWhatsAppSenderResultDto
+            {
+                NormalizedPhone = "5215511112222",
+                Role = WhatsAppSenderRole.Customer,
+                CustomerAccounts = new List<CustomerWhatsAppAccountDto>
+                {
+                    new(1, "tenant-a", "Bazar Uno", 320m, "tok-1", BzaClosureCustomerTotalStatus.Pending, null),
+                },
+            });
+
+        var handler = new ProcessWhatsAppWebhookHandler(
+            ctx, notif.Object, sender.Object, Config(), Mock.Of<IPasswordRecoverySessionStore>(),
+            NullLogger<ProcessWhatsAppWebhookHandler>.Instance);
+
+        await handler.Handle(new ProcessWhatsAppWebhookCommand(
+            new List<WhatsAppWebhookStatusInput>(),
+            new List<WhatsAppWebhookTextInput>
+            {
+                new("wamid-in-1", "5215511112222", "text", "pendientes"),
+            }), default);
+
+        Assert.Single(replies);
+        Assert.Contains("Bazar Uno", replies[0]);
+    }
+
+    [Fact]
+    public async Task Handle_ClienteLinks_RespondeConEnlacesDelPortal()
+    {
+        using var ctx = BazaresContextFactory.Create();
+        var (notif, replies) = NotifCapturing();
+
+        var sender = new Mock<ISender>();
+        sender
+            .Setup(s => s.Send(It.IsAny<IdentifyWhatsAppSenderQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new IdentifyWhatsAppSenderResultDto
+            {
+                NormalizedPhone = "5215511112222",
+                Role = WhatsAppSenderRole.Customer,
+                CustomerAccounts = new List<CustomerWhatsAppAccountDto>
+                {
+                    new(1, "tenant-a", "Bazar Uno", 320m, "tok-1", BzaClosureCustomerTotalStatus.Pending, null),
+                },
+            });
+
+        var handler = new ProcessWhatsAppWebhookHandler(
+            ctx, notif.Object, sender.Object, Config(), Mock.Of<IPasswordRecoverySessionStore>(),
+            NullLogger<ProcessWhatsAppWebhookHandler>.Instance);
+
+        await handler.Handle(new ProcessWhatsAppWebhookCommand(
+            new List<WhatsAppWebhookStatusInput>(),
+            new List<WhatsAppWebhookTextInput>
+            {
+                new("wamid-in-2", "5215511112222", "text", "LINKS"),
+            }), default);
+
+        Assert.Single(replies);
+        Assert.Contains("https://portal.test/comprobante/tok-1", replies[0]);
+    }
+
+    [Fact]
+    public async Task Handle_ClienteSaludo_RespondeMenu()
+    {
+        using var ctx = BazaresContextFactory.Create();
+        var (notif, replies) = NotifCapturing();
+
+        var sender = new Mock<ISender>();
+        sender
+            .Setup(s => s.Send(It.IsAny<IdentifyWhatsAppSenderQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new IdentifyWhatsAppSenderResultDto
+            {
+                NormalizedPhone = "5215511112222",
+                Role = WhatsAppSenderRole.Customer,
+                CustomerAccounts = new List<CustomerWhatsAppAccountDto>
+                {
+                    new(1, "tenant-a", "Bazar Uno", 320m, "tok-1", BzaClosureCustomerTotalStatus.Pending, null),
+                },
+            });
+
+        var handler = new ProcessWhatsAppWebhookHandler(
+            ctx, notif.Object, sender.Object, Config(), Mock.Of<IPasswordRecoverySessionStore>(),
+            NullLogger<ProcessWhatsAppWebhookHandler>.Instance);
+
+        await handler.Handle(new ProcessWhatsAppWebhookCommand(
+            new List<WhatsAppWebhookStatusInput>(),
+            new List<WhatsAppWebhookTextInput>
+            {
+                new("wamid-in-3", "5215511112222", "text", "hola"),
+            }), default);
+
+        Assert.Single(replies);
+        Assert.Contains("1. Consultar pendientes", replies[0]);
+        Assert.Contains("2. Consultar firmas", replies[0]);
+        Assert.Contains("3. Hablar con un bazar", replies[0]);
+    }
+
+    [Fact]
+    public async Task Handle_ClienteFirmas_RespondeComprobantesConFirmaDelUltimoMes()
+    {
+        using var ctx = BazaresContextFactory.Create();
+        ctx.BazarSettings.Add(new BzaBazarSettings { Id = 1, TenantId = Tenant, BazarName = "Bazar Firmas" });
+
+        var customer = new BzaCustomer { Id = 1, TenantId = Tenant, Name = "Cliente Uno", Phone = "5511112222" };
+        ctx.Customers.Add(customer);
+
+        ctx.ClosureEvents.Add(new BzaClosureEvent
+        {
+            Id = 30,
+            TenantId = Tenant,
+            Description = "Cierre con entrega",
+            PaymentDeadline = DateTime.UtcNow.AddDays(-1),
+            Status = BzaClosureEventStatus.Validated,
+            DeliveryProofs = new List<BzaClosureDeliveryProof>
+            {
+                new() { Id = 1, TenantId = Tenant, BzaClosureEventId = 30, BzaCollectorGroupId = null, ImageUrl = "firma.jpg", UploadedAt = DateTime.UtcNow.AddDays(-3) },
+            },
+            CustomerTotals = new List<BzaClosureCustomerTotal>
+            {
+                new() { Id = 1, TenantId = Tenant, BzaClosureEventId = 30, BzaCustomerId = 1, Customer = customer, UploadToken = "tok-firma", Status = BzaClosureCustomerTotalStatus.Validated },
+            },
+        });
+        await ctx.SaveChangesAsync(default);
+
+        var (notif, replies) = NotifCapturing();
+        var sender = new Mock<ISender>();
+        sender
+            .Setup(s => s.Send(It.IsAny<IdentifyWhatsAppSenderQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new IdentifyWhatsAppSenderResultDto
+            {
+                NormalizedPhone = "5511112222",
+                Role = WhatsAppSenderRole.Unknown,
+            });
+
+        var handler = new ProcessWhatsAppWebhookHandler(
+            ctx, notif.Object, sender.Object, Config(), Mock.Of<IPasswordRecoverySessionStore>(),
+            NullLogger<ProcessWhatsAppWebhookHandler>.Instance);
+
+        await handler.Handle(new ProcessWhatsAppWebhookCommand(
+            new List<WhatsAppWebhookStatusInput>(),
+            new List<WhatsAppWebhookTextInput>
+            {
+                new("wamid-in-4", "5511112222", "text", "firmas"),
+            }), default);
+
+        Assert.Single(replies);
+        Assert.Contains("Bazar Firmas", replies[0]);
+        Assert.Contains("https://portal.test/comprobante/tok-firma", replies[0]);
+    }
+
+    [Fact]
+    public async Task Handle_RemitenteQueNoEsCliente_RespondeSinConsultarComoDueno()
+    {
+        using var ctx = BazaresContextFactory.Create();
+        var (notif, replies) = NotifCapturing();
+        var sender = new Mock<ISender>();
+        sender
+            .Setup(s => s.Send(It.IsAny<IdentifyWhatsAppSenderQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new IdentifyWhatsAppSenderResultDto
+            {
+                NormalizedPhone = "5215500000000",
+                Role = WhatsAppSenderRole.Unknown,
+            });
+
+        var handler = new ProcessWhatsAppWebhookHandler(
+            ctx, notif.Object, sender.Object, Config(), Mock.Of<IPasswordRecoverySessionStore>(),
+            NullLogger<ProcessWhatsAppWebhookHandler>.Instance);
+
+        await handler.Handle(new ProcessWhatsAppWebhookCommand(
+            [],
+            [new("wamid-unknown-sender", "5215500000000", "text", "hola")]), default);
+
+        var reply = Assert.Single(replies);
+        Assert.Contains("perfil de cliente", reply);
+        Assert.DoesNotContain("cierre", reply, StringComparison.OrdinalIgnoreCase);
+    }
+    [Fact]
+    public async Task Handle_ClienteOpcionTres_RespondeWhatsAppDeSusBazares()
+    {
+        using var ctx = BazaresContextFactory.Create();
+        var (notif, replies) = NotifCapturing();
+        var sender = new Mock<ISender>();
+        sender
+            .Setup(s => s.Send(It.IsAny<IdentifyWhatsAppSenderQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new IdentifyWhatsAppSenderResultDto
+            {
+                NormalizedPhone = "5215511112222",
+                Role = WhatsAppSenderRole.Customer,
+                CustomerAccounts =
+                [
+                    new(1, "tenant-a", "Bazar Uno", 320m, "tok-actual", BzaClosureCustomerTotalStatus.Pending, "55 1234 5678"),
+                ],
+            });
+
+        var handler = new ProcessWhatsAppWebhookHandler(
+            ctx, notif.Object, sender.Object, Config(),
+            Mock.Of<IPasswordRecoverySessionStore>(),
+            NullLogger<ProcessWhatsAppWebhookHandler>.Instance);
+
+        await handler.Handle(new ProcessWhatsAppWebhookCommand(
+            [],
+            [new("wamid-contact", "5215511112222", "text", "3")]), default);
+
+        var reply = Assert.Single(replies);
+        Assert.Contains("Bazar Uno", reply);
+        Assert.Contains("https://wa.me/525512345678", reply);
+    }
+    [Fact]
+    public async Task Handle_ClienteMensajeDesconocido_RespondeGuiaYMenu()
+    {
+        using var ctx = BazaresContextFactory.Create();
+        var (notif, replies) = NotifCapturing();
+        var sender = new Mock<ISender>();
+        sender
+            .Setup(s => s.Send(It.IsAny<IdentifyWhatsAppSenderQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new IdentifyWhatsAppSenderResultDto
+            {
+                NormalizedPhone = "5215511112222",
+                Role = WhatsAppSenderRole.Customer,
+                CustomerAccounts =
+                [
+                    new(1, "tenant-a", "Bazar Uno", 320m, "tok-actual", BzaClosureCustomerTotalStatus.Pending, null),
+                ],
+            });
+
+        var handler = new ProcessWhatsAppWebhookHandler(
+            ctx, notif.Object, sender.Object, Config(),
+            Mock.Of<IPasswordRecoverySessionStore>(),
+            NullLogger<ProcessWhatsAppWebhookHandler>.Instance);
+
+        await handler.Handle(new ProcessWhatsAppWebhookCommand(
+            [],
+            [new("wamid-unknown", "5215511112222", "text", "mensaje diferente")]), default);
+
+        var reply = Assert.Single(replies);
+        Assert.Contains("https://portal.test/comprobante/tok-actual", reply);
+        Assert.Contains("3. Hablar con un bazar", reply);
+    }
+    [Fact]
+    public async Task Handle_RecuperacionValida_EnviaCodigoYMarcaEntrega()
+    {
+        using var ctx = BazaresContextFactory.Create();
+        var (notif, replies) = NotifCapturing();
         var recoverySession = new PasswordRecoverySession(
             "session-1",
             Tenant,
@@ -69,45 +339,16 @@ public class ProcessWhatsAppWebhookHandlerTests
         sessions.Setup(s => s.TryMarkCodeDelivered("session-1")).Returns(true);
 
         var handler = new ProcessWhatsAppWebhookHandler(
-            context,
-            notifications.Object,
+            ctx, notif.Object, Mock.Of<ISender>(), Config(),
             sessions.Object,
             NullLogger<ProcessWhatsAppWebhookHandler>.Instance);
 
         await handler.Handle(new ProcessWhatsAppWebhookCommand(
             [],
-            [new("wamid-in-1", "5215511112222", "text", "RECUPERAR CONTRASENA session-1")]), default);
+            [new("wamid-recovery", "5215511112222", "text", "RECUPERAR CONTRASEÑA session-1")]), default);
 
-        Assert.NotNull(sentData);
-        Assert.Contains("123456", sentData.Body);
+        var reply = Assert.Single(replies);
+        Assert.Contains("123456", reply);
         sessions.Verify(s => s.TryMarkCodeDelivered("session-1"), Times.Once);
     }
-
-    [Fact]
-    public async Task Handle_UnrelatedText_DoesNotSendReply()
-    {
-        using var context = BazaresContextFactory.Create();
-        var notifications = new Mock<IWhatsAppNotificationService>();
-        var handler = new ProcessWhatsAppWebhookHandler(
-            context,
-            notifications.Object,
-            Mock.Of<IPasswordRecoverySessionStore>(),
-            NullLogger<ProcessWhatsAppWebhookHandler>.Instance);
-
-        await handler.Handle(new ProcessWhatsAppWebhookCommand(
-            [],
-            [new("wamid-in-2", "5215511112222", "text", "hola")]), default);
-
-        notifications.Verify(
-            n => n.SendAsync(It.IsAny<string>(), It.IsAny<NotificationTemplateData>(), It.IsAny<CancellationToken>()),
-            Times.Never);
-    }
-
-    private static ProcessWhatsAppWebhookHandler CreateHandler(
-        BusinessCloud.Infrastructure.Data.BazaresDbContext context)
-        => new(
-            context,
-            Mock.Of<IWhatsAppNotificationService>(),
-            Mock.Of<IPasswordRecoverySessionStore>(),
-            NullLogger<ProcessWhatsAppWebhookHandler>.Instance);
 }

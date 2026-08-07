@@ -9,11 +9,8 @@ namespace BusinessCloud.Application.Bazares.Queries.IdentifyWhatsAppSender;
 public static class WhatsAppSenderRole
 {
     public const int Unknown = 0;
-    public const int Owner = 1;
     public const int Customer = 2;
 }
-
-public record OwnerWhatsAppTenantDto(string TenantId, string CompanyName, string BazarName);
 
 public record CustomerWhatsAppAccountDto(
     int ClosureCustomerTotalId,
@@ -21,24 +18,26 @@ public record CustomerWhatsAppAccountDto(
     string BazarName,
     decimal TotalAmount,
     string UploadToken,
-    int Status);
+    int Status,
+    string? BazarWhatsApp);
 
 public class IdentifyWhatsAppSenderResultDto
 {
     public string NormalizedPhone { get; set; } = string.Empty;
     public int Role { get; set; }
-    public List<OwnerWhatsAppTenantDto> OwnerTenants { get; set; } = new();
     public List<CustomerWhatsAppAccountDto> CustomerAccounts { get; set; } = new();
 }
 
 public record IdentifyWhatsAppSenderQuery(string Phone) : IRequest<IdentifyWhatsAppSenderResultDto>;
 
-public class IdentifyWhatsAppSenderHandler(IIdentityDbContext identityContext, IBazaresDbContext bazaresContext)
+public class IdentifyWhatsAppSenderHandler(IBazaresDbContext bazaresContext)
     : IRequestHandler<IdentifyWhatsAppSenderQuery, IdentifyWhatsAppSenderResultDto>
 {
-    public async Task<IdentifyWhatsAppSenderResultDto> Handle(IdentifyWhatsAppSenderQuery request, CancellationToken cancellationToken)
+    public async Task<IdentifyWhatsAppSenderResultDto> Handle(
+        IdentifyWhatsAppSenderQuery request,
+        CancellationToken cancellationToken)
     {
-        var candidates = BuildPhoneCandidates(request.Phone);
+        var candidates = PhoneNumberCandidates.Build(request.Phone).ToList();
         var normalizedPhone = candidates.FirstOrDefault() ?? string.Empty;
 
         if (candidates.Count == 0)
@@ -46,80 +45,69 @@ public class IdentifyWhatsAppSenderHandler(IIdentityDbContext identityContext, I
             return new IdentifyWhatsAppSenderResultDto();
         }
 
-        var ownerRows = await identityContext.TenantSubscriptions
-            .AsNoTracking()
-            .Where(s => s.OwnerPhone != null && candidates.Contains(s.OwnerPhone))
-            .Select(s => new { s.TenantId, CompanyName = s.Tenant != null ? s.Tenant.Name : s.TenantId })
-            .ToListAsync(cancellationToken);
-
-        var ownerTenantIds = ownerRows.Select(x => x.TenantId).Distinct().ToList();
-        var bazarNames = ownerTenantIds.Count == 0
-            ? new Dictionary<string, string>()
-            : await bazaresContext.BazarSettings
-                .IgnoreQueryFilters()
-                .AsNoTracking()
-                .Where(s => ownerTenantIds.Contains(s.TenantId))
-                .Select(s => new { s.TenantId, s.BazarName })
-                .ToDictionaryAsync(x => x.TenantId, x => x.BazarName ?? "Bazar", cancellationToken);
-
-        var owners = ownerRows
-            .GroupBy(x => x.TenantId)
-            .Select(g =>
-            {
-                var row = g.First();
-                return new OwnerWhatsAppTenantDto(
-                    row.TenantId,
-                    row.CompanyName,
-                    bazarNames.TryGetValue(row.TenantId, out var bazarName) ? bazarName : row.CompanyName);
-            })
-            .ToList();
-
         var customerTotals = await bazaresContext.ClosureCustomerTotals
             .IgnoreQueryFilters()
             .AsNoTracking()
-            .Include(t => t.Customer)
-            .Where(t => candidates.Contains(t.Customer.Phone)
-                        && (t.Status == BzaClosureCustomerTotalStatus.Pending
-                            || t.Status == BzaClosureCustomerTotalStatus.Rejected))
-            .Select(t => new
+            .Include(total => total.Customer)
+            .Where(total => candidates.Contains(total.Customer.Phone)
+                && (total.Status == BzaClosureCustomerTotalStatus.Pending
+                    || total.Status == BzaClosureCustomerTotalStatus.Rejected))
+            .Select(total => new
             {
-                t.Id,
-                t.TenantId,
-                t.TotalAmount,
-                t.UploadToken,
-                t.Status,
+                total.Id,
+                total.TenantId,
+                total.TotalAmount,
+                total.UploadToken,
+                total.Status,
             })
             .ToListAsync(cancellationToken);
 
-        var customerTenantIds = customerTotals.Select(x => x.TenantId).Distinct().ToList();
-        var customerBazarNames = customerTenantIds.Count == 0
-            ? new Dictionary<string, string>()
+        var isCustomer = customerTotals.Count > 0
+            || await bazaresContext.Customers
+                .IgnoreQueryFilters()
+                .AsNoTracking()
+                .AnyAsync(customer => candidates.Contains(customer.Phone), cancellationToken);
+
+        var customerTenantIds = customerTotals.Select(total => total.TenantId).Distinct().ToList();
+        var customerBazarSettings = customerTenantIds.Count == 0
+            ? new Dictionary<string, CustomerBazarContact>()
             : await bazaresContext.BazarSettings
                 .IgnoreQueryFilters()
                 .AsNoTracking()
-                .Where(s => customerTenantIds.Contains(s.TenantId))
-                .Select(s => new { s.TenantId, s.BazarName })
-                .ToDictionaryAsync(x => x.TenantId, x => x.BazarName ?? "Bazar", cancellationToken);
+                .Where(settings => customerTenantIds.Contains(settings.TenantId))
+                .Select(settings => new
+                {
+                    settings.TenantId,
+                    BazarName = settings.BazarName ?? "Bazar",
+                    BazarWhatsApp = settings.SalesWhatsApp ?? settings.GeneralWhatsApp,
+                })
+                .ToDictionaryAsync(
+                    settings => settings.TenantId,
+                    settings => new CustomerBazarContact(settings.BazarName, settings.BazarWhatsApp),
+                    cancellationToken);
 
         var accounts = customerTotals
-            .Select(t => new CustomerWhatsAppAccountDto(
-                t.Id,
-                t.TenantId,
-                customerBazarNames.TryGetValue(t.TenantId, out var bazarName) ? bazarName : "Bazar",
-                t.TotalAmount,
-                t.UploadToken,
-                t.Status))
+            .Select(total =>
+            {
+                customerBazarSettings.TryGetValue(total.TenantId, out var settings);
+                return new CustomerWhatsAppAccountDto(
+                    total.Id,
+                    total.TenantId,
+                    settings?.BazarName ?? "Bazar",
+                    total.TotalAmount,
+                    total.UploadToken,
+                    total.Status,
+                    settings?.BazarWhatsApp);
+            })
             .ToList();
 
         return new IdentifyWhatsAppSenderResultDto
         {
             NormalizedPhone = normalizedPhone,
-            Role = owners.Count > 0 ? WhatsAppSenderRole.Owner : accounts.Count > 0 ? WhatsAppSenderRole.Customer : WhatsAppSenderRole.Unknown,
-            OwnerTenants = owners,
+            Role = isCustomer ? WhatsAppSenderRole.Customer : WhatsAppSenderRole.Unknown,
             CustomerAccounts = accounts,
         };
     }
 
-    private static List<string> BuildPhoneCandidates(string? phone)
-        => PhoneNumberCandidates.Build(phone).ToList();
+    private sealed record CustomerBazarContact(string BazarName, string? BazarWhatsApp);
 }

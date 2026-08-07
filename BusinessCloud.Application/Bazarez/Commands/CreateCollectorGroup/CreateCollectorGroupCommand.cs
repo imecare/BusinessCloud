@@ -24,7 +24,7 @@ public class CreateCollectorGroupHandler(IBazaresDbContext context)
         var entity = new BzaCollectorGroup
         {
             Description = description,
-            DeliveryDay = request.DeliveryDay,
+            DeliveryDay = request.DeliveryDay ?? BzaCollectorGroup.DefaultDeliveryDay,
             DeliveryFrequency = string.IsNullOrWhiteSpace(request.DeliveryFrequency)
                 ? null
                 : request.DeliveryFrequency.Trim()
