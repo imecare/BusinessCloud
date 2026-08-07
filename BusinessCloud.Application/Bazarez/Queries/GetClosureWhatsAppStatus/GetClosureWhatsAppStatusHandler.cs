@@ -16,7 +16,13 @@ public class GetClosureWhatsAppStatusHandler(IBazaresDbContext context)
         var totals = await context.ClosureCustomerTotals
             .AsNoTracking()
             .Where(t => t.BzaClosureEventId == request.ClosureEventId)
-            .Select(t => new { t.Id, t.BzaCustomerId, CustomerName = t.Customer.Name })
+            .Select(t => new
+            {
+                t.Id,
+                t.BzaCustomerId,
+                CustomerName = t.Customer.Name,
+                t.Customer.FacebookName,
+            })
             .ToListAsync(cancellationToken);
 
         if (totals.Count == 0)
@@ -61,6 +67,8 @@ public class GetClosureWhatsAppStatusHandler(IBazaresDbContext context)
                 total.Id,
                 total.BzaCustomerId,
                 total.CustomerName,
+                total.FacebookName,
+                notification?.Message,
                 status,
                 message?.SentAt,
                 message?.StatusUpdatedAt,
@@ -80,6 +88,7 @@ public class GetClosureWhatsAppStatusHandler(IBazaresDbContext context)
             "failed" => "failed",
             "sin_whatsapp" => "no_whatsapp",
             "sent" or "accepted" when sentAt.HasValue && now - sentAt.Value >= DeliveryConfirmationTimeout => "unconfirmed",
+            "manual_sent" => "manual_sent",
             "sent" or "accepted" => "processing",
             _ => "not_sent",
         };
@@ -93,6 +102,7 @@ public class GetClosureWhatsAppStatusHandler(IBazaresDbContext context)
             case "failed": result.Failed++; break;
             case "no_whatsapp": result.NoWhatsApp++; break;
             case "unconfirmed": result.Unconfirmed++; break;
+            case "manual_sent": result.ManualSent++; break;
             default: result.Processing++; break;
         }
     }

@@ -5,6 +5,7 @@ using BusinessCloud.Application.Bazares.Commands.CloseClosureDelivery;
 using BusinessCloud.Application.Bazares.Commands.DeleteClosureDraft;
 using BusinessCloud.Application.Bazares.Commands.DeleteDeliveryProof;
 using BusinessCloud.Application.Bazares.Commands.ManualValidateClosureTotal;
+using BusinessCloud.Application.Bazares.Commands.MarkClosureMessageManualSent;
 using BusinessCloud.Application.Bazares.Commands.Notifications;
 using BusinessCloud.Application.Bazares.Commands.MovePendingSales;
 using BusinessCloud.Application.Bazares.Commands.ReactivateClosureSale;
@@ -84,6 +85,13 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
     [HttpGet("{id:int}/whatsapp-status")]
     public async Task<ActionResult<ClosureWhatsAppStatusDto>> GetWhatsAppStatus(int id)
         => await mediator.Send(new GetClosureWhatsAppStatusQuery(id));
+    /// <summary>
+    /// Confirma que el operador envio manualmente por Messenger el total de un cliente sin WhatsApp.
+    /// </summary>
+    [HttpPost("totals/{totalId:int}/mark-manual-sent")]
+    public async Task<ActionResult<MarkClosureMessageManualSentResultDto>> MarkManualSent(int totalId)
+        => await mediator.Send(new MarkClosureMessageManualSentCommand(totalId));
+
 
     /// <summary>
     /// Envia notificaciones masivas para clientes seleccionados usando el canal elegido.

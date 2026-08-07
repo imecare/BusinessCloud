@@ -13,6 +13,7 @@ public class ClosureWhatsAppStatusDto
     public int Read { get; set; }
     public int Failed { get; set; }
     public int NoWhatsApp { get; set; }
+    public int ManualSent { get; set; }
     public int Unconfirmed { get; set; }
     public int InboxUnread { get; set; }
     public int InboxRead { get; set; }
@@ -23,6 +24,8 @@ public record ClosureWhatsAppStatusItemDto(
     int ClosureCustomerTotalId,
     int CustomerId,
     string CustomerName,
+    string? FacebookName,
+    string? ManualMessage,
     string DeliveryStatus,
     DateTime? SentAt,
     DateTime? StatusUpdatedAt,
