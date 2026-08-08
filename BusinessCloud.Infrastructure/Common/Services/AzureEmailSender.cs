@@ -30,11 +30,11 @@ public sealed class AzureEmailSender : IEmailSender
         CancellationToken cancellationToken = default)
     {
         if (!IsConfigured)
-            return new EmailSendResult(false, null, "MissingConfiguration", "La configuracion de correo no esta completa.");
+            return new EmailSendResult(false, null, "MissingConfiguration", BuildMissingConfigurationMessage());
 
         var client = _client.Value;
         if (client is null)
-            return new EmailSendResult(false, null, "MissingConfiguration", "La configuracion de correo no esta completa.");
+            return new EmailSendResult(false, null, "MissingConfiguration", BuildMissingConfigurationMessage());
 
         try
         {
@@ -64,4 +64,7 @@ public sealed class AzureEmailSender : IEmailSender
 
         return new EmailClient(_options.ConnectionString);
     }
+
+    private static string BuildMissingConfigurationMessage() =>
+        "La configuracion de correo no esta completa. Revisa Email:ConnectionString y Email:SenderAddress en appsettings.";
 }

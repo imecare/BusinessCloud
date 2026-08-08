@@ -8,10 +8,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BusinessCloud.Application.Bazares.Commands.SendTotals;
 
-public class SendTotalsHandler(IBazaresDbContext context)
+public class SendTotalsHandler(
+    IBazaresDbContext context,
+    IIdentityDbContext identityContext,
+    ICurrentUserService currentUser)
     : IRequestHandler<SendTotalsCommand, SendTotalsResultDto>
 {
     private readonly IBazaresDbContext _context = context;
+    private readonly IIdentityDbContext _identityContext = identityContext;
+    private readonly ICurrentUserService _currentUser = currentUser;
     private static readonly CultureInfo Culture = new("es-MX");
 
     public async Task<SendTotalsResultDto> Handle(SendTotalsCommand request, CancellationToken cancellationToken)
@@ -120,6 +125,29 @@ public class SendTotalsHandler(IBazaresDbContext context)
 
         if (pendingSales.Count == 0)
             throw new InvalidOperationException("Los eventos seleccionados no tienen ventas pendientes por enviar. Es posible que ya est\u00E9n en un env\u00EDo de totales.");
+
+        // Validación de presupuesto de transacciones ANTES de crear el cierre draft.
+        // Así evitamos invalidar eventos cuando no alcanza saldo/cortesía.
+        var pendingCustomersToCharge = pendingSales
+            .Select(x => x.Sale.BzaCustomerId)
+            .Distinct()
+            .Count();
+        var tenantId = _currentUser.TenantId;
+        var balance = string.IsNullOrEmpty(tenantId)
+            ? null
+            : await _identityContext.TenantMessageBalances
+                .AsNoTracking()
+                .FirstOrDefaultAsync(b => b.TenantId == tenantId, cancellationToken);
+        var available = balance?.Available ?? 0;
+        var courtesyRemaining = Math.Max(0, TransactionPolicy.CourtesyLimit - (balance?.CourtesyUsed ?? 0));
+
+        if (pendingCustomersToCharge > available + courtesyRemaining)
+        {
+            throw new FluentValidation.ValidationException(
+                $"No puedes generar el cierre: este envío requiere {pendingCustomersToCharge} mensajes y solo cuentas con {available} disponibles"
+                + (courtesyRemaining > 0 ? $" más {courtesyRemaining} de cortesía" : string.Empty)
+                + ". Adquiere más transacciones antes de continuar.");
+        }
 
         // Bloqueo: no se puede enviar si algun cliente incluido tiene su informacion incompleta.
         var incompleteCustomers = pendingSales

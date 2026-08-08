@@ -99,7 +99,9 @@ public sealed class RequestPasswordRecoveryHandler(
                 sendResult.Success,
                 sendResult.Success
                     ? "Enviamos el codigo al correo registrado."
-                    : "No se pudo enviar el correo de recuperacion.",
+                    : string.IsNullOrWhiteSpace(sendResult.ErrorMessage)
+                        ? "No se pudo enviar el correo de recuperacion."
+                        : $"No se pudo enviar el correo de recuperacion. {sendResult.ErrorMessage}",
                 session.Email);
         }
 
