@@ -40,6 +40,22 @@ public class CommitBzaImportHandler(
         var collectorByName = new Dictionary<string, BzaCollector>(StringComparer.OrdinalIgnoreCase);
         foreach (var c in collectors)
             collectorByName.TryAdd(c.Name.Trim(), c);
+        var noCollectorIds = collectors
+            .Where(c =>
+                NoCollectorCustomer.IsNoCollectorName(c.Name)
+                || CollectorCatalogNameNormalizer.ToComparisonKey(c.Name) == "SIN ASIGNAR")
+            .Select(c => c.Id)
+            .ToHashSet();
+
+        bool HasMinimumCustomerInfo(BzaCustomer customer)
+        {
+            var hasRealCollector = !noCollectorIds.Contains(customer.BzaCollectorId);
+            var hasRealPhone = !customer.HasNoWhatsApp
+                && !string.IsNullOrWhiteSpace(customer.Phone)
+                && !NoWhatsAppNumber.IsPlaceholder(customer.Phone);
+            var hasFacebook = !string.IsNullOrWhiteSpace(customer.FacebookName);
+            return hasRealCollector && (hasRealPhone || hasFacebook);
+        }
 
         // 2.a. Dar de alta los recolectores NUEVOS (solo los que no existen) con su grupo
         foreach (var nc in request.NewCollectors)
@@ -154,12 +170,18 @@ public class CommitBzaImportHandler(
                             if (!string.IsNullOrEmpty(customer.Phone))
                                 phoneOwners.Remove(customer.Phone.Trim());
                             customer.Phone = newPhone;
+                            customer.HasNoWhatsApp = newPhone.Length == 0;
                             if (newPhone.Length > 0)
                                 phoneOwners[newPhone] = new { customer.Id, customer.Name, Phone = newPhone };
                             customerUpdated = true;
                         }
                     }
                 }
+
+                var wasPendingInfo = customer.IsPendingInfo;
+                customer.IsPendingInfo = !HasMinimumCustomerInfo(customer);
+                if (customer.IsPendingInfo != wasPendingInfo)
+                    customerUpdated = true;
 
                 if (customerUpdated)
                     result.CustomersUpdated++;
@@ -228,6 +250,7 @@ public class CommitBzaImportHandler(
                     Status = 1,
                     PortalToken = Guid.NewGuid().ToString("N")[..12],
                 };
+                customer.IsPendingInfo = !HasMinimumCustomerInfo(customer);
                 _context.Customers.Add(customer);
                 await _context.SaveChangesAsync(ct);
                 result.NewCustomersCreated++;
@@ -297,6 +320,5 @@ public class CommitBzaImportHandler(
         return result;
     }
 }
-
 
 

@@ -1,4 +1,5 @@
 using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Application.Bazares.Common;
 using BusinessCloud.Domain.Bazares.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -54,6 +55,25 @@ public class PrepareTotalsHandler(IBazaresDbContext context)
             .Where(x => x.Pending > 0m)
             .ToList();
 
+        bool HasMinimumCustomerInfo(BzaCustomer customer)
+        {
+            var collectorKey = CollectorCatalogNameNormalizer.ToComparisonKey(customer.Collector?.Name);
+            var hasRealCollector = collectorKey.Length > 0
+                && collectorKey != "AUN SIN RECOLECTOR"
+                && collectorKey != "SIN ASIGNAR";
+            var hasRealPhone = !customer.HasNoWhatsApp
+                && !string.IsNullOrWhiteSpace(customer.Phone)
+                && !NoWhatsAppNumber.IsPlaceholder(customer.Phone);
+            var hasFacebook = !string.IsNullOrWhiteSpace(customer.FacebookName);
+            return hasRealCollector && (hasRealPhone || hasFacebook);
+        }
+
+        static string DisplayName(BzaCustomer customer)
+        {
+            var name = (customer.Name ?? string.Empty).Trim();
+            return string.IsNullOrWhiteSpace(name) ? $"Cliente #{customer.Id}" : name;
+        }
+
         // Detalle por evento.
         var eventDtos = events
             .Select(e =>
@@ -99,9 +119,15 @@ public class PrepareTotalsHandler(IBazaresDbContext context)
         // Clientes con informaciÃ³n incompleta (alta rÃ¡pida) incluidos en la selecciÃ³n.
         var pendingInfoCustomers = pendingSales
             .Select(x => x.Sale.Customer)
-            .Where(c => c is not null && c.IsPendingInfo)
+            .Where(c => c is not null && c.IsPendingInfo && !HasMinimumCustomerInfo(c))
             .DistinctBy(c => c!.Id)
-            .Select(c => new PendingInfoCustomerDto(c!.Id, c.Name))
+            .Select(c => new PendingInfoCustomerDto(
+                c!.Id,
+                DisplayName(c),
+                c.Phone ?? string.Empty,
+                c.FacebookName,
+                c.Collector?.Name,
+                c.HasNoWhatsApp))
             .OrderBy(c => c.Name)
             .ToList();
 

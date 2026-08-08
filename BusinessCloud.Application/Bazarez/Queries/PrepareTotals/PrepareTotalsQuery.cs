@@ -26,7 +26,13 @@ public class PrepareTotalsResultDto
     public List<PendingInfoCustomerDto> PendingInfoCustomers { get; set; } = new();
 }
 
-public record PendingInfoCustomerDto(int Id, string Name);
+public record PendingInfoCustomerDto(
+    int Id,
+    string Name,
+    string Phone,
+    string? FacebookName,
+    string? CollectorName,
+    bool HasNoWhatsApp);
 
 public record TotalsEventDto(int EventId, string Description, decimal Pending, int CustomerCount);
 

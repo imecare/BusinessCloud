@@ -110,4 +110,71 @@ public class CommitBzaImportHandlerTests
         Assert.Equal(1, retry.SalesCreated);
         Assert.Equal(2, await ctx.Customers.CountAsync());
     }
+
+    [Fact]
+    public async Task Handle_ClientePendienteConCambiosAutorizados_LimpiaBanderaPendiente()
+    {
+        using var ctx = BazaresContextFactory.Create();
+
+        ctx.Events.Add(new BzaEvent { Id = 1, TenantId = Tenant, Description = "Evento", Status = 1 });
+        var group = new BzaCollectorGroup { Id = 1, TenantId = Tenant, Description = "Grupo A", IsActive = true };
+        var placeholderCollector = new BzaCollector
+        {
+            Id = 1,
+            TenantId = Tenant,
+            Name = "Aún sin recolector",
+            IsActive = true,
+            BzaCollectorGroupId = 1,
+            CollectorGroup = group
+        };
+        var realCollector = new BzaCollector
+        {
+            Id = 2,
+            TenantId = Tenant,
+            Name = "Recolector Real",
+            IsActive = true,
+            BzaCollectorGroupId = 1,
+            CollectorGroup = group
+        };
+        ctx.Collectors.AddRange(placeholderCollector, realCollector);
+        ctx.Customers.Add(new BzaCustomer
+        {
+            Id = 1,
+            TenantId = Tenant,
+            Name = "Cliente Pendiente",
+            Phone = "0000000001",
+            HasNoWhatsApp = true,
+            BzaCollectorId = 1,
+            Collector = placeholderCollector,
+            IsPendingInfo = true,
+            Status = 1,
+        });
+        await ctx.SaveChangesAsync();
+
+        var handler = Handler(ctx);
+        var result = await handler.Handle(
+            new CommitBzaImportCommand(
+                EventId: 1,
+                ConfirmDuplicate: true,
+                NewCollectors: [],
+                Customers:
+                [
+                    new CommitImportCustomerDto
+                    {
+                        CustomerId = 1,
+                        ChangeCollectorToName = "Recolector Real",
+                        ChangePhoneTo = "5512345678",
+                        Products = [new CommitImportProductDto { Description = "Blusa", Price = 100m }],
+                    },
+                ]),
+            CancellationToken.None);
+
+        var customer = await ctx.Customers.AsNoTracking().SingleAsync(c => c.Id == 1);
+        Assert.Equal(1, result.CollectorsChanged);
+        Assert.Equal(1, result.CustomersUpdated);
+        Assert.False(customer.IsPendingInfo);
+        Assert.False(customer.HasNoWhatsApp);
+        Assert.Equal(2, customer.BzaCollectorId);
+        Assert.Equal("525512345678", customer.Phone);
+    }
 }

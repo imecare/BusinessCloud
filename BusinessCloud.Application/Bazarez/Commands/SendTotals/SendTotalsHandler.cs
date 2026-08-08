@@ -99,15 +99,34 @@ public class SendTotalsHandler(IBazaresDbContext context)
             .Where(x => x.Pending > 0m)
             .ToList();
 
+        bool HasMinimumCustomerInfo(BzaCustomer customer)
+        {
+            var collectorKey = CollectorCatalogNameNormalizer.ToComparisonKey(customer.Collector?.Name);
+            var hasRealCollector = collectorKey.Length > 0
+                && collectorKey != "AUN SIN RECOLECTOR"
+                && collectorKey != "SIN ASIGNAR";
+            var hasRealPhone = !customer.HasNoWhatsApp
+                && !string.IsNullOrWhiteSpace(customer.Phone)
+                && !NoWhatsAppNumber.IsPlaceholder(customer.Phone);
+            var hasFacebook = !string.IsNullOrWhiteSpace(customer.FacebookName);
+            return hasRealCollector && (hasRealPhone || hasFacebook);
+        }
+
+        static string DisplayName(BzaCustomer customer)
+        {
+            var name = (customer.Name ?? string.Empty).Trim();
+            return string.IsNullOrWhiteSpace(name) ? $"Cliente #{customer.Id}" : name;
+        }
+
         if (pendingSales.Count == 0)
             throw new InvalidOperationException("Los eventos seleccionados no tienen ventas pendientes por enviar. Es posible que ya est\u00E9n en un env\u00EDo de totales.");
 
         // Bloqueo: no se puede enviar si algun cliente incluido tiene su informacion incompleta.
         var incompleteCustomers = pendingSales
             .Select(x => x.Sale.Customer)
-            .Where(c => c is not null && c.IsPendingInfo)
+            .Where(c => c is not null && c.IsPendingInfo && !HasMinimumCustomerInfo(c))
             .DistinctBy(c => c!.Id)
-            .Select(c => c!.Name)
+            .Select(c => DisplayName(c!))
             .OrderBy(n => n)
             .ToList();
         if (incompleteCustomers.Count > 0)
