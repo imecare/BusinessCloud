@@ -10,6 +10,8 @@ public interface IPaymentsDbContext
     DbSet<Seller> Sellers { get; }
     DbSet<Sale> Sales { get; }
     DbSet<Payment> Payments { get; }
+    DbSet<PayExpense> Expenses { get; }
+    DbSet<SaleReservation> Reservations { get; }
     DbSet<DeletedPayment> DeletedPayments { get; }
     DbSet<DeletedSale> DeletedSales { get; }
     DbSet<Tenant> Tenants { get; }

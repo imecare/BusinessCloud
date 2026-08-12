@@ -10,4 +10,6 @@ public class DashboardStatsDto
     public int ActiveCustomers { get; set; }
     public int ActiveSellers { get; set; }
     public decimal TotalProfit { get; set; }
+    /// <summary>Total de gastos/compras registrados en el mes actual.</summary>
+    public decimal MonthlyExpenses { get; set; }
 }

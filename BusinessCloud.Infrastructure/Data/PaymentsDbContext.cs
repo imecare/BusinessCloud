@@ -23,6 +23,8 @@ public class PaymentsDbContext : DbContext, IPaymentsDbContext
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Sale> Sales => Set<Sale>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<PayExpense> Expenses => Set<PayExpense>();
+    public DbSet<SaleReservation> Reservations => Set<SaleReservation>();
     public DbSet<Seller> Sellers => Set<Seller>();
     public DbSet<DeletedPayment> DeletedPayments => Set<DeletedPayment>();
     public DbSet<DeletedSale> DeletedSales => Set<DeletedSale>();
@@ -42,12 +44,22 @@ public class PaymentsDbContext : DbContext, IPaymentsDbContext
         modelBuilder.Entity<Payment>().HasQueryFilter(p => p.TenantId == _userService.TenantId);
         modelBuilder.Entity<Customer>().HasQueryFilter(c => c.TenantId == _userService.TenantId);
         modelBuilder.Entity<Seller>().HasQueryFilter(c => c.TenantId == _userService.TenantId);
+        modelBuilder.Entity<PayExpense>().HasQueryFilter(e => e.TenantId == _userService.TenantId);
+        modelBuilder.Entity<SaleReservation>().HasQueryFilter(r => r.TenantId == _userService.TenantId);
 
         // 2. Configuración de precisión
         modelBuilder.Entity<Sale>().Property(s => s.TotalAmount).HasPrecision(18, 2);
         modelBuilder.Entity<Sale>().Property(s => s.CostPrice).HasPrecision(18, 2);
         modelBuilder.Entity<Sale>().Property(s => s.CommissionAmount).HasPrecision(18, 2);
         modelBuilder.Entity<Payment>().Property(e => e.Amount).HasPrecision(18, 2);
+        modelBuilder.Entity<PayExpense>().Property(e => e.Cost).HasPrecision(18, 2);
+        modelBuilder.Entity<PayExpense>().Property(e => e.Description).HasMaxLength(500);
+        modelBuilder.Entity<PayExpense>().Property(e => e.PaymentType).HasMaxLength(20);
+
+        modelBuilder.Entity<SaleReservation>().Property(r => r.TotalAmount).HasPrecision(18, 2);
+        modelBuilder.Entity<SaleReservation>().Property(r => r.CostPrice).HasPrecision(18, 2);
+        modelBuilder.Entity<SaleReservation>().Property(r => r.CommissionAmount).HasPrecision(18, 2);
+        modelBuilder.Entity<SaleReservation>().Property(r => r.ProductDescription).HasMaxLength(500);
         modelBuilder.Entity<DeletedPayment>().Property(e => e.Amount).HasPrecision(18, 2);
         modelBuilder.Entity<DeletedSale>().Property(e => e.TotalAmount).HasPrecision(18, 2);
         modelBuilder.Entity<DeletedSale>().Property(e => e.CostPrice).HasPrecision(18, 2);

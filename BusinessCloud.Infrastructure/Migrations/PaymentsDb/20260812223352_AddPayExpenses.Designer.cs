@@ -4,6 +4,7 @@ using BusinessCloud.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
 {
     [DbContext(typeof(PaymentsDbContext))]
-    partial class PaymentsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260812223352_AddPayExpenses")]
+    partial class AddPayExpenses
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -430,65 +433,6 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
                     b.ToTable("Sales");
                 });
 
-            modelBuilder.Entity("BusinessCloud.Domain.Payments.Entities.SaleReservation", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("CommissionAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("CostPrice")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("CustomerId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ProductDescription")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int?>("SellerId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("TenantId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("TotalAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CustomerId");
-
-                    b.HasIndex("SellerId");
-
-                    b.ToTable("Reservations");
-                });
-
             modelBuilder.Entity("BusinessCloud.Domain.Payments.Entities.Seller", b =>
                 {
                     b.Property<int>("Id")
@@ -573,23 +517,6 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
                 {
                     b.HasOne("BusinessCloud.Domain.Payments.Entities.Customer", "Customer")
                         .WithMany("Sales")
-                        .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("BusinessCloud.Domain.Payments.Entities.Seller", "Seller")
-                        .WithMany()
-                        .HasForeignKey("SellerId");
-
-                    b.Navigation("Customer");
-
-                    b.Navigation("Seller");
-                });
-
-            modelBuilder.Entity("BusinessCloud.Domain.Payments.Entities.SaleReservation", b =>
-                {
-                    b.HasOne("BusinessCloud.Domain.Payments.Entities.Customer", "Customer")
-                        .WithMany()
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

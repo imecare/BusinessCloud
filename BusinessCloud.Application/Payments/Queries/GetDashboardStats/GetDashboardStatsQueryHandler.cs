@@ -32,6 +32,13 @@ public class GetDashboardStatsQueryHandler : IRequestHandler<GetDashboardStatsQu
         var activeCustomers = await _db.Customers.CountAsync(cancellationToken);
         var activeSellers = await _db.Sellers.CountAsync(cancellationToken);
 
+        var now = DateTime.UtcNow;
+        var monthStart = new DateTime(now.Year, now.Month, 1);
+        var nextMonthStart = monthStart.AddMonths(1);
+        var monthlyExpenses = await _db.Expenses
+            .Where(e => e.Date >= monthStart && e.Date < nextMonthStart)
+            .SumAsync(e => (decimal?)e.Cost, cancellationToken) ?? 0m;
+
         return new DashboardStatsDto
         {
             TotalSales = totalSales,
@@ -41,7 +48,8 @@ public class GetDashboardStatsQueryHandler : IRequestHandler<GetDashboardStatsQu
             PaidCommissions = salesData.Where(x => x.IsCommissionPaid).Sum(x => x.CommissionAmount),
             ActiveCustomers = activeCustomers,
             ActiveSellers = activeSellers,
-            TotalProfit = totalSales - totalCost
+            TotalProfit = totalSales - totalCost,
+            MonthlyExpenses = monthlyExpenses
         };
     }
 }
