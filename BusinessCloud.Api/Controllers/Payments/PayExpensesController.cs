@@ -1,5 +1,6 @@
 using BusinessCloud.Application.Payments.Commands.CreateExpense;
 using BusinessCloud.Application.Payments.Commands.DeleteExpense;
+using BusinessCloud.Application.Payments.Commands.MarkExpenseReceived;
 using BusinessCloud.Application.Payments.Commands.UpdateExpense;
 using BusinessCloud.Application.Payments.Dtos;
 using BusinessCloud.Application.Payments.Queries.GetAllExpenses;
@@ -49,6 +50,17 @@ public class PayExpensesController : ControllerBase
     }
 
     [Authorize(Policy = "SuperAdmin")]
+    [HttpPatch("{id:int}/received")]
+    public async Task<IActionResult> MarkReceived(int id, [FromBody] MarkExpenseReceivedRequest request, CancellationToken cancellationToken)
+    {
+        var received = request?.Received ?? true;
+        var result = await _mediator.Send(new MarkExpenseReceivedCommand(id, received), cancellationToken);
+        return result
+            ? Ok(new { success = true, message = received ? "Compra marcada como recibida." : "Compra marcada como pendiente." })
+            : NotFound(new { success = false, message = "Compra no encontrada." });
+    }
+
+    [Authorize(Policy = "SuperAdmin")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
@@ -56,4 +68,9 @@ public class PayExpensesController : ControllerBase
         return result ? Ok(new { success = true, message = "Gasto eliminado." })
                       : NotFound(new { success = false, message = "Gasto no encontrado." });
     }
+}
+
+public class MarkExpenseReceivedRequest
+{
+    public bool Received { get; set; } = true;
 }

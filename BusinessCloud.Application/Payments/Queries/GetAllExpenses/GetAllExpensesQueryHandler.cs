@@ -27,7 +27,9 @@ public class GetAllExpensesQueryHandler : IRequestHandler<GetAllExpensesQuery, L
                 Months = e.Months,
                 MonthlyAmount = e.PaymentType == ExpensePaymentTypes.Installments && e.Months != null && e.Months > 0
                     ? e.Cost / e.Months.Value
-                    : (decimal?)null
+                    : (decimal?)null,
+                IsReceived = e.IsReceived,
+                ReceivedAt = e.ReceivedAt
             })
             .ToListAsync(cancellationToken);
     }

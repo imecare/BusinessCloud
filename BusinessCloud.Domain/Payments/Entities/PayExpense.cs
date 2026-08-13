@@ -24,6 +24,12 @@ namespace BusinessCloud.Domain.Payments.Entities
 
         /// <summary>Número de meses cuando el pago es a meses. Null si es de contado.</summary>
         public int? Months { get; set; }
+
+        /// <summary>Indica si la compra/mercancía ya fue recibida.</summary>
+        public bool IsReceived { get; set; }
+
+        /// <summary>Fecha en que se marcó como recibida. Null si aún no se recibe.</summary>
+        public DateTime? ReceivedAt { get; set; }
     }
 
     public static class ExpensePaymentTypes
