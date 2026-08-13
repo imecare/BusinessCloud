@@ -62,6 +62,7 @@ public class RegisterPaymentHandler : IRequestHandler<RegisterPaymentCommand, Pa
             PaymentTypeId = 2,
             PaymentDate = request.PaymentDate,
             Date = DateTime.UtcNow,
+            PaymentMethod = string.IsNullOrWhiteSpace(request.PaymentMethod) ? "Cash" : request.PaymentMethod,
             Reference = request.Reference
         };
 
