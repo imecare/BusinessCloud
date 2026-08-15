@@ -311,6 +311,13 @@ try
         var bazaresDb = migrationScope.ServiceProvider.GetRequiredService<BazaresDbContext>();
         await bazaresDb.Database.MigrateAsync();
         Log.Information("Migraciones de Bazares aplicadas correctamente.");
+
+        // PaymentsDbContext comparte la misma base que Bazares (PaymentsConnection) y el mismo
+        // historial de migraciones. Aplicamos aquí sus migraciones pendientes para que columnas
+        // como Expenses.IsReceived / Expenses.ReceivedAt no queden sin desplegar en producción.
+        var paymentsDb = migrationScope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+        await paymentsDb.Database.MigrateAsync();
+        Log.Information("Migraciones de Payments aplicadas correctamente.");
     }
 
     // --- 2. Middleware ---
