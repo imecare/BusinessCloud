@@ -1,4 +1,4 @@
-﻿using BusinessCloud.Api.Common;
+using BusinessCloud.Api.Common;
 using BusinessCloud.Application.Bazarez.Commands.ProcessWhatsAppWebhook;
 using BusinessCloud.Application.Common.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -73,15 +73,50 @@ public class WhatsAppWebhookController : ControllerBase
             body.Entry
                 .SelectMany(e => e.Changes)
                 .SelectMany(c => c.Value?.Messages ?? Enumerable.Empty<WhatsAppWebhookMessagePayload>())
-                .Where(m => string.Equals(m.Type, "text", StringComparison.OrdinalIgnoreCase)
-                            && !string.IsNullOrWhiteSpace(m.Id)
+                .Where(m => !string.IsNullOrWhiteSpace(m.Id)
                             && !string.IsNullOrWhiteSpace(m.From)
-                            && !string.IsNullOrWhiteSpace(m.Text?.Body))
-                .Select(m => new WhatsAppWebhookTextInput(m.Id!, m.From!, m.Type!, m.Text!.Body!))
+                            && IsSupportedInboundMessage(m))
+                .Select(m => new WhatsAppWebhookTextInput(
+                    m.Id!, m.From!, NormalizeType(m.Type), ExtractInboundBody(m)))
                 .ToList());
 
         await _queue.EnqueueAsync(command, ct);
 
         return Ok();
+    }
+
+    /// <summary>
+    /// Mensajes entrantes que el bot procesa: texto con contenido, o una imagen/documento
+    /// (típicamente un comprobante que el cliente envía por error a este chat automático).
+    /// </summary>
+    private static bool IsSupportedInboundMessage(WhatsAppWebhookMessagePayload m)
+    {
+        var type = NormalizeType(m.Type);
+        return type switch
+        {
+            "text" => !string.IsNullOrWhiteSpace(m.Text?.Body),
+            "image" => true,
+            "document" => true,
+            _ => false,
+        };
+    }
+
+    private static string NormalizeType(string? type) =>
+        string.IsNullOrWhiteSpace(type) ? "text" : type.Trim().ToLowerInvariant();
+
+    /// <summary>
+    /// Texto asociado al mensaje: el cuerpo para texto, o el caption de la imagen/documento
+    /// (puede venir vacío). El handler solo usa el tipo para responder a los comprobantes.
+    /// </summary>
+    private static string ExtractInboundBody(WhatsAppWebhookMessagePayload m)
+    {
+        var type = NormalizeType(m.Type);
+        return type switch
+        {
+            "text" => m.Text?.Body ?? string.Empty,
+            "image" => m.Image?.Caption ?? string.Empty,
+            "document" => m.Document?.Caption ?? string.Empty,
+            _ => string.Empty,
+        };
     }
 }

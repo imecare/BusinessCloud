@@ -65,6 +65,14 @@ public class SendClosureWhatsAppHandler(
     private static readonly CultureInfo Culture = new("es-MX");
     private readonly IConfiguration _configuration = configuration;
 
+    /// <summary>
+    /// Nombre de la plantilla nueva de cobro: header con el bazar, 6 parámetros de cuerpo
+    /// (cliente, total, entrega, límite, descripción del cierre y número de productos) y el
+    /// token del comprobante en un botón de URL dinámica. Si la plantilla configurada es la
+    /// anterior (total_compra_v3) se conserva el envío con el enlace dentro del cuerpo.
+    /// </summary>
+    private const string CobroTemplateName = "totales_cobro_v2";
+
     public async Task<SendClosureWhatsAppResultDto> Handle(SendClosureWhatsAppCommand request, CancellationToken ct)
     {
         var closure = await context.ClosureEvents
@@ -84,6 +92,25 @@ public class SendClosureWhatsAppHandler(
         var baseUrl = (request.PortalBaseUrl ?? string.Empty).TrimEnd('/');
         var now = DateTime.UtcNow;
         var result = new SendClosureWhatsAppResultDto { ClosureEventId = closure.Id };
+
+        // Se resuelve una sola vez la plantilla configurada y su idioma. Según su nombre se
+        // decide la estructura del envío (nueva totales_cobro_v2 vs. anterior total_compra_v3).
+        var closureTotalsTemplateName = _configuration["WhatsApp:ClosureTotalsTemplateName"];
+        var closureTemplateLang = string.IsNullOrWhiteSpace(_configuration["WhatsApp:ClosureTotalsTemplateLang"])
+            ? "es"
+            : _configuration["WhatsApp:ClosureTotalsTemplateLang"]!;
+        var useCobroV2Template = string.Equals(
+            closureTotalsTemplateName, CobroTemplateName, StringComparison.OrdinalIgnoreCase);
+
+        // Solo la plantilla nueva necesita el número de productos por cliente; se precalcula
+        // contando los renglones de producto de las ventas de cada cliente en este cierre.
+        Dictionary<int, int> productCountByCustomer = useCobroV2Template
+            ? await context.SoldProducts
+                .Where(p => p.Sale.BzaClosureEventId == closure.Id)
+                .GroupBy(p => p.Sale.BzaCustomerId)
+                .Select(g => new { CustomerId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.CustomerId, x => x.Count, ct)
+            : new Dictionary<int, int>();
 
         var targets = request.CustomerIds is { Count: > 0 } customerIds
             ? closure.CustomerTotals.Where(t => customerIds.Contains(t.BzaCustomerId)).ToList()
@@ -165,36 +192,61 @@ public class SendClosureWhatsAppHandler(
             }
             else
             {
-                var closureTotalsTemplateName = _configuration["WhatsApp:ClosureTotalsTemplateName"];
-
-                if (!string.IsNullOrWhiteSpace(closureTotalsTemplateName))
+                if (string.IsNullOrWhiteSpace(closureTotalsTemplateName))
                 {
-                    var templateLang = string.IsNullOrWhiteSpace(_configuration["WhatsApp:ClosureTotalsTemplateLang"])
-                        ? "es"
-                        : _configuration["WhatsApp:ClosureTotalsTemplateLang"]!;
-
-                    var headerParam = string.IsNullOrWhiteSpace(bazarName) ? "Bazar" : bazarName.Trim();
-                    var bodyParams = new[]
-                    {
-                        name,
-                        total.TotalAmount.ToString("N2", Culture),
-                        FormatLongDate(effectiveDeliveryDate),
-                        FormatDeadlineWithTime(closure.PaymentDeadline, settings?.PaymentCutoffTime),
-                    };
-
-                    send = await TrySendClosureTemplateAsync(
-                        whatsApp,
-                        phone,
-                        closureTotalsTemplateName,
-                        templateLang,
-                        headerParam,
-                        bodyParams,
-                        uploadUrl,
-                        ct);
+                    send = new WhatsAppSendResult(false, null, null, "Plantilla de cobro no configurada.");
                 }
                 else
                 {
-                    send = new WhatsAppSendResult(false, null, null, "Plantilla de cobro no configurada.");
+                    var headerParam = string.IsNullOrWhiteSpace(bazarName) ? "Bazar" : bazarName.Trim();
+
+                    if (useCobroV2Template)
+                    {
+                        // totales_cobro_v2: header con el bazar, 6 parámetros de cuerpo y el
+                        // token del comprobante en el botón de URL dinámica.
+                        var productCount = productCountByCustomer.GetValueOrDefault(total.BzaCustomerId);
+                        var bodyParams = new[]
+                        {
+                            name,
+                            total.TotalAmount.ToString("N2", Culture),
+                            FormatLongDate(effectiveDeliveryDate),
+                            FormatDeadlineWithTime(closure.PaymentDeadline, settings?.PaymentCutoffTime),
+                            string.IsNullOrWhiteSpace(closure.Description) ? "Cierre" : closure.Description.Trim(),
+                            productCount.ToString(Culture),
+                        };
+
+                        send = await TrySendCobroTemplateAsync(
+                            whatsApp,
+                            phone,
+                            closureTotalsTemplateName,
+                            closureTemplateLang,
+                            headerParam,
+                            bodyParams,
+                            total.UploadToken,
+                            ct);
+                    }
+                    else
+                    {
+                        // total_compra_v3 (anterior): el enlace del comprobante viaja como
+                        // texto en el cuerpo (5º parámetro), sin botón.
+                        var bodyParams = new[]
+                        {
+                            name,
+                            total.TotalAmount.ToString("N2", Culture),
+                            FormatLongDate(effectiveDeliveryDate),
+                            FormatDeadlineWithTime(closure.PaymentDeadline, settings?.PaymentCutoffTime),
+                        };
+
+                        send = await TrySendClosureTemplateAsync(
+                            whatsApp,
+                            phone,
+                            closureTotalsTemplateName,
+                            closureTemplateLang,
+                            headerParam,
+                            bodyParams,
+                            uploadUrl,
+                            ct);
+                    }
                 }
             }
 
@@ -318,6 +370,38 @@ public class SendClosureWhatsAppHandler(
         return last;
     }
 
+    private static async Task<WhatsAppSendResult> TrySendCobroTemplateAsync(
+        IWhatsAppSender whatsApp,
+        string phone,
+        string templateName,
+        string configuredLang,
+        string headerParam,
+        IReadOnlyList<string> bodyParams,
+        string uploadToken,
+        CancellationToken ct)
+    {
+        var langs = GetLanguageCandidates(configuredLang);
+        WhatsAppSendResult last = new(false, null, null, "No se pudo enviar la plantilla de WhatsApp.");
+
+        // El botón de URL dinámica recibe SOLO el token; Meta lo concatena a la URL base
+        // configurada en la plantilla (p. ej. https://bazares.bcloud.com.mx/comprobante/).
+        foreach (var lang in langs)
+        {
+            var attempt = await whatsApp.SendTemplateWithResultAsync(
+                phone, templateName, lang, bodyParams, ct,
+                buttonUrlParameter: uploadToken,
+                headerParameter: headerParam);
+            if (attempt.Success)
+            {
+                return attempt;
+            }
+
+            last = attempt;
+        }
+
+        return last;
+    }
+
     private static IReadOnlyList<string> GetLanguageCandidates(string configuredLang)
     {
         var langs = new List<string>();
@@ -397,6 +481,6 @@ public class SendClosureWhatsAppHandler(
             $"El total de tu compra es de ${total}. " +
             $"Fecha de entrega: {FormatLongDate(deliveryDate)}. " +
             $"Fecha límite de pago: {FormatDeadlineWithTime(paymentDeadline, paymentCutoffTime)}. " +
-            $"Sube tu comprobante de pago aquí: {uploadUrl}";
+            $"Puedes entrar a tu comprobante para ver el detalle, consultar las tarjetas y subir tu pago aquí: {uploadUrl}";
     }
 }

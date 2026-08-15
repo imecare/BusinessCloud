@@ -57,6 +57,25 @@ public class WhatsAppWebhookMessagePayload
 
     [JsonPropertyName("text")]
     public WhatsAppWebhookTextPayload? Text { get; set; }
+
+    [JsonPropertyName("image")]
+    public WhatsAppWebhookMediaPayload? Image { get; set; }
+
+    [JsonPropertyName("document")]
+    public WhatsAppWebhookMediaPayload? Document { get; set; }
+}
+
+/// <summary>
+/// Contenido multimedia entrante (imagen o documento). Solo se usa el caption para
+/// detectar comprobantes enviados por el chat; el archivo en sí no se descarga.
+/// </summary>
+public class WhatsAppWebhookMediaPayload
+{
+    [JsonPropertyName("id")]
+    public string? Id { get; set; }
+
+    [JsonPropertyName("caption")]
+    public string? Caption { get; set; }
 }
 
 public class WhatsAppWebhookTextPayload

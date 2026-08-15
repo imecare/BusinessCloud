@@ -351,4 +351,105 @@ public class ProcessWhatsAppWebhookHandlerTests
         Assert.Contains("123456", reply);
         sessions.Verify(s => s.TryMarkCodeDelivered("session-1"), Times.Once);
     }
+
+    [Fact]
+    public async Task Handle_ImagenComprobante_ClienteIdentificado_RespondeConEnlacePersonalizado()
+    {
+        using var ctx = BazaresContextFactory.Create();
+        var (notif, replies) = NotifCapturing();
+
+        var sender = new Mock<ISender>();
+        sender
+            .Setup(s => s.Send(It.IsAny<IdentifyWhatsAppSenderQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new IdentifyWhatsAppSenderResultDto
+            {
+                NormalizedPhone = "5215511112222",
+                Role = WhatsAppSenderRole.Customer,
+                CustomerAccounts = new List<CustomerWhatsAppAccountDto>
+                {
+                    new(1, "tenant-a", "Bazar Uno", 320m, "tok-1", BzaClosureCustomerTotalStatus.Pending, null),
+                },
+            });
+
+        var handler = new ProcessWhatsAppWebhookHandler(
+            ctx, notif.Object, sender.Object, Config(), Mock.Of<IPasswordRecoverySessionStore>(),
+            NullLogger<ProcessWhatsAppWebhookHandler>.Instance);
+
+        await handler.Handle(new ProcessWhatsAppWebhookCommand(
+            new List<WhatsAppWebhookStatusInput>(),
+            new List<WhatsAppWebhookTextInput>
+            {
+                new("wamid-img-1", "5215511112222", "image", string.Empty),
+            }), default);
+
+        var reply = Assert.Single(replies);
+        Assert.Contains("NO le llega al bazar", reply);
+        Assert.Contains("https://portal.test/comprobante/tok-1", reply);
+    }
+
+    [Fact]
+    public async Task Handle_DocumentoComprobante_ClienteIdentificado_RespondeConEnlace()
+    {
+        using var ctx = BazaresContextFactory.Create();
+        var (notif, replies) = NotifCapturing();
+
+        var sender = new Mock<ISender>();
+        sender
+            .Setup(s => s.Send(It.IsAny<IdentifyWhatsAppSenderQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new IdentifyWhatsAppSenderResultDto
+            {
+                NormalizedPhone = "5215511112222",
+                Role = WhatsAppSenderRole.Customer,
+                CustomerAccounts = new List<CustomerWhatsAppAccountDto>
+                {
+                    new(1, "tenant-a", "Bazar Uno", 320m, "tok-1", BzaClosureCustomerTotalStatus.Pending, null),
+                },
+            });
+
+        var handler = new ProcessWhatsAppWebhookHandler(
+            ctx, notif.Object, sender.Object, Config(), Mock.Of<IPasswordRecoverySessionStore>(),
+            NullLogger<ProcessWhatsAppWebhookHandler>.Instance);
+
+        await handler.Handle(new ProcessWhatsAppWebhookCommand(
+            new List<WhatsAppWebhookStatusInput>(),
+            new List<WhatsAppWebhookTextInput>
+            {
+                new("wamid-doc-1", "5215511112222", "document", string.Empty),
+            }), default);
+
+        var reply = Assert.Single(replies);
+        Assert.Contains("https://portal.test/comprobante/tok-1", reply);
+    }
+
+    [Fact]
+    public async Task Handle_ImagenComprobante_ClienteNoIdentificado_RespondeGenerico()
+    {
+        using var ctx = BazaresContextFactory.Create();
+        var (notif, replies) = NotifCapturing();
+
+        var sender = new Mock<ISender>();
+        sender
+            .Setup(s => s.Send(It.IsAny<IdentifyWhatsAppSenderQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new IdentifyWhatsAppSenderResultDto
+            {
+                NormalizedPhone = "5215599998888",
+                Role = WhatsAppSenderRole.Unknown,
+                CustomerAccounts = new List<CustomerWhatsAppAccountDto>(),
+            });
+
+        var handler = new ProcessWhatsAppWebhookHandler(
+            ctx, notif.Object, sender.Object, Config(), Mock.Of<IPasswordRecoverySessionStore>(),
+            NullLogger<ProcessWhatsAppWebhookHandler>.Instance);
+
+        await handler.Handle(new ProcessWhatsAppWebhookCommand(
+            new List<WhatsAppWebhookStatusInput>(),
+            new List<WhatsAppWebhookTextInput>
+            {
+                new("wamid-img-2", "5215599998888", "image", string.Empty),
+            }), default);
+
+        var reply = Assert.Single(replies);
+        Assert.Contains("chat automático", reply);
+        Assert.DoesNotContain("/comprobante/", reply);
+    }
 }

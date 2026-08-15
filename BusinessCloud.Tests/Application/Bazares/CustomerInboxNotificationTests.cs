@@ -150,6 +150,106 @@ public class CustomerInboxNotificationTests
     }
 
     [Fact]
+    public async Task SendClosureWhatsApp_CobroV2Template_SendsPiecesDescriptionAndButtonToken()
+    {
+        using var context = BazaresContextFactory.Create();
+        var customer = new BzaCustomer
+        {
+            Id = 1,
+            TenantId = Tenant,
+            Name = "Cliente Uno",
+            Phone = "5511112222",
+        };
+        var total = new BzaClosureCustomerTotal
+        {
+            Id = 10,
+            TenantId = Tenant,
+            BzaCustomerId = customer.Id,
+            Customer = customer,
+            TotalAmount = 450m,
+            UploadToken = "upload-token",
+        };
+        context.BazarSettings.Add(new BzaBazarSettings { Id = 1, TenantId = Tenant, BazarName = "Bazar Test" });
+        context.ClosureEvents.Add(new BzaClosureEvent
+        {
+            Id = 20,
+            TenantId = Tenant,
+            Description = "Cierre semanal",
+            PaymentDeadline = DateTime.UtcNow.AddDays(2),
+            CustomerTotals = [total],
+        });
+        // Dos ventas del cliente en el cierre con 3 renglones de producto en total.
+        context.Sales.Add(new BzaSale
+        {
+            Id = 100,
+            TenantId = Tenant,
+            BzaEventId = 1,
+            BzaCustomerId = customer.Id,
+            BzaClosureEventId = 20,
+            Products =
+            [
+                new BzaSoldProduct { Id = 1000, TenantId = Tenant, Description = "A", Price = 100m },
+                new BzaSoldProduct { Id = 1001, TenantId = Tenant, Description = "B", Price = 150m },
+            ],
+        });
+        context.Sales.Add(new BzaSale
+        {
+            Id = 101,
+            TenantId = Tenant,
+            BzaEventId = 1,
+            BzaCustomerId = customer.Id,
+            BzaClosureEventId = 20,
+            Products =
+            [
+                new BzaSoldProduct { Id = 1002, TenantId = Tenant, Description = "C", Price = 200m },
+            ],
+        });
+        await context.SaveChangesAsync(default);
+
+        var identityOptions = new DbContextOptionsBuilder<IdentityDbContext>()
+            .UseInMemoryDatabase($"identity-{Guid.NewGuid():N}")
+            .Options;
+        await using var identityContext = new IdentityDbContext(identityOptions);
+        var currentUser = new Mock<ICurrentUserService>();
+        currentUser.SetupGet(x => x.TenantId).Returns(Tenant);
+
+        IReadOnlyList<string>? capturedBody = null;
+        string? capturedButton = null;
+        string? capturedHeader = null;
+        var whatsApp = new Mock<IWhatsAppSender>();
+        whatsApp.Setup(x => x.SendTemplateWithResultAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<string?>()))
+            .Callback<string, string, string, IReadOnlyList<string>, CancellationToken, string?, string?>(
+                (_, _, _, body, _, button, header) =>
+                {
+                    capturedBody = body;
+                    capturedButton = button;
+                    capturedHeader = header;
+                })
+            .ReturnsAsync(new WhatsAppSendResult(true, "wamid-1", null, null));
+
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["WhatsApp:ClosureTotalsTemplateName"] = "totales_cobro_v2",
+            ["WhatsApp:ClosureTotalsTemplateLang"] = "es",
+        }).Build();
+        var handler = new SendClosureWhatsAppHandler(
+            context, whatsApp.Object, identityContext, currentUser.Object, configuration);
+
+        await handler.Handle(new SendClosureWhatsAppCommand(20, "https://portal.test"), default);
+
+        Assert.NotNull(capturedBody);
+        Assert.Equal(6, capturedBody!.Count);
+        Assert.Equal("Cliente Uno", capturedBody[0]);          // {{1}} nombre del cliente
+        Assert.Equal("Cierre semanal", capturedBody[4]);       // {{5}} descripcion del cierre
+        Assert.Equal("3", capturedBody[5]);                    // {{6}} numero de productos del cliente
+        Assert.Equal("Bazar Test", capturedHeader);            // header con el nombre del bazar
+        Assert.Equal("upload-token", capturedButton);          // boton de URL con SOLO el token
+    }
+
+    [Fact]
     public async Task GetClosureWhatsAppStatus_SentForFifteenMinutes_IsUnconfirmed()
     {
         using var context = BazaresContextFactory.Create();

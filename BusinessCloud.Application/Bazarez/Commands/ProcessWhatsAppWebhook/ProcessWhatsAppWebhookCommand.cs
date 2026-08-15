@@ -57,10 +57,24 @@ public class ProcessWhatsAppWebhookHandler(
 
         foreach (var message in request.Messages)
         {
-            if (!string.Equals(message.Type, "text", StringComparison.OrdinalIgnoreCase))
-                continue;
+            string reply;
 
-            var reply = await BuildReplyAsync(message, cancellationToken);
+            if (string.Equals(message.Type, "text", StringComparison.OrdinalIgnoreCase))
+            {
+                reply = await BuildReplyAsync(message, cancellationToken);
+            }
+            else if (IsMediaType(message.Type))
+            {
+                // El cliente envió una imagen/documento (típicamente su comprobante) a este
+                // chat automático. Se le desvía al enlace personalizado para que sí quede
+                // registrado en el bazar.
+                reply = await BuildMediaDeflectionReplyAsync(message, cancellationToken);
+            }
+            else
+            {
+                continue;
+            }
+
             if (string.IsNullOrWhiteSpace(reply))
                 continue;
 
@@ -74,6 +88,42 @@ public class ProcessWhatsAppWebhookHandler(
                 logger.LogWarning("No se pudo responder por WhatsApp al número {Phone}: {Error}", message.From, send.ErrorMessage);
             }
         }
+    }
+
+    private static bool IsMediaType(string? type) =>
+        string.Equals(type, "image", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(type, "document", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Respuesta cuando el cliente manda su comprobante como imagen/documento a este chat
+    /// automático: se le explica que no llega al bazar y se le entrega su enlace personal
+    /// (uno por bazar) para subirlo correctamente.
+    /// </summary>
+    private async Task<string> BuildMediaDeflectionReplyAsync(
+        WhatsAppWebhookTextInput message,
+        CancellationToken cancellationToken)
+    {
+        var identified = await sender.Send(new IdentifyWhatsAppSenderQuery(message.From), cancellationToken);
+
+        if (identified.CustomerAccounts.Count == 0)
+        {
+            return "⚠️ Recibimos tu archivo, pero este es un chat automático y el bazar NO lo recibe.\n\n"
+                + "Para que tu pago quede registrado, sube tu comprobante en el enlace que te envió tu bazar. "
+                + "Si no lo tienes a la mano, escribe *HOLA* para ver tus opciones.";
+        }
+
+        var baseUrl = GetPortalBaseUrl();
+        var links = identified.CustomerAccounts
+            .GroupBy(x => x.TenantId)
+            .Select(g => g.First())
+            .OrderBy(x => x.BazarName, StringComparer.CurrentCultureIgnoreCase)
+            .Select(x => $"- {x.BazarName}: {baseUrl}/comprobante/{x.UploadToken}");
+
+        return "⚠️ Recibimos tu imagen, pero por este chat automático NO le llega al bazar.\n\n"
+            + "Para que tu pago quede registrado, súbela en tu enlace 👇\n"
+            + string.Join("\n", links)
+            + "\n\nAbre tu enlace y usa el botón para subir el comprobante. "
+            + "Para hablar con el bazar, entra al enlace y usa \"Hablar con el bazar\".";
     }
 
     private async Task<string> BuildReplyAsync(
