@@ -107,8 +107,9 @@ public class ProcessWhatsAppWebhookHandler(
 
         if (identified.CustomerAccounts.Count == 0)
         {
-            return "⚠️ Recibimos tu archivo, pero este es un chat automático y el bazar NO lo recibe.\n\n"
-                + "Para que tu pago quede registrado, sube tu comprobante en el enlace que te envió tu bazar. "
+            return "⚠️ TU COMPROBANTE NO LE LLEGÓ AL BAZAR.\n"
+                + "Este es un chat automático del sistema; el bazar no ve lo que envías aquí.\n\n"
+                + "Para que tu pago quede registrado, súbelo en el enlace que te envió tu bazar. "
                 + "Si no lo tienes a la mano, escribe *HOLA* para ver tus opciones.";
         }
 
@@ -117,13 +118,12 @@ public class ProcessWhatsAppWebhookHandler(
             .GroupBy(x => x.TenantId)
             .Select(g => g.First())
             .OrderBy(x => x.BazarName, StringComparer.CurrentCultureIgnoreCase)
-            .Select(x => $"- {x.BazarName}: {baseUrl}/comprobante/{x.UploadToken}");
+            .Select(x => $"- {x.BazarName} ({x.TotalAmount.ToString("C", Culture)}) link para subir comprobante: {baseUrl}/comprobante/{x.UploadToken}");
 
-        return "⚠️ Recibimos tu imagen, pero por este chat automático NO le llega al bazar.\n\n"
-            + "Para que tu pago quede registrado, súbela en tu enlace 👇\n"
-            + string.Join("\n", links)
-            + "\n\nAbre tu enlace y usa el botón para subir el comprobante. "
-            + "Para hablar con el bazar, entra al enlace y usa \"Hablar con el bazar\".";
+        return "⚠️ TU COMPROBANTE NO LE LLEGÓ AL BAZAR.\n"
+            + "Este es un chat automático del sistema; el bazar no ve lo que envías aquí.\n\n"
+            + "*Para subir tu comprobante o hablar con tu bazar, da clic aquí* 👇\n"
+            + string.Join("\n", links);
     }
 
     private async Task<string> BuildReplyAsync(
@@ -219,12 +219,25 @@ public class ProcessWhatsAppWebhookHandler(
             .OrderBy(x => x.BazarName, StringComparer.CurrentCultureIgnoreCase)
             .Select(account => $"- {account.BazarName}: {GetPortalBaseUrl()}/comprobante/{account.UploadToken}");
 
-        return "No reconocimos esa opción. Para hablar con el bazar también puedes abrir tu comprobante y usar el enlace de contacto:\n"
+        return SystemChatNote + "\n\n"
+            + "No reconocimos esa opción. Para hablar con el bazar también puedes abrir tu comprobante y usar el enlace de contacto:\n"
             + string.Join("\n", proofLinks)
             + "\n\n"
-            + BuildCustomerMenuReply();
+            + MenuOptions();
     }
+
+    /// <summary>
+    /// Aclaración que encabeza las respuestas de texto del bot: deja claro que el cliente
+    /// no está escribiéndole al bazar, sino a un chat automático del sistema.
+    /// </summary>
+    private const string SystemChatNote =
+        "📢 *Este no es el chat de tu bazar.* Es un chat automático del sistema BazarHub: "
+        + "aquí puedes consultar tu información, pero el bazar no ve lo que escribes.";
+
     private static string BuildCustomerMenuReply()
+        => SystemChatNote + "\n\n" + MenuOptions();
+
+    private static string MenuOptions()
         => "¿Qué deseas consultar?\n"
             + "1. Consultar pendientes\n"
             + "2. Consultar firmas\n"

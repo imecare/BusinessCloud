@@ -383,7 +383,9 @@ public class ProcessWhatsAppWebhookHandlerTests
             }), default);
 
         var reply = Assert.Single(replies);
-        Assert.Contains("NO le llega al bazar", reply);
+        Assert.Contains("NO LE LLEGÓ AL BAZAR", reply);
+        Assert.Contains("Bazar Uno", reply);
+        Assert.Contains("link para subir comprobante", reply);
         Assert.Contains("https://portal.test/comprobante/tok-1", reply);
     }
 
