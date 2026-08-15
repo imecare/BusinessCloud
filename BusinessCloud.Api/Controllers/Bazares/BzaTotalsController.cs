@@ -27,6 +27,7 @@ using BusinessCloud.Application.Bazares.Queries.GetDeliveryLabelData;
 using BusinessCloud.Application.Bazares.Queries.GetPendingMoveOptions;
 using BusinessCloud.Application.Bazares.Queries.GetReactivationOptions;
 using BusinessCloud.Application.Bazares.Queries.PrepareTotals;
+using BusinessCloud.Application.Bazarez.Queries.SearchClosureCustomerTotals;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -110,6 +111,14 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<ClosureEventListItemDto>>> GetAll()
         => await mediator.Send(new GetClosureEventsQuery());
+
+    /// <summary>
+    /// Busca los totales de un cliente (por nombre o teléfono) en todos los eventos de
+    /// cierre y los devuelve agrupados por cierre, para validar sus pagos sin abrir cada uno.
+    /// </summary>
+    [HttpGet("search-customer")]
+    public async Task<ActionResult<List<ClosureCustomerSearchGroupDto>>> SearchCustomer([FromQuery] string query)
+        => await mediator.Send(new SearchClosureCustomerTotalsQuery(query ?? string.Empty));
 
     /// <summary>
     /// Detalle de un evento de pago: totales por cliente y sus comprobantes para revisar.
