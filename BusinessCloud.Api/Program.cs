@@ -218,6 +218,7 @@ try
                     "http://localhost:4300",
                     "http://localhost:53517",
                     "https://bcloud.com.mx",
+                    "https://admin.bcloud.com.mx",
                     "https://payments.bcloud.com.mx",
                     "https://bazares.bcloud.com.mx/",
                     "https://stapp-bcloud-payments.azurestaticapps.net",
