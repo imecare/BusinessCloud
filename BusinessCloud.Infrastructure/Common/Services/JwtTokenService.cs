@@ -20,7 +20,7 @@ public class JwtTokenService
         _identityDb = identityDb;
     }
 
-    public async Task<string> GenerateTokenAsync(ApplicationUser user)
+    public async Task<string> GenerateTokenAsync(ApplicationUser user, bool persistentSession = false)
     {
         var claims = new List<Claim>
         {
@@ -58,7 +58,13 @@ public class JwtTokenService
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        var expireMinutes = _config.GetValue<int>("Jwt:ExpireMinutes");
+
+        // Sesion web (navegador): expiracion corta. Sesion persistente (app instalada
+        // como PWA): expiracion larga para que "no se cierre". El cliente indica cual es
+        // mediante el flag persistentSession en el login.
+        var webExpireMinutes = _config.GetValue<int>("Jwt:ExpireMinutes");
+        var appExpireMinutes = _config.GetValue<int?>("Jwt:AppExpireMinutes") ?? webExpireMinutes;
+        var expireMinutes = persistentSession ? appExpireMinutes : webExpireMinutes;
 
         var token = new JwtSecurityToken(
             issuer: _config["Jwt:Issuer"],

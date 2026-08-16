@@ -197,7 +197,7 @@ public class AuthController : ControllerBase
             }
         }
 
-        var token = await _jwtService.GenerateTokenAsync(user);
+        var token = await _jwtService.GenerateTokenAsync(user, request.PersistentSession);
 
         // Suscripci�n de la empresa: bloquea el acceso si est� suspendida y expone el estado
         // para que el frontend muestre la etiqueta de vencimiento/pr�rroga.

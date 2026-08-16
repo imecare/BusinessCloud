@@ -16,5 +16,13 @@ namespace BusinessCloud.Application.Auth.Dtos
         /// Cada SPA envía su propio identificador.
         /// </summary>
         public string? Module { get; set; }
+
+        /// <summary>
+        /// Indica que el login proviene de la app instalada (PWA en modo standalone).
+        /// En ese caso el servidor emite un token de larga duración (Jwt:AppExpireMinutes)
+        /// para que la sesión no se cierre. En navegador se usa la duración corta
+        /// (Jwt:ExpireMinutes).
+        /// </summary>
+        public bool PersistentSession { get; set; }
     }
 }
