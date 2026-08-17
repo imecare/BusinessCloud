@@ -66,12 +66,12 @@ public class SendClosureWhatsAppHandler(
     private readonly IConfiguration _configuration = configuration;
 
     /// <summary>
-    /// Nombre de la plantilla nueva de cobro: header con el bazar, 6 parámetros de cuerpo
-    /// (cliente, total, entrega, límite, descripción del cierre y número de productos) y el
-    /// token del comprobante en un botón de URL dinámica. Si la plantilla configurada es la
-    /// anterior (total_compra_v3) se conserva el envío con el enlace dentro del cuerpo.
+    /// Nombre de la plantilla nueva de cobro: header con el bazar, 7 parametros de cuerpo
+    /// (cliente, total, entrega, limite, descripcion, cantidad y nombres de productos) y el
+    /// token del comprobante en un boton de URL dinamica. La plantilla total_compra_v3
+    /// conserva el enlace dentro del cuerpo.
     /// </summary>
-    private const string CobroTemplateName = "totales_cobro_v2";
+    private const string LegacyTemplateName = "total_compra_v3";
 
     public async Task<SendClosureWhatsAppResultDto> Handle(SendClosureWhatsAppCommand request, CancellationToken ct)
     {
@@ -93,24 +93,32 @@ public class SendClosureWhatsAppHandler(
         var now = DateTime.UtcNow;
         var result = new SendClosureWhatsAppResultDto { ClosureEventId = closure.Id };
 
-        // Se resuelve una sola vez la plantilla configurada y su idioma. Según su nombre se
-        // decide la estructura del envío (nueva totales_cobro_v2 vs. anterior total_compra_v3).
-        var closureTotalsTemplateName = _configuration["WhatsApp:ClosureTotalsTemplateName"];
+        // Resolver la plantilla una sola vez. Si falta el setting, conservar total_compra_v3.
+        var configuredTemplateName = _configuration["WhatsApp:ClosureTotalsTemplateName"];
+        var closureTotalsTemplateName = string.IsNullOrWhiteSpace(configuredTemplateName)
+            ? LegacyTemplateName
+            : configuredTemplateName.Trim();
         var closureTemplateLang = string.IsNullOrWhiteSpace(_configuration["WhatsApp:ClosureTotalsTemplateLang"])
             ? "es"
             : _configuration["WhatsApp:ClosureTotalsTemplateLang"]!;
-        var useCobroV2Template = string.Equals(
-            closureTotalsTemplateName, CobroTemplateName, StringComparison.OrdinalIgnoreCase);
+        // Cualquier plantilla distinta de la legacy (total_compra_v3) usa la estructura nueva
+        // de 7 parametros + boton de URL dinamica (totales_cobro_v2, _v4, futuras versiones).
+        var useNewCobroTemplate = !string.Equals(
+            closureTotalsTemplateName, LegacyTemplateName, StringComparison.OrdinalIgnoreCase);
 
-        // Solo la plantilla nueva necesita el número de productos por cliente; se precalcula
-        // contando los renglones de producto de las ventas de cada cliente en este cierre.
-        Dictionary<int, int> productCountByCustomer = useCobroV2Template
-            ? await context.SoldProducts
-                .Where(p => p.Sale.BzaClosureEventId == closure.Id)
-                .GroupBy(p => p.Sale.BzaCustomerId)
-                .Select(g => new { CustomerId = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.CustomerId, x => x.Count, ct)
-            : new Dictionary<int, int>();
+        // Los productos por cliente se usan tanto para la plantilla nueva de Meta como para el
+        // texto de copia/manual (que SIEMPRE es v4), por lo que se cargan siempre.
+        var closureProducts = await context.SoldProducts
+            .Where(p => p.Sale.BzaClosureEventId == closure.Id)
+            .OrderBy(p => p.Id)
+            .Select(p => new { CustomerId = p.Sale.BzaCustomerId, p.Description })
+            .ToListAsync(ct);
+        var productCountByCustomer = closureProducts
+            .GroupBy(p => p.CustomerId)
+            .ToDictionary(g => g.Key, g => g.Count());
+        var productNamesByCustomer = closureProducts
+            .GroupBy(p => p.CustomerId)
+            .ToDictionary(g => g.Key, g => g.Select(p => p.Description).ToList());
 
         var targets = request.CustomerIds is { Count: > 0 } customerIds
             ? closure.CustomerTotals.Where(t => customerIds.Contains(t.BzaCustomerId)).ToList()
@@ -164,14 +172,24 @@ public class SendClosureWhatsAppHandler(
 
             var uploadUrl = $"{baseUrl}/comprobante/{total.UploadToken}";
             var effectiveDeliveryDate = deliveryDate ?? closure.PaymentDeadline;
-            var notificationMessage = BuildMessengerText(
+
+            // El payload v4 se arma SIEMPRE: su Preview es el texto que se copia a memoria / se
+            // manda manual (inbox, Messenger). El envío automático a Meta sí depende del setting.
+            var cobroPayload = ClosureTotalsWhatsAppTemplate.Build(
+                bazarName,
                 name,
-                string.IsNullOrWhiteSpace(bazarName) ? "el bazar" : bazarName!.Trim(),
                 total.TotalAmount,
                 effectiveDeliveryDate,
                 closure.PaymentDeadline,
                 settings?.PaymentCutoffTime,
-                uploadUrl);
+                closure.Description,
+                productCountByCustomer.GetValueOrDefault(total.BzaCustomerId),
+                productNamesByCustomer.GetValueOrDefault(total.BzaCustomerId) ?? [],
+                total.UploadToken);
+            var notificationMessage = cobroPayload.Preview.Replace(
+                ClosureTotalsWhatsAppTemplate.UploadLinkPlaceholder,
+                uploadUrl,
+                StringComparison.Ordinal);
 
             if (!existingInboxTotalIds.Contains(total.Id))
                 AddInboxNotification(context, total, notificationMessage);
@@ -192,61 +210,42 @@ public class SendClosureWhatsAppHandler(
             }
             else
             {
-                if (string.IsNullOrWhiteSpace(closureTotalsTemplateName))
+                var headerParam = string.IsNullOrWhiteSpace(bazarName) ? "Bazar" : bazarName.Trim();
+
+                if (useNewCobroTemplate)
                 {
-                    send = new WhatsAppSendResult(false, null, null, "Plantilla de cobro no configurada.");
+                    // v2/v4: siete parametros de cuerpo y token en el boton de URL dinamica.
+                    // Se envia el nombre configurado (no una constante) para soportar futuras versiones.
+                    send = await TrySendCobroTemplateAsync(
+                        whatsApp,
+                        phone,
+                        closureTotalsTemplateName,
+                        closureTemplateLang,
+                        cobroPayload.HeaderParameter,
+                        cobroPayload.BodyParameters,
+                        cobroPayload.ButtonUrlParameter,
+                        ct);
                 }
                 else
                 {
-                    var headerParam = string.IsNullOrWhiteSpace(bazarName) ? "Bazar" : bazarName.Trim();
-
-                    if (useCobroV2Template)
+                    // v3: enlace como quinto parametro del cuerpo, sin boton.
+                    var bodyParams = new[]
                     {
-                        // totales_cobro_v2: header con el bazar, 6 parámetros de cuerpo y el
-                        // token del comprobante en el botón de URL dinámica.
-                        var productCount = productCountByCustomer.GetValueOrDefault(total.BzaCustomerId);
-                        var bodyParams = new[]
-                        {
-                            name,
-                            total.TotalAmount.ToString("N2", Culture),
-                            FormatLongDate(effectiveDeliveryDate),
-                            FormatDeadlineWithTime(closure.PaymentDeadline, settings?.PaymentCutoffTime),
-                            string.IsNullOrWhiteSpace(closure.Description) ? "Cierre" : closure.Description.Trim(),
-                            productCount.ToString(Culture),
-                        };
+                        name,
+                        total.TotalAmount.ToString("N2", Culture),
+                        FormatLongDate(effectiveDeliveryDate),
+                        FormatDeadlineWithTime(closure.PaymentDeadline, settings?.PaymentCutoffTime),
+                    };
 
-                        send = await TrySendCobroTemplateAsync(
-                            whatsApp,
-                            phone,
-                            closureTotalsTemplateName,
-                            closureTemplateLang,
-                            headerParam,
-                            bodyParams,
-                            total.UploadToken,
-                            ct);
-                    }
-                    else
-                    {
-                        // total_compra_v3 (anterior): el enlace del comprobante viaja como
-                        // texto en el cuerpo (5º parámetro), sin botón.
-                        var bodyParams = new[]
-                        {
-                            name,
-                            total.TotalAmount.ToString("N2", Culture),
-                            FormatLongDate(effectiveDeliveryDate),
-                            FormatDeadlineWithTime(closure.PaymentDeadline, settings?.PaymentCutoffTime),
-                        };
-
-                        send = await TrySendClosureTemplateAsync(
-                            whatsApp,
-                            phone,
-                            closureTotalsTemplateName,
-                            closureTemplateLang,
-                            headerParam,
-                            bodyParams,
-                            uploadUrl,
-                            ct);
-                    }
+                    send = await TrySendClosureTemplateAsync(
+                        whatsApp,
+                        phone,
+                        closureTotalsTemplateName,
+                        closureTemplateLang,
+                        headerParam,
+                        bodyParams,
+                        uploadUrl,
+                        ct);
                 }
             }
 
@@ -465,22 +464,5 @@ public class SendClosureWhatsAppHandler(
     {
         var reference = new DateTime(2000, 1, 1, hour, minute, 0);
         return reference.ToString("hh:mm tt", Culture);
-    }
-
-    /// <summary>
-    /// Texto plano equivalente a la notificación de cobro, para que el operador lo
-    /// copie y lo envíe manualmente por Messenger a los clientes sin WhatsApp.
-    /// </summary>
-    private static string BuildMessengerText(
-        string name, string bazarName, decimal totalAmount,
-        DateTime deliveryDate, DateTime paymentDeadline, string? paymentCutoffTime, string uploadUrl)
-    {
-        var total = totalAmount.ToString("N2", Culture);
-        return
-            $"Hola {name}, te escribimos de {bazarName}. " +
-            $"El total de tu compra es de ${total}. " +
-            $"Fecha de entrega: {FormatLongDate(deliveryDate)}. " +
-            $"Fecha límite de pago: {FormatDeadlineWithTime(paymentDeadline, paymentCutoffTime)}. " +
-            $"Puedes entrar a tu comprobante para ver el detalle, consultar las tarjetas y subir tu pago aquí: {uploadUrl}";
     }
 }

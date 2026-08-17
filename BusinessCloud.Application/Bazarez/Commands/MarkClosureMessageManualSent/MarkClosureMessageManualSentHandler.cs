@@ -7,6 +7,12 @@ namespace BusinessCloud.Application.Bazares.Commands.MarkClosureMessageManualSen
 public class MarkClosureMessageManualSentHandler(IBazaresDbContext context)
     : IRequestHandler<MarkClosureMessageManualSentCommand, MarkClosureMessageManualSentResultDto>
 {
+    /// <summary>
+    /// Ventana tras la cual un mensaje aceptado por Meta sin acuse de entrega/lectura se considera
+    /// "sin confirmación de Meta" y puede marcarse como enviado manualmente (el bazar decide).
+    /// </summary>
+    private static readonly TimeSpan DeliveryConfirmationTimeout = TimeSpan.FromMinutes(15);
+
     public async Task<MarkClosureMessageManualSentResultDto> Handle(
         MarkClosureMessageManualSentCommand request,
         CancellationToken cancellationToken)
@@ -31,10 +37,20 @@ public class MarkClosureMessageManualSentHandler(IBazaresDbContext context)
             return new(request.ClosureCustomerTotalId, "manual_sent", markedAt);
         }
 
-        if (!string.Equals(message.Status, "sin_whatsapp", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Solo los clientes reportados sin WhatsApp pueden marcarse como enviados manualmente.");
-
         var now = DateTime.UtcNow;
+
+        var status = message.Status?.ToLowerInvariant();
+        var isSinWhatsApp = status == "sin_whatsapp";
+        var isFailed = status == "failed";
+        // "Sin confirmación de Meta": Meta aceptó el mensaje (sent/accepted) pero pasaron >15 min
+        // sin acuse de entrega/lectura. El bazar puede decidir enviarlo manualmente y marcarlo.
+        var isUnconfirmed = (status == "sent" || status == "accepted")
+            && now - message.SentAt >= DeliveryConfirmationTimeout;
+
+        if (!isSinWhatsApp && !isFailed && !isUnconfirmed)
+            throw new InvalidOperationException(
+                "Solo los clientes sin WhatsApp, con envío fallido o sin confirmación de Meta pueden marcarse como enviados manualmente.");
+
         message.Status = "manual_sent";
         message.StatusUpdatedAt = now;
         message.UpdatedAt = now;

@@ -53,7 +53,6 @@ public class SendTotalsHandler(
 
         var bazarSettings = await _context.BazarSettings.FirstOrDefaultAsync(cancellationToken);
         var bazarName = bazarSettings?.BazarName;
-        var salesWhatsApp = bazarSettings?.SalesWhatsApp;
 
         decimal PendingForSale(BzaSale sale)
         {
@@ -191,13 +190,20 @@ public class SendTotalsHandler(
                 Status = BzaClosureCustomerTotalStatus.Pending
             });
 
-            var message = ClosureMessageBuilder.Build(
+            // El mensaje de la vista previa se copia a memoria / se manda manual: SIEMPRE usa el
+            // formato de la última plantilla (enlace en lugar de botón), sin depender del setting.
+            var products = customerGroup.SelectMany(x => x.Sale.Products).ToList();
+            var message = ClosureCopyMessageBuilder.BuildLatest(
                 bazarName,
                 customer?.Name ?? "Cliente",
                 total,
                 deliveryDate,
                 request.PaymentDeadline,
-                salesWhatsApp);
+                bazarSettings?.PaymentCutoffTime,
+                description,
+                products.Count,
+                products.Select(product => product.Description).ToList(),
+                uploadToken);
             messages.Add(new CustomerTotalMessageDto
             {
                 CustomerId = customerGroup.Key,

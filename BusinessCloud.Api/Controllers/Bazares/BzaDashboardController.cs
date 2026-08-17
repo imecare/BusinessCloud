@@ -1,3 +1,4 @@
+using BusinessCloud.Application.Bazares.Queries.GetBzaClosureAnalytics;
 using BusinessCloud.Application.Bazares.Queries.GetBzaDashboard;
 using BusinessCloud.Application.Bazares.Queries.GetBzaSalesChart;
 using BusinessCloud.Api.Authorization;
@@ -33,5 +34,15 @@ public class BzaDashboardController : ControllerBase
     {
         return await _mediator.Send(new GetBzaSalesChartQuery(year, month));
     }
+
+    /// <summary>
+    /// Metricas de cierres por evento y por mes.
+    /// </summary>
+    [HttpGet("closure-analytics")]
+    public async Task<ActionResult<BzaClosureAnalyticsDto>> GetClosureAnalytics([FromQuery] int? year = null)
+    {
+        return await _mediator.Send(new GetBzaClosureAnalyticsQuery(year));
+    }
 }
+
 

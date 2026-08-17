@@ -86,7 +86,18 @@ public class GetClosureEventDetailHandler(IBazaresDbContext context)
 
         var bazarSettings = await _context.BazarSettings.FirstOrDefaultAsync(cancellationToken);
         var bazarName = bazarSettings?.BazarName;
-        var salesWhatsApp = bazarSettings?.SalesWhatsApp;
+        var paymentCutoffTime = bazarSettings?.PaymentCutoffTime;
+
+        // El mensaje que se copia a memoria / se manda manual SIEMPRE usa el formato de la última
+        // plantilla (con enlace en lugar de botón); no depende del setting de plantilla de Meta.
+        var closureProducts = await _context.SoldProducts
+            .Where(p => p.Sale.BzaClosureEventId == closure.Id)
+            .OrderBy(p => p.Id)
+            .Select(p => new { p.Sale.BzaCustomerId, p.Description })
+            .ToListAsync(cancellationToken);
+        var productsByCustomer = closureProducts
+            .GroupBy(p => p.BzaCustomerId)
+            .ToDictionary(g => g.Key, g => g.Select(p => p.Description).ToList());
 
         var deliveryByGroup = closure.GroupDeliveries
             .GroupBy(g => g.BzaCollectorGroupId)
@@ -101,8 +112,21 @@ public class GetClosureEventDetailHandler(IBazaresDbContext context)
                     ? d
                     : closure.OfficialDeliveryDate;
 
-            return ClosureMessageBuilder.Build(
-                bazarName, customerName, t.TotalAmount, deliveryDate, closure.PaymentDeadline, salesWhatsApp);
+            var productNames = productsByCustomer.TryGetValue(t.BzaCustomerId, out var names)
+                ? names
+                : new List<string>();
+
+            return ClosureCopyMessageBuilder.BuildLatest(
+                bazarName,
+                customerName,
+                t.TotalAmount,
+                deliveryDate,
+                closure.PaymentDeadline,
+                paymentCutoffTime,
+                closure.Description,
+                productNames.Count,
+                productNames,
+                t.UploadToken);
         }
 
         var customers = closure.CustomerTotals
