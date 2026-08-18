@@ -45,6 +45,8 @@ public class WelcomeMessageBuilderTests
             null);
 
         Assert.Contains("por este mismo Messenger", message);
+        Assert.Contains("es el *canal oficial*", message);
+        Assert.Contains("envíes tu número de WhatsApp", message);
         Assert.DoesNotContain("número del sistema de Bazares", message);
         Assert.DoesNotContain("📞 521234567890", message);
         Assert.EndsWith("¡Gracias por ser parte de Banana Bazar! 💛", message);

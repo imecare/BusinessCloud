@@ -39,6 +39,7 @@ public static class WelcomeMessageBuilder
         if (isMessenger)
         {
             sb.AppendLine("Te enviaremos el *total de tu compra* por este mismo Messenger cuando cerremos la venta. Revisa tus mensajes para no perderte tus avisos.");
+            sb.AppendLine("📱 *Es necesario que nos envíes tu número de WhatsApp*, ya que es el *canal oficial* de envío de totales. Así te aseguras de recibir todos tus avisos a tiempo.");
         }
         else
         {
