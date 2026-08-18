@@ -48,8 +48,10 @@ public static class ClosureTotalsWhatsAppTemplate
 
     private static string BuildPreview(string header, IReadOnlyList<string> bodyParameters)
     {
-        // Reconstrucción fiel del mensaje real (plantilla totales_cobro_v4): encabezado,
-        // cuerpo con los 7 parámetros y negritas de la plantilla, y el pie de página.
+        // Reconstrucción del mensaje para copiar a memoria / envío manual (WhatsApp o Messenger
+        // del propio bazar): encabezado, cuerpo con los 7 parámetros y negritas. A diferencia de
+        // la plantilla de Meta, este texto omite las advertencias de "sistema automático" porque
+        // no se envía desde el WhatsApp de la empresa sino desde el chat del bazar.
         var preview = new StringBuilder()
             .Append("Aviso de pago de ").Append(header).AppendLine(" (mensaje automático)")
             .AppendLine()
@@ -61,11 +63,9 @@ public static class ClosureTotalsWhatsAppTemplate
             .Append("📦 ").Append(bodyParameters[4]).Append(": *Total de producto(s) · ")
                 .Append(bodyParameters[5]).Append("* - (").Append(bodyParameters[6]).AppendLine(")")
             .AppendLine()
-            .AppendLine("⚠️ NO ENVIÉS TU COMPROBANTE DE COMPRA POR ESTE CHAT: es automático y el bazar NO lo recibe. Solo cuenta si lo subes en el enlace.")
+            .AppendLine("⚠️ NO ENVIÉS TU COMPROBANTE DE COMPRA POR ESTE CHAT.")
             .AppendLine("👇 Sube tu comprobante y consulta las tarjetas de pago en tu enlace personal (botón de abajo).")
-            .AppendLine(UploadLinkPlaceholder)
-            .AppendLine()
-            .Append("Sistema automático · No respondas por este chat");
+            .Append(UploadLinkPlaceholder);
 
         return preview.ToString();
     }

@@ -38,11 +38,9 @@ public class ClosureTotalsWhatsAppTemplateTests
             "📅 Límite de pago: *Miércoles 05 de agosto a las 07:30 p.\u00A0m.*",
             "📦 Cierre semanal: *Total de producto(s) · 3* - (Blusa, Bolsa, Zapatos)",
             "",
-            "⚠️ NO ENVIÉS TU COMPROBANTE DE COMPRA POR ESTE CHAT: es automático y el bazar NO lo recibe. Solo cuenta si lo subes en el enlace.",
+            "⚠️ NO ENVIÉS TU COMPROBANTE DE COMPRA POR ESTE CHAT.",
             "👇 Sube tu comprobante y consulta las tarjetas de pago en tu enlace personal (botón de abajo).",
             "__UPLOAD_LINK__",
-            "",
-            "Sistema automático · No respondas por este chat",
         ]);
         Assert.Equal(expectedPreview, payload.Preview);
     }
