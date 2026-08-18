@@ -138,6 +138,9 @@ try
         Log.Warning("Redis no configurado. Usando cachÃ© distribuida en memoria.");
     }
 
+    // Cache en memoria del proceso, usado por el throttle del registro de última actividad.
+    builder.Services.AddMemoryCache();
+
     builder.Services.AddScoped<JwtTokenService>();
 
     // WhatsApp Cloud API (Meta) + verificaciÃ³n OTP para operaciones sensibles de usuarios
@@ -319,6 +322,13 @@ try
         var paymentsDb = migrationScope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
         await paymentsDb.Database.MigrateAsync();
         Log.Information("Migraciones de Payments aplicadas correctamente.");
+
+        // IdentityDbContext comparte la misma base (PaymentsConnection) con su propio historial
+        // de migraciones. Se aplican aquí sus migraciones pendientes (p. ej. AspNetUsers.LastActivityAt)
+        // para que no queden sin desplegar en producción.
+        var identityDb = migrationScope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+        await identityDb.Database.MigrateAsync();
+        Log.Information("Migraciones de Identity aplicadas correctamente.");
     }
 
     // --- 2. Middleware ---
@@ -369,6 +379,7 @@ try
 
     app.UseAuthentication();
     app.UseAuthorization();
+    app.UseMiddleware<LastActivityMiddleware>();
     app.MapControllers();
 
     // --- Seeding del administrador global del SaaS (PlatformAdmin) ---

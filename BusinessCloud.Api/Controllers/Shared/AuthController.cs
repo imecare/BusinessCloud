@@ -1088,6 +1088,10 @@ public class AuthController : ControllerBase
         user.MustChangePassword,
         user.PasswordChangedAt,
         user.CanViewTotals,
+        user.LastActivityAt,
+        // "En línea": actividad en los últimos 5 minutos.
+        IsOnline = user.LastActivityAt.HasValue
+            && DateTime.UtcNow - user.LastActivityAt.Value <= TimeSpan.FromMinutes(5),
         AllowedModules = SplitModules(user.AllowedModules)
     };
 }

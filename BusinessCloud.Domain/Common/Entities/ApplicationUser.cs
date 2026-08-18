@@ -41,5 +41,12 @@ namespace BusinessCloud.Domain.Common.Entities
         /// al código OTP de WhatsApp para autorizar operaciones sensibles.
         /// </summary>
         public string? AdminSecurityPinHash { get; set; }
+
+        /// <summary>
+        /// Última vez (UTC) que el usuario realizó una petición autenticada al sistema.
+        /// Sirve para saber quién está usando la plataforma (útil antes de desplegar).
+        /// Se actualiza con throttle desde el middleware de actividad.
+        /// </summary>
+        public DateTime? LastActivityAt { get; set; }
     }
 }
