@@ -41,37 +41,37 @@ public class GetBzaDashboardHandlerTests
         var beto = new BzaCustomer { Id = 2, TenantId = Tenant, Name = "Beto", Phone = "5510000002", BzaCollectorId = 1, Collector = collector };
         ctx.Customers.AddRange(ana, beto);
 
-        var closedEvent = new BzaEvent
+        // Cierre de venta con fecha límite vencida (=> morosos) creado hoy (=> dentro del periodo semanal).
+        // El interceptor de SaveChangesAsync asigna CreatedAt = UtcNow, por lo que cae dentro de la ventana.
+        var closure = new BzaClosureEvent
         {
             Id = 1,
             TenantId = Tenant,
-            Description = "Evento",
-            Status = 1, // abierto y con fecha límite vencida => moroso
+            Description = "Cierre",
+            Status = BzaClosureEventStatus.PendingPayment,
             PaymentDeadline = today.AddDays(-1),
-            Sales = new List<BzaSale>
+            CustomerTotals = new List<BzaClosureCustomerTotal>
             {
+                // Ana: 100 validado (cobrado) + 50 pendiente (saldo moroso) => total enviado 150.
                 new()
                 {
-                    Id = 1, TenantId = Tenant, BzaEventId = 1, BzaCustomerId = 1, Customer = ana,
-                    Products = new List<BzaSoldProduct>
-                    {
-                        new() { Id = 1, TenantId = Tenant, Description = "A", Price = 100m },
-                        new() { Id = 2, TenantId = Tenant, Description = "B", Price = 50m },
-                    },
+                    Id = 1, TenantId = Tenant, BzaClosureEventId = 1, BzaCustomerId = 1, Customer = ana,
+                    BzaCollectorGroupId = 1, TotalAmount = 100m, Status = BzaClosureCustomerTotalStatus.Validated,
                 },
                 new()
                 {
-                    Id = 2, TenantId = Tenant, BzaEventId = 1, BzaCustomerId = 2, Customer = beto,
-                    Products = new List<BzaSoldProduct> { new() { Id = 3, TenantId = Tenant, Description = "C", Price = 200m } },
+                    Id = 2, TenantId = Tenant, BzaClosureEventId = 1, BzaCustomerId = 1, Customer = ana,
+                    BzaCollectorGroupId = 1, TotalAmount = 50m, Status = BzaClosureCustomerTotalStatus.Pending,
                 },
-            },
-            Payments = new List<BzaPayment>
-            {
-                new() { Id = 1, TenantId = Tenant, BzaEventId = 1, BzaCustomerId = 1, Amount = 100m, IsVerified = true },
-                new() { Id = 2, TenantId = Tenant, BzaEventId = 1, BzaCustomerId = 2, Amount = 999m, IsVerified = false },
+                // Beto: 200 pendiente (saldo moroso).
+                new()
+                {
+                    Id = 3, TenantId = Tenant, BzaClosureEventId = 1, BzaCustomerId = 2, Customer = beto,
+                    BzaCollectorGroupId = 1, TotalAmount = 200m, Status = BzaClosureCustomerTotalStatus.Pending,
+                },
             },
         };
-        ctx.Events.Add(closedEvent);
+        ctx.ClosureEvents.Add(closure);
 
         await ctx.SaveChangesAsync(default);
     }

@@ -55,6 +55,12 @@ public class BzaBazarSettings : BaseAuditableEntity
     /// <summary>URL de la página de Facebook principal del bazar (opcional).</summary>
     public string? FacebookPageUrl { get; set; }
 
+    /// <summary>
+    /// Texto adicional que el bazar agrega al mensaje de bienvenida (reglas, horarios,
+    /// instrucciones específicas). Se inserta al final del cuerpo, justo antes del cierre.
+    /// </summary>
+    public string? WelcomeMessageComplement { get; set; }
+
     /// <summary>Teléfonos de atención (opcionales).</summary>
     public ICollection<BzaContactPhone> ContactPhones { get; set; } = new List<BzaContactPhone>();
 

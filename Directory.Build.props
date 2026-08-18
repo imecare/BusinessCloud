@@ -1,9 +1,4 @@
 <Project>
   <PropertyGroup>
-    <!-- Suprimir warnings de vulnerabilidades de dependencias transitivas de MongoDB.Driver -->
-    <!-- NU1902: Vulnerabilidad moderada (SharpCompress) -->
-    <!-- NU1903: Vulnerabilidad alta (Snappier, System.Security.Cryptography.Xml) -->
-    <!-- Estas son dependencias transitivas que se actualizarán cuando MongoDB.Driver las actualice -->
-    <NoWarn>$(NoWarn);NU1902;NU1903</NoWarn>
   </PropertyGroup>
 </Project>

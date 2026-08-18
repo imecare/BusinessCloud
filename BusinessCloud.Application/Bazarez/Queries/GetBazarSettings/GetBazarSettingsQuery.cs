@@ -24,6 +24,7 @@ public record BazarSettingsDto(
     bool WithdrawalWithoutCardEnabled,
     string? WithdrawalWithoutCardMessage,
     string? PaymentCutoffTime,
+    string? WelcomeMessageComplement,
     List<ContactPhoneDto> Phones,
     List<FacebookProfileDto> FacebookProfiles);
 
@@ -40,7 +41,7 @@ public class GetBazarSettingsHandler(IBazaresDbContext context)
 
         if (settings is null)
         {
-            return new BazarSettingsDto(null, null, null, null, null, null, null, null, null, null, null, false, false, null, null, new(), new());
+            return new BazarSettingsDto(null, null, null, null, null, null, null, null, null, null, null, false, false, null, null, null, new(), new());
         }
 
         var phones = await context.ContactPhones
@@ -73,6 +74,7 @@ public class GetBazarSettingsHandler(IBazaresDbContext context)
             settings.WithdrawalWithoutCardEnabled,
             settings.WithdrawalWithoutCardMessage,
             settings.PaymentCutoffTime,
+            settings.WelcomeMessageComplement,
             phones,
             profiles);
     }

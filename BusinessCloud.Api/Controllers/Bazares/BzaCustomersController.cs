@@ -6,6 +6,7 @@ using BusinessCloud.Application.Bazares.Commands.UpdateBzaCustomer;
 using BusinessCloud.Application.Bazares.Commands.CommitBzaCustomersImport;
 using BusinessCloud.Application.Bazares.Queries.GetBzaCustomers;
 using BusinessCloud.Application.Bazares.Queries.GetBzaCustomersPage;
+using BusinessCloud.Application.Bazares.Queries.GetCustomerWelcomeMessage;
 using BusinessCloud.Application.Bazares.Queries.GetPendingBzaCustomers;
 using BusinessCloud.Application.Bazares.Queries.GetBlockedCustomers;
 using BusinessCloud.Application.Bazares.Queries.GetBzaCustomersTemplate;
@@ -43,6 +44,14 @@ public class BzaCustomersController : ControllerBase
     [HttpGet("search")]
     public async Task<ActionResult<List<BzaCustomerSearchDto>>> Search([FromQuery] string? query)
         => await _mediator.Send(new SearchBzaCustomersQuery(query));
+
+    /// <summary>
+    /// Mensaje de bienvenida armado para el cliente (variantes WhatsApp y Messenger),
+    /// para envío semi-manual desde la pantalla de Clientes.
+    /// </summary>
+    [HttpGet("{id:int}/welcome-message")]
+    public async Task<ActionResult<CustomerWelcomeMessageDto>> GetWelcomeMessage(int id)
+        => await _mediator.Send(new GetCustomerWelcomeMessageQuery(id));
 
     [HttpGet("merge-candidates")]
     public async Task<ActionResult<List<MergeCandidateDto>>> MergeCandidates([FromQuery] int[] ids)

@@ -38,7 +38,9 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.0" />
-    <PackageReference Include="MongoDB.Driver" Version="3.7.1" />
+    <PackageReference Include="MongoDB.Driver" Version="3.11.0" />
+    <!-- Override de dependencia transitiva vulnerable (solo llega vía EF Core Design/Tools de tiempo de diseño). -->
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.11" />
     <!-- Polly para políticas de resiliencia (retry, circuit breaker) en MongoDB -->
     <PackageReference Include="Polly" Version="8.5.2" />
     <PackageReference Include="WebPush" Version="1.0.13" />

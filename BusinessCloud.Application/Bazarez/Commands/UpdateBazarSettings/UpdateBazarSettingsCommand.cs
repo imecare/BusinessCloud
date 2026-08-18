@@ -29,6 +29,7 @@ public record UpdateBazarSettingsCommand(
     bool WithdrawalWithoutCardEnabled,
     string? WithdrawalWithoutCardMessage,
     string? PaymentCutoffTime,
+    string? WelcomeMessageComplement,
     List<ContactPhoneInput> Phones,
     List<FacebookProfileInput> FacebookProfiles) : IRequest;
 
@@ -62,6 +63,7 @@ public class UpdateBazarSettingsHandler(IBazaresDbContext context)
         settings.WithdrawalWithoutCardEnabled = request.WithdrawalWithoutCardEnabled;
         settings.WithdrawalWithoutCardMessage = Clean(request.WithdrawalWithoutCardMessage);
         settings.PaymentCutoffTime = CleanTime(request.PaymentCutoffTime);
+        settings.WelcomeMessageComplement = Clean(request.WelcomeMessageComplement);
 
         // Reemplazo completo de teléfonos.
         context.ContactPhones.RemoveRange(settings.ContactPhones);

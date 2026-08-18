@@ -435,6 +435,7 @@ public class BazaresDbContext : DbContext, IBazaresDbContext
         modelBuilder.Entity<BzaClosureGroupDelivery>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaClosureCustomerTotal>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaClosureProof>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
+        modelBuilder.Entity<BzaClosureDeliveryProof>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaPackedOrderPhoto>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaProofRejection>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
         modelBuilder.Entity<BzaSaleCancellation>().HasQueryFilter(x => x.TenantId == _userService.TenantId);
