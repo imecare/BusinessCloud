@@ -8,6 +8,7 @@ public static class NotificationType
     public const int ProofValidated = 4;
     public const int WithdrawalValidated = 6;
     public const int OrderPacked = 7;
+    public const int DetailedPaymentReminder = 8;
 }
 
 public static class NotificationChannelStrategy

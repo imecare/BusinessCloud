@@ -4,6 +4,7 @@ using BusinessCloud.Domain.Bazares.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 
 namespace BusinessCloud.Application.Bazares.Commands.Notifications;
 
@@ -227,6 +228,7 @@ public class SendBulkNotificationsHandler(
         return notificationType switch
         {
             NotificationType.DueToday => BuildDueDateTemplate(customerName, total, actionUrl, settings),
+            NotificationType.DetailedPaymentReminder => BuildDetailedPaymentReminderTemplate(customerName, total, actionUrl),
 
             NotificationType.SaleCancelled => new NotificationTemplateData(
                 "Venta cancelada",
@@ -297,6 +299,37 @@ public class SendBulkNotificationsHandler(
         body = string.IsNullOrWhiteSpace(actionUrl)
             ? body.Replace(ClosureMessageBuilder.UploadLinkPlaceholder, string.Empty)
             : body.Replace(ClosureMessageBuilder.UploadLinkPlaceholder, actionUrl);
+
+        return new NotificationTemplateData("Recordatorio de pago", body, actionUrl);
+    }
+
+    private static NotificationTemplateData BuildDetailedPaymentReminderTemplate(
+        string customerName,
+        BzaClosureCustomerTotal total,
+        string? actionUrl)
+    {
+        var deadline = total.ClosureEvent.PaymentDeadline;
+        var tense = deadline > DateTime.UtcNow ? "es" : "fue";
+        var formattedDeadline = deadline.ToString(
+            "dddd dd 'de' MMMM 'de' yyyy, HH:mm",
+            CultureInfo.GetCultureInfo("es-MX"));
+        var initialMessage = ClosureMessageBuilder.Build(
+            null,
+            customerName,
+            total.TotalAmount,
+            null,
+            deadline,
+            null);
+        initialMessage = string.IsNullOrWhiteSpace(actionUrl)
+            ? initialMessage.Replace(ClosureMessageBuilder.UploadLinkPlaceholder, string.Empty)
+            : initialMessage.Replace(ClosureMessageBuilder.UploadLinkPlaceholder, actionUrl);
+
+        var greeting = $"Hola {customerName} 👋";
+        var reminderBlock =
+            $"*RECORDATORIO DE PAGO*\nRecuerda que tu fecha de pago {tense} {formattedDeadline}.";
+        var body = initialMessage.Contains(greeting, StringComparison.Ordinal)
+            ? initialMessage.Replace(greeting, $"{greeting}\n\n{reminderBlock}", StringComparison.Ordinal)
+            : $"{greeting}\n\n{reminderBlock}\n\n{initialMessage}";
 
         return new NotificationTemplateData("Recordatorio de pago", body, actionUrl);
     }
