@@ -156,7 +156,7 @@ public class CustomerInboxNotificationTests
         Assert.NotNull(capturedBody);
         Assert.Equal(7, capturedBody!.Count);
         Assert.Equal("upload-token", capturedButton);
-        Assert.Equal("Bazar Test", capturedHeader);
+        Assert.Null(capturedHeader);
         var deadlineParam = capturedBody[3];
         Assert.Contains("a las", deadlineParam);
         Assert.Contains("06:30", deadlineParam);
@@ -263,7 +263,7 @@ public class CustomerInboxNotificationTests
         Assert.Equal("Cierre semanal", capturedBody[4]);       // {{5}} descripcion del cierre
         Assert.Equal("3", capturedBody[5]);                    // {{6}} numero de productos del cliente
         Assert.Equal("A, B, C", capturedBody[6]);              // {{7}} nombres de productos del cliente
-        Assert.Equal("Bazar Test", capturedHeader);            // header con el nombre del bazar
+        Assert.Null(capturedHeader);                            // V4 usa encabezado fijo, sin parametros
         Assert.Equal("upload-token", capturedButton);          // boton de URL con SOLO el token
 
         var notification = Assert.Single(context.CustomerInboxNotifications);

@@ -296,8 +296,7 @@ public class SendClosureWhatsAppHandler(
             ClosureTemplateLanguage,
             cobroPayload.BodyParameters,
             ct,
-            buttonUrlParameter: cobroPayload.ButtonUrlParameter,
-            headerParameter: cobroPayload.HeaderParameter);
+            buttonUrlParameter: cobroPayload.ButtonUrlParameter);
         if (result.Success)
         {
             return result;
