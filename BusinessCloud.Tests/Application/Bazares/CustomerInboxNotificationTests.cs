@@ -152,11 +152,10 @@ public class CustomerInboxNotificationTests
 
         await handler.Handle(new SendClosureWhatsAppCommand(20, "https://portal.test"), default);
 
-        Assert.Equal("total_compra_v3", capturedTemplate);
+        Assert.Equal(ClosureTotalsWhatsAppTemplate.Name, capturedTemplate);
         Assert.NotNull(capturedBody);
-        Assert.Equal(5, capturedBody!.Count);
-        Assert.Equal("https://portal.test/comprobante/upload-token", capturedBody[4]);
-        Assert.Null(capturedButton);
+        Assert.Equal(7, capturedBody!.Count);
+        Assert.Equal("upload-token", capturedButton);
         Assert.Equal("Bazar Test", capturedHeader);
         var deadlineParam = capturedBody[3];
         Assert.Contains("a las", deadlineParam);
@@ -164,7 +163,7 @@ public class CustomerInboxNotificationTests
     }
 
     [Fact]
-    public async Task SendClosureWhatsApp_CobroV2Template_SendsPiecesDescriptionAndButtonToken()
+    public async Task SendClosureWhatsApp_AlwaysUsesLatestTemplateAndButtonToken()
     {
         using var context = BazaresContextFactory.Create();
         var customer = new BzaCustomer
@@ -256,7 +255,7 @@ public class CustomerInboxNotificationTests
 
         await handler.Handle(new SendClosureWhatsAppCommand(20, "https://portal.test"), default);
 
-        Assert.Equal("totales_cobro_v2", capturedTemplate);
+        Assert.Equal(ClosureTotalsWhatsAppTemplate.Name, capturedTemplate);
         Assert.NotNull(capturedBody);
         Assert.Equal(7, capturedBody!.Count);
         Assert.Equal("Cliente Uno", capturedBody[0]);          // {{1}} nombre del cliente

@@ -4,7 +4,6 @@ using BusinessCloud.Domain.Bazares.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using System.Globalization;
 
 namespace BusinessCloud.Application.Bazares.Commands.SendClosureWhatsApp;
 
@@ -62,16 +61,7 @@ public class SendClosureWhatsAppHandler(
     IConfiguration configuration)
     : IRequestHandler<SendClosureWhatsAppCommand, SendClosureWhatsAppResultDto>
 {
-    private static readonly CultureInfo Culture = new("es-MX");
-    private readonly IConfiguration _configuration = configuration;
-
-    /// <summary>
-    /// Nombre de la plantilla nueva de cobro: header con el bazar, 7 parametros de cuerpo
-    /// (cliente, total, entrega, limite, descripcion, cantidad y nombres de productos) y el
-    /// token del comprobante en un boton de URL dinamica. La plantilla total_compra_v3
-    /// conserva el enlace dentro del cuerpo.
-    /// </summary>
-    private const string LegacyTemplateName = "total_compra_v3";
+    private const string ClosureTemplateLanguage = "es_MX";
 
     public async Task<SendClosureWhatsAppResultDto> Handle(SendClosureWhatsAppCommand request, CancellationToken ct)
     {
@@ -93,18 +83,7 @@ public class SendClosureWhatsAppHandler(
         var now = DateTime.UtcNow;
         var result = new SendClosureWhatsAppResultDto { ClosureEventId = closure.Id };
 
-        // Resolver la plantilla una sola vez. Si falta el setting, usar la versión activa más reciente.
-        var configuredTemplateName = _configuration["WhatsApp:ClosureTotalsTemplateName"];
-        var closureTotalsTemplateName = string.IsNullOrWhiteSpace(configuredTemplateName)
-            ? ClosureTotalsWhatsAppTemplate.Name
-            : configuredTemplateName.Trim();
-        var closureTemplateLang = string.IsNullOrWhiteSpace(_configuration["WhatsApp:ClosureTotalsTemplateLang"])
-            ? "es"
-            : _configuration["WhatsApp:ClosureTotalsTemplateLang"]!;
-        // Cualquier plantilla distinta de la legacy (total_compra_v3) usa la estructura nueva
-        // de 7 parametros + boton de URL dinamica (totales_cobro_v2, _v4, futuras versiones).
-        var useNewCobroTemplate = !string.Equals(
-            closureTotalsTemplateName, LegacyTemplateName, StringComparison.OrdinalIgnoreCase);
+        _ = configuration;
 
         // Los productos por cliente se usan tanto para la plantilla nueva de Meta como para el
         // texto de copia/manual (que SIEMPRE es v4), por lo que se cargan siempre.
@@ -210,43 +189,11 @@ public class SendClosureWhatsAppHandler(
             }
             else
             {
-                var headerParam = string.IsNullOrWhiteSpace(bazarName) ? "Bazar" : bazarName.Trim();
-
-                if (useNewCobroTemplate)
-                {
-                    // v2/v4: siete parametros de cuerpo y token en el boton de URL dinamica.
-                    // Se envia el nombre configurado (no una constante) para soportar futuras versiones.
-                    send = await TrySendCobroTemplateAsync(
-                        whatsApp,
-                        phone,
-                        closureTotalsTemplateName,
-                        closureTemplateLang,
-                        cobroPayload.HeaderParameter,
-                        cobroPayload.BodyParameters,
-                        cobroPayload.ButtonUrlParameter,
-                        ct);
-                }
-                else
-                {
-                    // v3: enlace como quinto parametro del cuerpo, sin boton.
-                    var bodyParams = new[]
-                    {
-                        name,
-                        total.TotalAmount.ToString("N2", Culture),
-                        FormatLongDate(effectiveDeliveryDate),
-                        FormatDeadlineWithTime(closure.PaymentDeadline, settings?.PaymentCutoffTime),
-                    };
-
-                    send = await TrySendClosureTemplateAsync(
-                        whatsApp,
-                        phone,
-                        closureTotalsTemplateName,
-                        closureTemplateLang,
-                        headerParam,
-                        bodyParams,
-                        uploadUrl,
-                        ct);
-                }
+                send = await SendLatestClosureTemplateAsync(
+                    whatsApp,
+                    phone,
+                    cobroPayload,
+                    ct);
             }
 
             // Los no enviados (sin WhatsApp o con fallo, p. ej. plantilla) se acompañan del texto
@@ -337,132 +284,31 @@ public class SendClosureWhatsAppHandler(
         });
     }
 
-    private static async Task<WhatsAppSendResult> TrySendClosureTemplateAsync(
+    private static async Task<WhatsAppSendResult> SendLatestClosureTemplateAsync(
         IWhatsAppSender whatsApp,
         string phone,
-        string templateName,
-        string configuredLang,
-        string headerParam,
-        IReadOnlyList<string> bodyCommonParams,
-        string uploadUrl,
+        ClosureTotalsWhatsAppTemplatePayload cobroPayload,
         CancellationToken ct)
     {
-        var langs = GetLanguageCandidates(configuredLang);
-        WhatsAppSendResult last = new(false, null, null, "No se pudo enviar la plantilla de WhatsApp.");
-
-        // total_compra_v3: el nombre del bazar va en el HEADER y el cuerpo lleva 5 parametros
-        // (cliente, total, fecha de entrega, fecha limite y el enlace del comprobante).
-        var bodyParams = bodyCommonParams.Concat(new[] { uploadUrl }).ToArray();
-
-        foreach (var lang in langs)
+        var result = await whatsApp.SendTemplateWithResultAsync(
+            phone,
+            ClosureTotalsWhatsAppTemplate.Name,
+            ClosureTemplateLanguage,
+            cobroPayload.BodyParameters,
+            ct,
+            buttonUrlParameter: cobroPayload.ButtonUrlParameter,
+            headerParameter: cobroPayload.HeaderParameter);
+        if (result.Success)
         {
-            var attempt = await whatsApp.SendTemplateWithResultAsync(
-                phone, templateName, lang, bodyParams, ct, headerParameter: headerParam);
-            if (attempt.Success)
-            {
-                return attempt;
-            }
-
-            last = attempt;
+            return result;
         }
 
-        return last;
-    }
-
-    private static async Task<WhatsAppSendResult> TrySendCobroTemplateAsync(
-        IWhatsAppSender whatsApp,
-        string phone,
-        string templateName,
-        string configuredLang,
-        string headerParam,
-        IReadOnlyList<string> bodyParams,
-        string uploadToken,
-        CancellationToken ct)
-    {
-        var langs = GetLanguageCandidates(configuredLang);
-        WhatsAppSendResult last = new(false, null, null, "No se pudo enviar la plantilla de WhatsApp.");
-
-        // El botón de URL dinámica recibe SOLO el token; Meta lo concatena a la URL base
-        // configurada en la plantilla (p. ej. https://bazares.bcloud.com.mx/comprobante/).
-        foreach (var lang in langs)
+        var originalMessage = string.IsNullOrWhiteSpace(result.ErrorMessage)
+            ? "No se pudo enviar la plantilla de WhatsApp."
+            : result.ErrorMessage.Trim();
+        return result with
         {
-            var attempt = await whatsApp.SendTemplateWithResultAsync(
-                phone, templateName, lang, bodyParams, ct,
-                buttonUrlParameter: uploadToken,
-                headerParameter: headerParam);
-            if (attempt.Success)
-            {
-                return attempt;
-            }
-
-            last = attempt;
-        }
-
-        return last;
-    }
-
-    private static IReadOnlyList<string> GetLanguageCandidates(string configuredLang)
-    {
-        var langs = new List<string>();
-
-        if (!string.IsNullOrWhiteSpace(configuredLang))
-        {
-            langs.Add(configuredLang.Trim());
-        }
-
-        var normalized = (configuredLang ?? string.Empty).Trim();
-        if (normalized.Contains('_'))
-        {
-            var baseLang = normalized.Split('_')[0];
-            if (!string.IsNullOrWhiteSpace(baseLang) && !langs.Contains(baseLang, StringComparer.OrdinalIgnoreCase))
-            {
-                langs.Add(baseLang);
-            }
-        }
-
-        if (!langs.Contains("es", StringComparer.OrdinalIgnoreCase))
-        {
-            langs.Add("es");
-        }
-
-        return langs;
-    }
-
-    private static string FormatLongDate(DateTime date)
-    {
-        var text = date.ToString("dddd dd 'de' MMMM", Culture);
-        return text.Length > 0 ? char.ToUpper(text[0], Culture) + text[1..] : text;
-    }
-
-    /// <summary>
-    /// Fecha límite con la hora configurada: "día a las hh:mm tt". Si el cierre ya trae
-    /// hora propia se usa esa; si no, se usa la hora límite general del bazar (HH:mm).
-    /// Si no hay hora disponible, se devuelve solo la fecha.
-    /// </summary>
-    private static string FormatDeadlineWithTime(DateTime deadline, string? cutoffTime)
-    {
-        var fecha = FormatLongDate(deadline);
-
-        if (deadline.Hour != 0 || deadline.Minute != 0)
-        {
-            return $"{fecha} a las {FormatTime(deadline.Hour, deadline.Minute)}";
-        }
-
-        var time = (cutoffTime ?? string.Empty).Trim();
-        var match = System.Text.RegularExpressions.Regex.Match(time, "^([01]?[0-9]|2[0-3]):([0-5][0-9])$");
-        if (match.Success)
-        {
-            var hour = int.Parse(match.Groups[1].Value, Culture);
-            var minute = int.Parse(match.Groups[2].Value, Culture);
-            return $"{fecha} a las {FormatTime(hour, minute)}";
-        }
-
-        return fecha;
-    }
-
-    private static string FormatTime(int hour, int minute)
-    {
-        var reference = new DateTime(2000, 1, 1, hour, minute, 0);
-        return reference.ToString("hh:mm tt", Culture);
+            ErrorMessage = $"{originalMessage} Plantilla enviada: {ClosureTotalsWhatsAppTemplate.Name}[{ClosureTemplateLanguage}].",
+        };
     }
 }
