@@ -11,7 +11,7 @@ public static class ClosureTotalsWhatsAppTemplate
 {
     private static readonly CultureInfo Culture = new("es-MX");
 
-    public const string Name = "totales_cobro_v2";
+    public const string Name = "totales_cobro_v4";
     public const string UploadLinkPlaceholder = "__UPLOAD_LINK__";
 
     public static ClosureTotalsWhatsAppTemplatePayload Build(

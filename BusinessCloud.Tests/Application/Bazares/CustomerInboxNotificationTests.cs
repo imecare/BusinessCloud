@@ -256,7 +256,7 @@ public class CustomerInboxNotificationTests
 
         await handler.Handle(new SendClosureWhatsAppCommand(20, "https://portal.test"), default);
 
-        Assert.Equal(ClosureTotalsWhatsAppTemplate.Name, capturedTemplate);
+        Assert.Equal("totales_cobro_v2", capturedTemplate);
         Assert.NotNull(capturedBody);
         Assert.Equal(7, capturedBody!.Count);
         Assert.Equal("Cliente Uno", capturedBody[0]);          // {{1}} nombre del cliente
@@ -278,7 +278,7 @@ public class CustomerInboxNotificationTests
     }
 
     [Fact]
-    public async Task SendClosureWhatsApp_NewTemplateVersion_ForwardsConfiguredNameWithButton()
+    public async Task SendClosureWhatsApp_MissingTemplateSetting_UsesLatestActiveTemplateWithButton()
     {
         using var context = BazaresContextFactory.Create();
         var customer = new BzaCustomer
@@ -343,7 +343,6 @@ public class CustomerInboxNotificationTests
 
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["WhatsApp:ClosureTotalsTemplateName"] = "totales_cobro_v4",
             ["WhatsApp:ClosureTotalsTemplateLang"] = "es",
         }).Build();
         var handler = new SendClosureWhatsAppHandler(
@@ -351,9 +350,7 @@ public class CustomerInboxNotificationTests
 
         await handler.Handle(new SendClosureWhatsAppCommand(20, "https://portal.test"), default);
 
-        // Cualquier plantilla distinta de total_compra_v3 usa la estructura nueva (7 params + boton),
-        // y se debe reenviar EXACTAMENTE el nombre configurado a Meta (no una constante).
-        Assert.Equal("totales_cobro_v4", capturedTemplate);
+        Assert.Equal(ClosureTotalsWhatsAppTemplate.Name, capturedTemplate);
         Assert.NotNull(capturedBody);
         Assert.Equal(7, capturedBody!.Count);
         Assert.Equal("upload-token", capturedButton);

@@ -6,7 +6,7 @@ namespace BusinessCloud.Tests.Application.Bazares;
 public class ClosureTotalsWhatsAppTemplateTests
 {
     [Fact]
-    public void Build_UsesCobroV2StructureForPayloadAndPreview()
+    public void Build_UsesLatestCobroStructureForPayloadAndPreview()
     {
         var payload = ClosureTotalsWhatsAppTemplate.Build(
             "Bazar Test",
@@ -20,7 +20,7 @@ public class ClosureTotalsWhatsAppTemplateTests
             [" Blusa ", "Bolsa", "Zapatos"],
             "token-22");
 
-        Assert.Equal("totales_cobro_v2", payload.TemplateName);
+        Assert.Equal("totales_cobro_v4", payload.TemplateName);
         Assert.Equal("Bazar Test", payload.HeaderParameter);
         Assert.Equal(
             ["Ana", "$500.00", "Sábado 08 de agosto", "Miércoles 05 de agosto a las 07:30 p.\u00A0m.", "Cierre semanal", "3", "Blusa, Bolsa, Zapatos"],

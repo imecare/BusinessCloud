@@ -93,10 +93,10 @@ public class SendClosureWhatsAppHandler(
         var now = DateTime.UtcNow;
         var result = new SendClosureWhatsAppResultDto { ClosureEventId = closure.Id };
 
-        // Resolver la plantilla una sola vez. Si falta el setting, conservar total_compra_v3.
+        // Resolver la plantilla una sola vez. Si falta el setting, usar la versión activa más reciente.
         var configuredTemplateName = _configuration["WhatsApp:ClosureTotalsTemplateName"];
         var closureTotalsTemplateName = string.IsNullOrWhiteSpace(configuredTemplateName)
-            ? LegacyTemplateName
+            ? ClosureTotalsWhatsAppTemplate.Name
             : configuredTemplateName.Trim();
         var closureTemplateLang = string.IsNullOrWhiteSpace(_configuration["WhatsApp:ClosureTotalsTemplateLang"])
             ? "es"
