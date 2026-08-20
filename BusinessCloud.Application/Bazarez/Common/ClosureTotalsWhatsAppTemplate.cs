@@ -64,7 +64,8 @@ public static class ClosureTotalsWhatsAppTemplate
             .Append("📦 ").Append(bodyParameters[4]).Append(": *Total de producto(s) · ")
                 .Append(bodyParameters[5]).Append("* - (").Append(bodyParameters[6]).AppendLine(")")
             .AppendLine()
-            .AppendLine("⚠️ NO ENVIÉS TU COMPROBANTE DE COMPRA POR ESTE CHAT.")
+            .AppendLine("ENVÍA TU COMPROBANTE DE COMPRA POR ESTE CHAT")
+            .AppendLine("O")
             .AppendLine("👇 Sube tu comprobante y consulta las tarjetas de pago en tu enlace personal (botón de abajo).")
             .Append(UploadLinkPlaceholder);
 

@@ -268,10 +268,11 @@ public class CustomerInboxNotificationTests
 
         var notification = Assert.Single(context.CustomerInboxNotifications);
         Assert.Contains("*Total de producto(s) · 3* - (A, B, C)", notification.Message);
-        var warningIndex = notification.Message.IndexOf("⚠️ NO ENVIÉS", StringComparison.Ordinal);
+        var chatOptionIndex = notification.Message.IndexOf("ENVÍA TU COMPROBANTE DE COMPRA POR ESTE CHAT", StringComparison.Ordinal);
         var buttonPromptIndex = notification.Message.IndexOf("👇 Sube tu comprobante", StringComparison.Ordinal);
-        Assert.True(warningIndex >= 0 && warningIndex < buttonPromptIndex);
-        // El texto de copia/envío manual del bazar omite las advertencias de "sistema automático".
+        Assert.True(chatOptionIndex >= 0 && chatOptionIndex < buttonPromptIndex);
+        Assert.Contains($"{Environment.NewLine}O{Environment.NewLine}", notification.Message);
+        // El texto de copia/envío manual del bazar permite ambas opciones y omite advertencias automáticas.
         Assert.DoesNotContain("Sistema automático", notification.Message);
         Assert.DoesNotContain("es automático y el bazar NO lo recibe", notification.Message);
     }
