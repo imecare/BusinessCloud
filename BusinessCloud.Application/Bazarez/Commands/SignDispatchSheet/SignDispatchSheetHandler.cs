@@ -19,7 +19,7 @@ public class SignDispatchSheetHandler : IRequestHandler<SignDispatchSheetCommand
     {
         var sheet = await _context.DispatchSheets
             .FirstOrDefaultAsync(s => s.Id == request.DispatchSheetId, ct)
-            ?? throw new KeyNotFoundException("Hoja de despacho no encontrada.");
+            ?? throw new KeyNotFoundException("Hoja de firmas no encontrada.");
 
         if (sheet.Status == 2)
             throw new InvalidOperationException("Esta hoja ya fue firmada.");

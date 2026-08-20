@@ -6,7 +6,7 @@ namespace BusinessCloud.Application.Bazares.Commands.StartClosureDelivery;
 
 /// <summary>
 /// Marca un evento de cierre como "en proceso de entrega" (tras imprimir etiquetas
-/// y/o la hoja de despacho). No modifica el estado de pago.
+/// y/o la hoja de firmas). No modifica el estado de pago.
 /// </summary>
 public record StartClosureDeliveryCommand(int ClosureEventId) : IRequest<StartClosureDeliveryResultDto>;
 

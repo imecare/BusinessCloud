@@ -1,4 +1,4 @@
-﻿using BusinessCloud.Api.Authorization;
+using BusinessCloud.Api.Authorization;
 using BusinessCloud.Application.Bazares.Commands.CancelClosureSale;
 using BusinessCloud.Application.Bazares.Commands.CancelPendingSales;
 using BusinessCloud.Application.Bazares.Commands.CloseClosureDelivery;
@@ -9,6 +9,8 @@ using BusinessCloud.Application.Bazares.Commands.MarkClosureMessageManualSent;
 using BusinessCloud.Application.Bazares.Commands.MarkClosureSignatureManualSent;
 using BusinessCloud.Application.Bazares.Commands.Notifications;
 using BusinessCloud.Application.Bazares.Commands.MovePendingSales;
+using BusinessCloud.Application.Bazares.Commands.ProcessDeliveryBatch;
+using BusinessCloud.Application.Bazares.Commands.UnifyDeliveryDates;
 using BusinessCloud.Application.Bazares.Commands.ReactivateClosureSale;
 using BusinessCloud.Application.Bazares.Commands.RejectClosureProof;
 using BusinessCloud.Application.Bazares.Commands.ResyncClosureGroups;
@@ -26,6 +28,8 @@ using BusinessCloud.Application.Bazares.Queries.GetClosureEvents;
 using BusinessCloud.Application.Bazares.Queries.GetClosureWhatsAppStatus;
 using BusinessCloud.Application.Bazares.Queries.GetClosureSignatureMessages;
 using BusinessCloud.Application.Bazares.Queries.GetDeliveryLabelData;
+using BusinessCloud.Application.Bazares.Queries.GetDeliveryLogisticsBatch;
+using BusinessCloud.Application.Bazares.Queries.GetDeliveryLogisticsEvents;
 using BusinessCloud.Application.Bazares.Queries.GetPendingMoveOptions;
 using BusinessCloud.Application.Bazares.Queries.GetReactivationOptions;
 using BusinessCloud.Application.Bazares.Queries.PrepareTotals;
@@ -212,9 +216,24 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
         => await mediator.Send(new GetReactivationOptionsQuery(totalId));
 
     /// <summary>
-    /// Datos para generar etiquetas y hoja de despacho de un evento de entrega:
+    /// Datos para generar etiquetas y hoja de firmas de un evento de entrega:
     /// identidad del bazar, grupos participantes y clientes con sus productos.
     /// </summary>
+    [HttpGet("logistics")]
+    public async Task<ActionResult<List<ClosureEventListItemDto>>> GetLogisticsEvents()
+        => await mediator.Send(new GetDeliveryLogisticsEventsQuery());
+
+    [HttpPost("delivery-labels/batch")]
+    public async Task<ActionResult<DeliveryLogisticsBatchDto>> GetDeliveryLabelsBatch([FromBody] GetDeliveryLogisticsBatchQuery query)
+        => await mediator.Send(query);
+
+    [HttpPost("delivery-labels/unify-date")]
+    public async Task<ActionResult<UnifyDeliveryDatesResultDto>> UnifyDeliveryDate([FromBody] UnifyDeliveryDatesCommand command)
+        => await mediator.Send(command);
+
+    [HttpPost("delivery-labels/process")]
+    public async Task<ActionResult<ProcessDeliveryBatchResultDto>> ProcessDeliveryBatch([FromBody] ProcessDeliveryBatchCommand command)
+        => await mediator.Send(command);
     [HttpGet("{id:int}/delivery-labels")]
     public async Task<ActionResult<DeliveryLabelDataDto>> GetDeliveryLabels(int id)
         => await mediator.Send(new GetDeliveryLabelDataQuery(id));

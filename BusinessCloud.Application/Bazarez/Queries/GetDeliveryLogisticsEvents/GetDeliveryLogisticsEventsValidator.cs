@@ -1,0 +1,3 @@
+using FluentValidation;
+namespace BusinessCloud.Application.Bazares.Queries.GetDeliveryLogisticsEvents;
+public class GetDeliveryLogisticsEventsValidator : AbstractValidator<GetDeliveryLogisticsEventsQuery> { }

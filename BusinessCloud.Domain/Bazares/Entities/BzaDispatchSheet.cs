@@ -3,7 +3,7 @@ using BusinessCloud.Domain.Common;
 namespace BusinessCloud.Domain.Bazares.Entities;
 
 /// <summary>
-/// Hoja de despacho semanal por recolector.
+/// Hoja de firmas semanal por recolector.
 /// </summary>
 public class BzaDispatchSheet : BaseAuditableEntity
 {

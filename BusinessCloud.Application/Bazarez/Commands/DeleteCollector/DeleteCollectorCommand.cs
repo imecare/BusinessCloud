@@ -32,7 +32,7 @@ public class DeleteCollectorHandler(IBazaresDbContext context)
         if (hasDispatchSheets)
         {
             throw new InvalidOperationException(
-                "No se puede eliminar un recolector con hojas de despacho asociadas. Desactívalo en su lugar.");
+                "No se puede eliminar un recolector con hojas de firmas asociadas. Desactívalo en su lugar.");
         }
 
         // Solo se elimina físicamente si no tiene ninguna dependencia.

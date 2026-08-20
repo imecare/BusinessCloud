@@ -3,7 +3,7 @@ using BusinessCloud.Domain.Common;
 namespace BusinessCloud.Domain.Bazares.Entities;
 
 /// <summary>
-/// L�nea de una hoja de despacho: un paquete/venta entregada al recolector.
+/// L�nea de una hoja de firmas: un paquete/venta entregada al recolector.
 /// </summary>
 public class BzaDispatchItem : BaseAuditableEntity
 {

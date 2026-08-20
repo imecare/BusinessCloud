@@ -52,7 +52,7 @@ public class BzaClosureEvent : BaseAuditableEntity
 
     /// <summary>
     /// Indica que el evento ya entró en proceso de entrega (se imprimieron etiquetas
-    /// y/o hoja de despacho). No altera el estado de pago.
+    /// y/o hoja de firmas). No altera el estado de pago.
     /// </summary>
     public bool InDeliveryProcess { get; set; }
 

@@ -17,7 +17,7 @@ public class BzaDispatchController : ControllerBase
     public BzaDispatchController(ISender mediator) => _mediator = mediator;
 
     /// <summary>
-    /// Generar hoja de despacho para un recolector con las ventas listas para entrega.
+    /// Generar hoja de firmas para un recolector con las ventas listas para entrega.
     /// </summary>
     [HttpPost]
     public async Task<ActionResult<DispatchSheetResultDto>> Create(CreateDispatchSheetCommand command)
@@ -32,7 +32,7 @@ public class BzaDispatchController : ControllerBase
     public async Task<ActionResult> Sign(int id, [FromBody] SignDispatchRequest request)
     {
         await _mediator.Send(new SignDispatchSheetCommand(id, request.SignatureBase64));
-        return Ok(new { success = true, message = "Hoja de despacho firmada." });
+        return Ok(new { success = true, message = "Hoja de firmas firmada." });
     }
 }
 

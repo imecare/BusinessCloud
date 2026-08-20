@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace BusinessCloud.Application.Bazares.Queries.GetDeliveryLabelData;
 
 /// <summary>
-/// Datos necesarios para generar etiquetas y hoja de despacho de un evento de entrega
+/// Datos necesarios para generar etiquetas y hoja de firmas de un evento de entrega
 /// (Cierre de Venta): identidad del bazar, grupos participantes y clientes con sus
 /// productos.
 /// </summary>
