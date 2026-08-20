@@ -258,7 +258,7 @@ public class CustomerInboxNotificationTests
         Assert.Equal(ClosureTotalsWhatsAppTemplate.Name, capturedTemplate);
         Assert.NotNull(capturedBody);
         Assert.Equal(7, capturedBody!.Count);
-        Assert.Equal("Cliente Uno", capturedBody[0]);          // {{1}} nombre del cliente
+        Assert.Equal("Cliente Uno — Te saluda Bazar Test", capturedBody[0]); // {{1}} saludo temporal completo
         Assert.Equal("$450.00", capturedBody[1]);              // {{2}} total con signo $
         Assert.Equal("Cierre semanal", capturedBody[4]);       // {{5}} descripcion del cierre
         Assert.Equal("3", capturedBody[5]);                    // {{6}} numero de productos del cliente

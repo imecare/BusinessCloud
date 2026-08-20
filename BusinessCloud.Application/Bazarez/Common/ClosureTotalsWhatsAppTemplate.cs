@@ -27,9 +27,10 @@ public static class ClosureTotalsWhatsAppTemplate
         string buttonUrlParameter)
     {
         var header = string.IsNullOrWhiteSpace(bazarName) ? "Bazar" : bazarName.Trim();
+        var customer = string.IsNullOrWhiteSpace(customerName) ? "Cliente" : customerName.Trim();
         var bodyParameters = new[]
         {
-            string.IsNullOrWhiteSpace(customerName) ? "Cliente" : customerName.Trim(),
+            $"{customer} — Te saluda {header}",
             "$" + totalAmount.ToString("N2", Culture),
             FormatLongDate(deliveryDate),
             FormatDeadlineWithTime(paymentDeadline, paymentCutoffTime),

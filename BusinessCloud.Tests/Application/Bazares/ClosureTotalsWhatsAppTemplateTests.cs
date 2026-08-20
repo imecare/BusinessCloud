@@ -23,7 +23,7 @@ public class ClosureTotalsWhatsAppTemplateTests
         Assert.Equal("totales_cobro_v4", payload.TemplateName);
         Assert.Equal("Bazar Test", payload.HeaderParameter);
         Assert.Equal(
-            ["Ana", "$500.00", "Sábado 08 de agosto", "Miércoles 05 de agosto a las 07:30 p.\u00A0m.", "Cierre semanal", "3", "Blusa, Bolsa, Zapatos"],
+            ["Ana — Te saluda Bazar Test", "$500.00", "Sábado 08 de agosto", "Miércoles 05 de agosto a las 07:30 p.\u00A0m.", "Cierre semanal", "3", "Blusa, Bolsa, Zapatos"],
             payload.BodyParameters);
         Assert.Equal("token-22", payload.ButtonUrlParameter);
 
@@ -31,7 +31,7 @@ public class ClosureTotalsWhatsAppTemplateTests
         [
             "Aviso de pago de Bazar Test (mensaje automático)",
             "",
-            "Hola Ana 👋",
+            "Hola Ana — Te saluda Bazar Test 👋",
             "",
             "💰 Total a pagar: *$500.00*",
             "🚚 Entrega: *Sábado 08 de agosto*",
