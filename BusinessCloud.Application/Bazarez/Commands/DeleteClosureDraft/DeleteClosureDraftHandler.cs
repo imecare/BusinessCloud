@@ -18,7 +18,7 @@ public class DeleteClosureDraftHandler(IBazaresDbContext context)
             ?? throw new KeyNotFoundException("El cierre no existe.");
 
         if (closure.InDeliveryProcess || closure.Delivered)
-            throw new InvalidOperationException("Este cierre ya está en proceso de entrega o finalizado y no se puede cancelar como draft.");
+            throw new InvalidOperationException("Este cierre ya est? en proceso de entrega o finalizado y no se puede cancelar como draft.");
 
         var totalIds = closure.CustomerTotals.Select(t => t.Id).ToList();
 

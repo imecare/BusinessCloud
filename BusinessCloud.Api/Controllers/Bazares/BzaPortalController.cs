@@ -14,8 +14,8 @@ public class BzaPortalController : ControllerBase
     public BzaPortalController(ISender mediator) => _mediator = mediator;
 
     /// <summary>
-    /// Portal público de auto-gestión del cliente.
-    /// Acceso por token único (sin autenticación).
+    /// Portal p?blico de auto-gesti?n del cliente.
+    /// Acceso por token ?nico (sin autenticaci?n).
     /// </summary>
     [HttpGet("{token}")]
     public async Task<ActionResult<CustomerPortalDto>> GetByToken(string token)

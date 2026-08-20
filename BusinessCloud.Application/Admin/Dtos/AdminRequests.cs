@@ -50,7 +50,7 @@ public class SetCompanyStatusRequest
     public bool IsActive { get; set; }
 }
 
-/// <summary>Actualización del correo de acceso del SuperAdmin de una empresa.</summary>
+/// <summary>ActualizaciÃ³n del correo de acceso del SuperAdmin de una empresa.</summary>
 public class UpdateCompanyAdminEmailRequest
 {
     public string AdminEmail { get; set; } = null!;

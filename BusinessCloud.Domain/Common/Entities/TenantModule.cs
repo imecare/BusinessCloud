@@ -1,8 +1,8 @@
 namespace BusinessCloud.Domain.Common.Entities;
 
 /// <summary>
-/// Módulo habilitado para un Tenant.
-/// Controla a qué sistemas tiene acceso cada empresa.
+/// M?dulo habilitado para un Tenant.
+/// Controla a qu? sistemas tiene acceso cada empresa.
 /// </summary>
 public class TenantModule
 {

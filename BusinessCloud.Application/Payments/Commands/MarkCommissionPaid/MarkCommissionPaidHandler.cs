@@ -26,13 +26,13 @@ public class MarkCommissionPaidHandler : IRequestHandler<MarkCommissionPaidComma
             return new MarkCommissionPaidResult { Success = false, Message = "Venta no encontrada." };
 
         if (sale.CommissionAmount <= 0)
-            return new MarkCommissionPaidResult { Success = false, Message = "Esta venta no tiene comisión asignada." };
+            return new MarkCommissionPaidResult { Success = false, Message = "Esta venta no tiene comisi?n asignada." };
 
         if (request.Paid)
         {
-            // Regla: Solo pagar comisión si la venta está liquidada
+            // Regla: Solo pagar comisi?n si la venta est? liquidada
             if (!sale.IsPaid)
-                return new MarkCommissionPaidResult { Success = false, Message = "No se puede pagar comisión: la venta no ha sido liquidada por el cliente." };
+                return new MarkCommissionPaidResult { Success = false, Message = "No se puede pagar comisi?n: la venta no ha sido liquidada por el cliente." };
 
             sale.IsCommissionPaid = true;
             sale.CommissionPaidAt = DateTime.UtcNow;
@@ -41,7 +41,7 @@ public class MarkCommissionPaidHandler : IRequestHandler<MarkCommissionPaidComma
         }
         else
         {
-            // Revertir pago de comisión
+            // Revertir pago de comisi?n
             sale.IsCommissionPaid = false;
             sale.CommissionPaidAt = null;
             sale.CommissionPaidByUserId = null;
@@ -50,7 +50,7 @@ public class MarkCommissionPaidHandler : IRequestHandler<MarkCommissionPaidComma
 
         await _db.SaveChangesAsync(cancellationToken);
 
-        // Auditoría en MongoDB
+        // Auditor?a en MongoDB
         await _mongoContext.InsertAuditLogAsync(new
         {
             Event = request.Paid ? "CommissionMarkedPaid" : "CommissionReverted",
@@ -64,7 +64,7 @@ public class MarkCommissionPaidHandler : IRequestHandler<MarkCommissionPaidComma
         return new MarkCommissionPaidResult
         {
             Success = true,
-            Message = request.Paid ? "Comisión marcada como pagada." : "Pago de comisión revertido."
+            Message = request.Paid ? "Comisi?n marcada como pagada." : "Pago de comisi?n revertido."
         };
     }
 }

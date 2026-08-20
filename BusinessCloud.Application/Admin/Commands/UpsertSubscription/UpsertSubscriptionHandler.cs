@@ -39,7 +39,7 @@ public class UpsertSubscriptionHandler(
                 .AnyAsync(s => s.OwnerPhone == normalizedPhone && s.TenantId != request.TenantId, cancellationToken);
 
             if (phoneInUse)
-                throw new ValidationException("El número de teléfono del dueño ya está registrado en otra empresa.");
+                throw new ValidationException("El n?mero de tel?fono del due?o ya est? registrado en otra empresa.");
         }
         if (subscription is null)
         {
@@ -73,7 +73,7 @@ public class UpsertSubscriptionHandler(
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        // Genera el asiento de comisiÃ³n inicial una sola vez por venta (tenant + comisionista).
+        // Genera el asiento de comisi?n inicial una sola vez por venta (tenant + comisionista).
         if (request.SellerId.HasValue && request.CommissionInitialAmount > 0)
         {
             var sellerExists = await _context.SystemSellers

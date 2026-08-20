@@ -9,7 +9,7 @@ using Microsoft.Extensions.Options;
 namespace BusinessCloud.Infrastructure.Common.Services;
 
 /// <summary>
-/// EnvÃƒÂ­o de mensajes por WhatsApp usando la Cloud API de Meta (Graph API).
+/// Envío de mensajes por WhatsApp usando la Cloud API de Meta (Graph API).
 /// </summary>
 public class WhatsAppSender : IWhatsAppSender
 {
@@ -35,7 +35,7 @@ public class WhatsAppSender : IWhatsAppSender
         }
 
         var message =
-            $"Tu cÃƒÂ³digo de verificaciÃƒÂ³n de Bazar-Enlace es: {code}\n" +
+            $"Tu código de verificación de Bazar-Enlace es: {code}\n" +
             "Vence en 10 minutos. No lo compartas con nadie.";
         return SendTextAsync(toPhone, message, cancellationToken);
     }
@@ -62,10 +62,10 @@ public class WhatsAppSender : IWhatsAppSender
 
         var to = NormalizePhone(toPhone, _options.DefaultCountryCode);
         if (!IsConfigured || string.IsNullOrWhiteSpace(to))
-            return new WhatsAppSendResult(false, null, null, "WhatsApp no configurado o nÃƒÂºmero invÃƒÂ¡lido.");
+            return new WhatsAppSendResult(false, null, null, "WhatsApp no configurado o número inválido.");
 
         var message =
-            $"Tu cÃƒÂ³digo de verificaciÃƒÂ³n de Bazar-Enlace es: {code}\n" +
+            $"Tu código de verificación de Bazar-Enlace es: {code}\n" +
             "Vence en 10 minutos. No lo compartas con nadie.";
         var payload = new
         {
@@ -82,7 +82,7 @@ public class WhatsAppSender : IWhatsAppSender
         var to = NormalizePhone(toPhone, _options.DefaultCountryCode);
         if (!IsConfigured || string.IsNullOrWhiteSpace(to))
         {
-            _logger.LogWarning("WhatsApp no configurado o nÃƒÂºmero invÃƒÂ¡lido. No se enviÃƒÂ³ el mensaje.");
+            _logger.LogWarning("WhatsApp no configurado o número inválido. No se envió el mensaje.");
             return false;
         }
 
@@ -102,7 +102,7 @@ public class WhatsAppSender : IWhatsAppSender
     {
         var to = NormalizePhone(toPhone, _options.DefaultCountryCode);
         if (!IsConfigured || string.IsNullOrWhiteSpace(to))
-            return new WhatsAppSendResult(false, null, null, "WhatsApp no configurado o nÃƒÂºmero invÃƒÂ¡lido.");
+            return new WhatsAppSendResult(false, null, null, "WhatsApp no configurado o número inválido.");
 
         var payload = new
         {
@@ -119,7 +119,7 @@ public class WhatsAppSender : IWhatsAppSender
     {
         var to = NormalizePhone(toPhone, _options.DefaultCountryCode);
         if (!IsConfigured || string.IsNullOrWhiteSpace(to))
-            return new WhatsAppSendResult(false, null, null, "WhatsApp no configurado o nÃƒÂºmero invÃƒÂ¡lido.");
+            return new WhatsAppSendResult(false, null, null, "WhatsApp no configurado o número inválido.");
 
         var payload = new
         {
@@ -155,7 +155,7 @@ public class WhatsAppSender : IWhatsAppSender
     {
         var to = NormalizePhone(toPhone, _options.DefaultCountryCode);
         if (!IsConfigured || string.IsNullOrWhiteSpace(to))
-            return new WhatsAppSendResult(false, null, null, "WhatsApp no configurado o nÃƒÂºmero invÃƒÂ¡lido.");
+            return new WhatsAppSendResult(false, null, null, "WhatsApp no configurado o número inválido.");
 
         if (string.IsNullOrWhiteSpace(templateName))
             return new WhatsAppSendResult(false, null, null, "Nombre de plantilla no configurado.");
@@ -261,14 +261,14 @@ public class WhatsAppSender : IWhatsAppSender
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "ExcepciÃƒÂ³n al enviar mensaje de WhatsApp.");
+            _logger.LogError(ex, "Excepción al enviar mensaje de WhatsApp.");
             return new WhatsAppSendResult(false, null, null, ex.Message);
         }
     }
 
     /// <summary>
-    /// Deja solo dÃƒÂ­gitos (formato requerido por la Cloud API, sin '+') y antepone el
-    /// cÃƒÂ³digo de paÃƒÂ­s por defecto cuando el nÃƒÂºmero llega sin ÃƒÂ©l (10 dÃƒÂ­gitos nacionales).
+    /// Deja solo dígitos (formato requerido por la Cloud API, sin '+') y antepone el
+    /// código de país por defecto cuando el número llega sin él (10 dígitos nacionales).
     /// </summary>
     private static string NormalizePhone(string phone, string defaultCountryCode)
         => PhoneNumberNormalizer.Normalize(phone, defaultCountryCode);

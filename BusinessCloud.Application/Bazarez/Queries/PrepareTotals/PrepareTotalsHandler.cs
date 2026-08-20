@@ -116,7 +116,7 @@ public class PrepareTotalsHandler(IBazaresDbContext context)
         var distinctCustomers = pendingSales.Select(x => x.Sale.BzaCustomerId).Distinct().Count();
         var totalAmount = pendingSales.Sum(x => x.Pending);
 
-        // Clientes con informaciÃ³n incompleta (alta rÃ¡pida) incluidos en la selecciÃ³n.
+        // Clientes con información incompleta (alta rápida) incluidos en la selección.
         var pendingInfoCustomers = pendingSales
             .Select(x => x.Sale.Customer)
             .Where(c => c is not null && c.IsPendingInfo && !HasMinimumCustomerInfo(c))
@@ -146,9 +146,9 @@ public class PrepareTotalsHandler(IBazaresDbContext context)
     }
 
     /// <summary>
-    /// Calcula la próxima fecha de entrega según el día configurado del grupo.
-    /// Si el día configurado es hoy, sugiere el mismo día de la siguiente semana.
-    /// Si el grupo no tiene día configurado, sugiere dentro de 7 días.
+    /// Calcula la pr�xima fecha de entrega seg�n el d�a configurado del grupo.
+    /// Si el d�a configurado es hoy, sugiere el mismo d�a de la siguiente semana.
+    /// Si el grupo no tiene d�a configurado, sugiere dentro de 7 d�as.
     /// </summary>
     private static DateTime NextDeliveryDate(int? deliveryDay, DateTime today)
     {

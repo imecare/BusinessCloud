@@ -56,6 +56,9 @@ public class BzaClosureEvent : BaseAuditableEntity
     /// </summary>
     public bool InDeliveryProcess { get; set; }
 
+    /// <summary>Identifica la consolidación de logística usada para imprimir este cierre.</summary>
+    public Guid? DeliveryBatchId { get; set; }
+
     /// <summary>
     /// Indica que la entrega física ya fue completada y cerrada (se subió al menos
     /// un comprobante de entrega/firma de recibido). Una vez cerrada, el cliente ve

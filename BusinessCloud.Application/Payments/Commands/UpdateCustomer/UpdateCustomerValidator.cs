@@ -18,8 +18,8 @@ public class UpdateCustomerValidator : AbstractValidator<UpdateCustomerCommand>
             .MaximumLength(200).WithMessage("El apellido no puede superar 200 caracteres.");
 
         RuleFor(x => x.Phone)
-            .NotEmpty().WithMessage("El teléfono es obligatorio.")
-            .Matches(@"^\+?\d{7,15}$").WithMessage("El teléfono debe tener entre 7 y 15 dígitos (opcional '+').");
+            .NotEmpty().WithMessage("El tel?fono es obligatorio.")
+            .Matches(@"^\+?\d{7,15}$").WithMessage("El tel?fono debe tener entre 7 y 15 d?gitos (opcional '+').");
 
         RuleFor(x => x.RFC)
             .MaximumLength(13).WithMessage("El RFC no puede superar 13 caracteres.")

@@ -13,7 +13,7 @@ public class UpdatePaymentValidator : AbstractValidator<UpdatePaymentCommand>
             .GreaterThan(0).WithMessage("El monto debe ser mayor a 0.");
 
         RuleFor(x => x.PaymentMethod)
-            .NotEmpty().WithMessage("El método de pago es obligatorio.")
-            .MaximumLength(50).WithMessage("El método de pago no puede superar 50 caracteres.");
+            .NotEmpty().WithMessage("El m?todo de pago es obligatorio.")
+            .MaximumLength(50).WithMessage("El m?todo de pago no puede superar 50 caracteres.");
     }
 }

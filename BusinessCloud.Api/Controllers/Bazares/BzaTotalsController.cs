@@ -47,7 +47,7 @@ namespace BusinessCloud.Api.Controllers.Bazares;
 public class BzaTotalsController(ISender mediator) : ControllerBase
 {
     /// <summary>
-    /// Prepara el envÃ­o de totales para los eventos seleccionados:
+    /// Prepara el env�o de totales para los eventos seleccionados:
     /// grupos participantes, fechas de entrega sugeridas, clientes y montos.
     /// </summary>
     [HttpPost("preview")]
@@ -55,7 +55,7 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
         => await mediator.Send(query);
 
     /// <summary>
-    /// EnvÃ­a los totales: cierra los eventos, crea el cierre de venta,
+    /// Env�a los totales: cierra los eventos, crea el cierre de venta,
     /// registra fechas de entrega por grupo y genera los mensajes por cliente.
     /// </summary>
     [HttpPost("send")]
@@ -64,7 +64,7 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
 
     /// <summary>
     /// Cancela un cierre draft generado al previsualizar mensajes, para permitir
-    /// corregir fechas y generar nuevamente el envï¿½o de totales.
+    /// corregir fechas y generar nuevamente el env?o de totales.
     /// </summary>
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> DeleteDraft(int id)
@@ -74,16 +74,16 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
     }
 
     /// <summary>
-    /// EnvÃ­a por WhatsApp (Cloud API) el mensaje de cobro a todos los clientes del cierre
-    /// y registra cada envÃ­o para dar seguimiento a su entrega.
+    /// Env�a por WhatsApp (Cloud API) el mensaje de cobro a todos los clientes del cierre
+    /// y registra cada env�o para dar seguimiento a su entrega.
     /// </summary>
     [HttpPost("{id:int}/send-whatsapp")]
     public async Task<ActionResult<SendClosureWhatsAppResultDto>> SendWhatsApp(int id, [FromBody] SendWhatsAppRequest body)
         => await mediator.Send(new SendClosureWhatsAppCommand(id, body?.PortalBaseUrl ?? string.Empty));
 
     /// <summary>
-    /// Reintenta el envÃƒÂ­o por WhatsApp del mensaje de cobro solo para los clientes indicados
-    /// (tÃƒÂ­picamente aquellos cuyo envÃƒÂ­o inicial fallÃƒÂ³).
+    /// Reintenta el envío por WhatsApp del mensaje de cobro solo para los clientes indicados
+    /// (típicamente aquellos cuyo envío inicial falló).
     /// </summary>
     [HttpPost("{id:int}/send-whatsapp-retry")]
     public async Task<ActionResult<SendClosureWhatsAppResultDto>> RetryWhatsApp(int id, [FromBody] RetryWhatsAppRequest body)
@@ -112,14 +112,14 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
             body.PortalBaseUrl));
 
     /// <summary>
-    /// Historial de cierres de venta (envÃ­os de totales).
+    /// Historial de cierres de venta (env�os de totales).
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<List<ClosureEventListItemDto>>> GetAll()
         => await mediator.Send(new GetClosureEventsQuery());
 
     /// <summary>
-    /// Busca los totales de un cliente (por nombre o telÃ©fono) en todos los eventos de
+    /// Busca los totales de un cliente (por nombre o tel�fono) en todos los eventos de
     /// cierre y los devuelve agrupados por cierre, para validar sus pagos sin abrir cada uno.
     /// </summary>
     [HttpGet("search-customer")]
@@ -142,7 +142,7 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
         => await mediator.Send(new ValidateClosureProofCommand(totalId));
 
     /// <summary>
-    /// ValidaciÃ³n manual por el bazar: valida el total adjuntando el/los comprobante(s)
+    /// Validación manual por el bazar: valida el total adjuntando el/los comprobante(s)
     /// (recibidos por otro medio) o sin comprobante con una nota obligatoria.
     /// </summary>
     [HttpPost("totals/{totalId:int}/manual-validate")]
@@ -180,7 +180,7 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
     }
 
     /// <summary>
-    /// Rechaza el comprobante de un cliente con un motivo. El cliente podrÃ¡
+    /// Rechaza el comprobante de un cliente con un motivo. El cliente podr�
     /// consultarlo en su enlace y volver a subir un comprobante.
     /// </summary>
     [HttpPost("totals/{totalId:int}/reject")]
@@ -188,8 +188,8 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
         => await mediator.Send(new RejectClosureProofCommand(totalId, body?.Reason ?? string.Empty));
 
     /// <summary>
-    /// Cancela la venta de un cliente (p. ej. porque no se recibiÃ³ el pago). El bazar
-    /// captura un motivo e indica si la cancelaciÃ³n es responsabilidad del cliente.
+    /// Cancela la venta de un cliente (p. ej. porque no se recibi� el pago). El bazar
+    /// captura un motivo e indica si la cancelación es responsabilidad del cliente.
     /// </summary>
     [HttpPost("totals/{totalId:int}/cancel")]
     public async Task<ActionResult<CancelClosureSaleResultDto>> CancelSale(int totalId, [FromBody] CancelSaleRequest body)
@@ -239,8 +239,8 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
         => await mediator.Send(new GetDeliveryLabelDataQuery(id));
 
     /// <summary>
-    /// Re-sincroniza el grupo de recolecciÃ³n de los clientes del cierre con el grupo
-    /// actual de su recolector (Ãºtil tras reasignar recolectores despuÃ©s del envÃ­o de totales).
+    /// Re-sincroniza el grupo de recolección de los clientes del cierre con el grupo
+    /// actual de su recolector (�til tras reasignar recolectores despu�s del env�o de totales).
     /// </summary>
     [HttpPost("{id:int}/resync-groups")]
     public async Task<ActionResult<ResyncClosureGroupsResultDto>> ResyncGroups(int id)
@@ -255,7 +255,7 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
 
     /// <summary>
     /// Opciones para mover las ventas pendientes (sin comprobante) de un evento de cierre
-    /// antes de marcarlo "en proceso de entrega": cuÃ¡ntas hay y a quÃ© otros eventos se pueden mover.
+    /// antes de marcarlo "en proceso de entrega": cu�ntas hay y a qu� otros eventos se pueden mover.
     /// </summary>
     [HttpGet("{id:int}/pending-move-options")]
     public async Task<ActionResult<PendingMoveOptionsDto>> PendingMoveOptions(int id)
@@ -276,7 +276,7 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
 
     /// <summary>
     /// Cancela por sistema todas las ventas pendientes (sin comprobante) de un evento
-    /// de cierre. Se pueden reactivar despuÃ©s desde ValidaciÃ³n de comprobantes.
+    /// de cierre. Se pueden reactivar despu�s desde Validación de comprobantes.
     /// </summary>
     [HttpPost("{id:int}/cancel-pending")]
     public async Task<ActionResult<CancelPendingSalesResultDto>> CancelPendingSales(int id)
@@ -384,26 +384,26 @@ public class BzaTotalsController(ISender mediator) : ControllerBase
 
     /// <summary>
     /// Cierra la entrega de un evento de cierre (requiere al menos un comprobante subido).
-    /// A partir de aquÃ­, los clientes ven su comprobante de entrega en su enlace.
+    /// A partir de aqu�, los clientes ven su comprobante de entrega en su enlace.
     /// </summary>
     [HttpPost("{id:int}/close-delivery")]
     public async Task<ActionResult<CloseClosureDeliveryResultDto>> CloseDelivery(int id)
         => await mediator.Send(new CloseClosureDeliveryCommand(id));
 }
 
-/// <summary>Cuerpo de la peticiÃ³n de rechazo de comprobante.</summary>
+/// <summary>Cuerpo de la petición de rechazo de comprobante.</summary>
 public class RejectProofRequest
 {
     public string Reason { get; set; } = string.Empty;
 }
 
-/// <summary>Cuerpo de la peticiÃ³n para enviar los mensajes del cierre por WhatsApp.</summary>
+/// <summary>Cuerpo de la petición para enviar los mensajes del cierre por WhatsApp.</summary>
 public class SendWhatsAppRequest
 {
     public string? PortalBaseUrl { get; set; }
 }
 
-/// <summary>Cuerpo de la peticiÃƒÂ³n de reintento de envÃƒÂ­o por WhatsApp a clientes especÃƒÂ­ficos.</summary>
+/// <summary>Cuerpo de la petición de reintento de envío por WhatsApp a clientes específicos.</summary>
 public class RetryWhatsAppRequest
 {
     public List<int>? CustomerIds { get; set; }
@@ -418,14 +418,14 @@ public class SendBulkNotificationsRequest
     public string? PortalBaseUrl { get; set; }
 }
 
-/// <summary>Cuerpo de la peticiÃ³n de cancelaciÃ³n de venta.</summary>
+/// <summary>Cuerpo de la petición de cancelación de venta.</summary>
 public class CancelSaleRequest
 {
     public string Reason { get; set; } = string.Empty;
     public bool IsCustomerFault { get; set; }
 }
 
-/// <summary>Cuerpo de la peticiÃ³n de reactivaciÃ³n de venta.</summary>
+/// <summary>Cuerpo de la petición de reactivación de venta.</summary>
 public class ReactivateSaleRequest
 {
     public ReactivateMode Mode { get; set; } = ReactivateMode.Same;
@@ -434,7 +434,7 @@ public class ReactivateSaleRequest
     public DateTime? NewPaymentDeadline { get; set; }
 }
 
-/// <summary>Cuerpo de la peticiÃ³n para mover ventas pendientes de un evento de cierre.</summary>
+/// <summary>Cuerpo de la petición para mover ventas pendientes de un evento de cierre.</summary>
 public class MovePendingSalesRequest
 {
     public MovePendingSalesMode Mode { get; set; }

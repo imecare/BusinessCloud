@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 namespace BusinessCloud.Api.Authorization;
 
 /// <summary>
-/// Requirement que valida que el claim "module" contenga el módulo solicitado.
+/// Requirement que valida que el claim "module" contenga el m?dulo solicitado.
 /// </summary>
 public class ModuleRequirement : IAuthorizationRequirement
 {

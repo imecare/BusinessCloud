@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Application.Bazares.Common;
@@ -44,34 +44,34 @@ public class CreateBzaCustomerHandler : IRequestHandler<CreateBzaCustomerCommand
             var userId = _currentUser.UserId ?? string.Empty;
             bool authorized = false;
 
-            // Verificar por PIN si se proporcionÃ³.
+            // Verificar por PIN si se proporcionó.
             if (!string.IsNullOrWhiteSpace(request.AdminPin))
             {
                 authorized = await _adminPin.VerifyPinAsync(userId, request.AdminPin, cancellationToken);
                 if (!authorized)
                     throw new InvalidOperationException("PIN incorrecto. No se puede forzar el alta del cliente bloqueado.");
             }
-            // Verificar por OTP si se proporcionÃ³ challenge.
+            // Verificar por OTP si se proporcionó challenge.
             else if (!string.IsNullOrWhiteSpace(request.ChallengeId) && !string.IsNullOrWhiteSpace(request.VerificationCode))
             {
                 authorized = _verification.Validate(
                     request.ChallengeId!, request.VerificationCode!, "customer.block.override", userId);
                 if (!authorized)
-                    throw new InvalidOperationException("El cÃ³digo de verificaciÃ³n es invÃ¡lido o expirÃ³.");
+                    throw new InvalidOperationException("El código de verificación es inválido o expiró.");
             }
 
             if (!authorized)
             {
                 throw new InvalidOperationException(
-                    $"CLIENTE_BLOQUEADO: El cliente coincide con un registro de la lista de bloqueo (nombre o Facebook). Motivo: {block.Reason}. Se requiere autorizaciÃ³n del SuperAdmin para darlo de alta.");
+                    $"CLIENTE_BLOQUEADO: El cliente coincide con un registro de la lista de bloqueo (nombre o Facebook). Motivo: {block.Reason}. Se requiere autorización del SuperAdmin para darlo de alta.");
             }
         }
 
         string phone;
         if (request.HasNoWhatsApp)
         {
-            // Cliente sin número de WhatsApp: se le asigna un placeholder consecutivo
-            // por bazar (10 dígitos) para respetar la restricción de teléfono único.
+            // Cliente sin n�mero de WhatsApp: se le asigna un placeholder consecutivo
+            // por bazar (10 d�gitos) para respetar la restricción de tel�fono �nico.
             var tenantId = _currentUser.TenantId ?? string.Empty;
             phone = await NoWhatsAppNumber.ReserveNextAsync(_context, tenantId, cancellationToken);
         }
@@ -85,7 +85,7 @@ public class CreateBzaCustomerHandler : IRequestHandler<CreateBzaCustomerCommand
             if (duplicate)
             {
                 throw new InvalidOperationException(
-                    $"Ya existe un cliente registrado con el teléfono {phone}. El teléfono debe ser único.");
+                    $"Ya existe un cliente registrado con el tel�fono {phone}. El tel�fono debe ser �nico.");
             }
         }
 

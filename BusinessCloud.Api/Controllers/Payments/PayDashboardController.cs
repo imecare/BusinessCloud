@@ -17,7 +17,7 @@ public class PayDashboardController : ControllerBase
     public PayDashboardController(IMediator mediator) => _mediator = mediator;
 
     /// <summary>
-    /// Estad�sticas generales del tenant. Solo SuperAdmin.
+    /// Estad?sticas generales del tenant. Solo SuperAdmin.
     /// </summary>
     [Authorize(Policy = "SuperAdmin")]
     [HttpGet("stats")]
@@ -28,7 +28,7 @@ public class PayDashboardController : ControllerBase
     }
 
     /// <summary>
-    /// Estad�sticas del comisionista autenticado.
+    /// Estad?sticas del comisionista autenticado.
     /// Solo Commissionist.
     /// </summary>
     [Authorize(Policy = "Commissionist")]

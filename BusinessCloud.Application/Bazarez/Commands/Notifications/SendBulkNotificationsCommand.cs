@@ -249,7 +249,7 @@ public class SendBulkNotificationsHandler(
                 "Retiro realizado",
                 !string.IsNullOrWhiteSpace(settings?.WithdrawalValidatedMessage)
                     ? settings!.WithdrawalValidatedMessage
-                    : $"{customerName}, tu retiro fue realizado y tu venta qued� validada. Gracias por tu pago.",
+                    : $"{customerName}, tu retiro fue realizado y tu venta quedó validada. Gracias por tu pago.",
                 actionUrl),
 
             _ => BuildReminderTemplate(customerName, total, actionUrl),

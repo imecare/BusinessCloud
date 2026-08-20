@@ -90,7 +90,7 @@ public class AuthController : ControllerBase
 
             _identityContext.Tenants.Add(tenant);
 
-            // Activar m�dulos solicitados (o todos por defecto)
+            // Activar m?dulos solicitados (o todos por defecto)
             var modulesToActivate = request.Modules?.Length > 0
                 ? request.Modules.Where(m => SystemModules.All.Contains(m)).ToArray()
                 : SystemModules.All;
@@ -122,7 +122,7 @@ public class AuthController : ControllerBase
 
             if (!result.Succeeded)
             {
-                // Rollback manual: eliminar tenant y m�dulos creados
+                // Rollback manual: eliminar tenant y m?dulos creados
                 var tenantToRemove = await _identityContext.Tenants.FindAsync(tenantId);
                 if (tenantToRemove != null)
                     _identityContext.Tenants.Remove(tenantToRemove);
@@ -135,7 +135,7 @@ public class AuthController : ControllerBase
 
             return Ok(new
             {
-                Message = "Empresa y Usuario creados con �xito",
+                Message = "Empresa y Usuario creados con ?xito",
                 TenantId = tenantId,
                 Modules = modulesToActivate
             });
@@ -153,7 +153,7 @@ public class AuthController : ControllerBase
         var user = await _userManager.FindByEmailAsync(request.Email);
 
         if (user == null)
-            return Unauthorized(new { success = false, message = "Credenciales inv�lidas." });
+            return Unauthorized(new { success = false, message = "Credenciales inv?lidas." });
 
         if (!user.IsActive)
             return Unauthorized(new { success = false, message = "Usuario desactivado. Contacte al administrador." });
@@ -165,12 +165,12 @@ public class AuthController : ControllerBase
         var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
 
         if (result.IsLockedOut)
-            return StatusCode(423, new { success = false, message = "Cuenta bloqueada temporalmente por m�ltiples intentos fallidos. Intenta de nuevo en unos minutos." });
+            return StatusCode(423, new { success = false, message = "Cuenta bloqueada temporalmente por m?ltiples intentos fallidos. Intenta de nuevo en unos minutos." });
 
         if (!result.Succeeded)
-            return Unauthorized(new { success = false, message = "Credenciales inv�lidas." });
+            return Unauthorized(new { success = false, message = "Credenciales inv?lidas." });
 
-        // Obtener m�dulos habilitados del tenant
+        // Obtener m?dulos habilitados del tenant
         var modules = await _identityContext.TenantModules
             .Where(tm => tm.TenantId == user.TenantId && tm.IsActive)
             .Select(tm => tm.Module)
@@ -179,7 +179,7 @@ public class AuthController : ControllerBase
         var isPlatformAdmin = user.Role == SystemRoles.PlatformAdmin;
 
         // El PlatformAdmin es el administrador global del SaaS (cross-tenant): no pertenece a
-        // ninguna empresa ni valida m�dulos de tenant; opera exclusivamente el panel Admin.
+        // ninguna empresa ni valida m?dulos de tenant; opera exclusivamente el panel Admin.
         if (isPlatformAdmin)
         {
             modules = new List<string> { AdminModule.Name };
@@ -191,7 +191,7 @@ public class AuthController : ControllerBase
                 return StatusCode(403, new
                 {
                     success = false,
-                    message = $"Su empresa no tiene acceso al m�dulo '{request.Module}'.",
+                    message = $"Su empresa no tiene acceso al m?dulo '{request.Module}'.",
                     code = "MODULE_NOT_ENABLED"
                 });
             }
@@ -199,8 +199,8 @@ public class AuthController : ControllerBase
 
         var token = await _jwtService.GenerateTokenAsync(user, request.PersistentSession);
 
-        // Suscripci�n de la empresa: bloquea el acceso si est� suspendida y expone el estado
-        // para que el frontend muestre la etiqueta de vencimiento/pr�rroga.
+        // Suscripci?n de la empresa: bloquea el acceso si est? suspendida y expone el estado
+        // para que el frontend muestre la etiqueta de vencimiento/pr?rroga.
         object? subscriptionInfo = null;
         if (!isPlatformAdmin && !string.IsNullOrEmpty(user.TenantId))
         {
@@ -218,7 +218,7 @@ public class AuthController : ControllerBase
                     return StatusCode(403, new
                     {
                         success = false,
-                        message = "La suscripci�n de tu empresa est� suspendida por falta de pago. Contacta al administrador para reactivar el servicio.",
+                        message = "La suscripci?n de tu empresa est? suspendida por falta de pago. Contacta al administrador para reactivar el servicio.",
                         code = "SUBSCRIPTION_SUSPENDED"
                     });
                 }
@@ -252,8 +252,8 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Devuelve el estado actual de la suscripci�n del tenant autenticado.
-    /// Se usa para refrescar avisos de vencimiento sin cerrar sesi�n.
+    /// Devuelve el estado actual de la suscripci?n del tenant autenticado.
+    /// Se usa para refrescar avisos de vencimiento sin cerrar sesi?n.
     /// </summary>
     [Authorize]
     [HttpGet("subscription-status")]
@@ -273,8 +273,8 @@ public class AuthController : ControllerBase
         var nowUtc = DateTime.UtcNow;
         var status = subscription.EvaluateStatus(nowUtc);
 
-        // Si lleg� aqu� estando suspendida, se devuelve el estado para UI; el bloqueo real
-        // de acceso ocurre al iniciar sesi�n.
+        // Si lleg? aqu? estando suspendida, se devuelve el estado para UI; el bloqueo real
+        // de acceso ocurre al iniciar sesi?n.
         var data = BuildSubscriptionInfo(subscription, status, nowUtc);
         return Ok(new { success = true, data });
     }
@@ -295,8 +295,8 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Solicitud p�blica desde el login: contratar o reactivar una cuenta. Guarda la solicitud
-    /// y avisa por WhatsApp al super administrador. No requiere autenticaci�n.
+    /// Solicitud p?blica desde el login: contratar o reactivar una cuenta. Guarda la solicitud
+    /// y avisa por WhatsApp al super administrador. No requiere autenticaci?n.
     /// </summary>
     [AllowAnonymous]
     [HttpPost("contact-request")]
@@ -307,7 +307,7 @@ public class AuthController : ControllerBase
 
         var phone = new string((body.Phone ?? string.Empty).Where(char.IsDigit).ToArray());
         if (phone.Length is < 10 or > 15)
-            return BadRequest(new { success = false, message = "El n�mero debe tener entre 10 y 15 d�gitos." });
+            return BadRequest(new { success = false, message = "El n?mero debe tener entre 10 y 15 d?gitos." });
 
         var type = body.Type == "Reactivate" ? "Reactivate" : "Contract";
 
@@ -330,9 +330,9 @@ public class AuthController : ControllerBase
         var waMessage =
             $"?? Nueva solicitud desde el login\n" +
             $"Tipo: {label}\n" +
-            $"Tel�fono: {phone}\n" +
+            $"Tel?fono: {phone}\n" +
             (string.IsNullOrWhiteSpace(body.Message) ? "" : $"Mensaje: {body.Message}\n") +
-            "Revisa las solicitudes en el panel de administraci�n.";
+            "Revisa las solicitudes en el panel de administraci?n.";
 
         try
         {
@@ -340,7 +340,7 @@ public class AuthController : ControllerBase
         }
         catch
         {
-            // Best-effort: la solicitud ya qued� registrada.
+            // Best-effort: la solicitud ya qued? registrada.
         }
 
         return Ok(new { success = true, message = "Solicitud enviada. Te contactaremos pronto." });
@@ -355,7 +355,7 @@ public class AuthController : ControllerBase
 
     /// <summary>
     /// Crear usuario comisionista vinculado a un Seller existente.
-    /// FirstName/LastName se copian autom�ticamente del Seller.
+    /// FirstName/LastName se copian autom?ticamente del Seller.
     /// Solo SuperAdmin.
     /// </summary>
     [Authorize(Policy = "SuperAdmin")]
@@ -377,7 +377,7 @@ public class AuthController : ControllerBase
         // 2. Validar email no duplicado
         var emailExists = await _userManager.FindByEmailAsync(request.Email);
         if (emailExists is not null)
-            return BadRequest(new { success = false, message = "El email ya est� registrado." });
+            return BadRequest(new { success = false, message = "El email ya est? registrado." });
 
         // 3. Validar que no haya otro comisionista con ese SellerId
         var duplicateSeller = await _userManager.Users
@@ -470,11 +470,11 @@ public class AuthController : ControllerBase
     }
 
     // ============================================================
-    // GESTI�N DE USUARIOS DEL BAZAR (rol "BazarUser")
+    // GESTI?N DE USUARIOS DEL BAZAR (rol "BazarUser")
     // ============================================================
 
     /// <summary>
-    /// Obtener el n�mero de WhatsApp del usuario autenticado (para verificaci�n).
+    /// Obtener el n?mero de WhatsApp del usuario autenticado (para verificaci?n).
     /// </summary>
     [Authorize]
     [HttpGet("me/phone")]
@@ -482,14 +482,14 @@ public class AuthController : ControllerBase
     {
         var me = await _userManager.GetUserAsync(User);
         if (me is null)
-            return Unauthorized(new { success = false, message = "Sesi�n no v�lida." });
+            return Unauthorized(new { success = false, message = "Sesi?n no v?lida." });
 
         return Ok(new { phoneNumber = me.PhoneNumber });
     }
 
     /// <summary>
-    /// Configurar el n�mero de WhatsApp del usuario autenticado.
-    /// El SuperAdmin lo necesita para recibir los c�digos de verificaci�n.
+    /// Configurar el n?mero de WhatsApp del usuario autenticado.
+    /// El SuperAdmin lo necesita para recibir los c?digos de verificaci?n.
     /// </summary>
     [Authorize]
     [HttpPut("me/phone")]
@@ -497,14 +497,14 @@ public class AuthController : ControllerBase
     {
         var me = await _userManager.GetUserAsync(User);
         if (me is null)
-            return Unauthorized(new { success = false, message = "Sesi�n no v�lida." });
+            return Unauthorized(new { success = false, message = "Sesi?n no v?lida." });
 
         var digits = string.IsNullOrWhiteSpace(request.PhoneNumber)
             ? null
             : new string(request.PhoneNumber.Where(char.IsDigit).ToArray());
 
         if (!string.IsNullOrEmpty(digits) && (digits.Length < 10 || digits.Length > 15))
-            return BadRequest(new { success = false, message = "El n�mero debe incluir el c�digo de pa�s (10 a 15 d�gitos)." });
+            return BadRequest(new { success = false, message = "El n?mero debe incluir el c?digo de pa?s (10 a 15 d?gitos)." });
 
         me.PhoneNumber = digits;
         await _userManager.UpdateAsync(me);
@@ -542,7 +542,7 @@ public class AuthController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.NewPin) || request.NewPin.Length < 4 || request.NewPin.Length > 8
             || !request.NewPin.All(char.IsDigit))
-            return BadRequest(new { success = false, message = "El PIN debe tener entre 4 y 8 d�gitos num�ricos." });
+            return BadRequest(new { success = false, message = "El PIN debe tener entre 4 y 8 d?gitos num?ricos." });
 
         var me = await _userManager.GetUserAsync(User);
         if (me is null)
@@ -556,8 +556,8 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Env�a un c�digo de verificaci�n por WhatsApp al n�mero del SuperAdmin
-    /// antes de autorizar una operaci�n sensible (alta/edici�n/baja/reset).
+    /// Env?a un c?digo de verificaci?n por WhatsApp al n?mero del SuperAdmin
+    /// antes de autorizar una operaci?n sensible (alta/edici?n/baja/reset).
     /// Solo SuperAdmin.
     /// </summary>
     [Authorize(Policy = "SuperAdmin")]
@@ -566,18 +566,18 @@ public class AuthController : ControllerBase
     {
         var allowedPurposes = new[] { "user.create", "user.update", "user.status", "user.reset-password", "payment.card.add", "payment.card.update", "payment.card.delete", "customer.block.override", "customer.unblock" };
         if (string.IsNullOrWhiteSpace(request.Purpose) || !allowedPurposes.Contains(request.Purpose))
-            return BadRequest(new { success = false, message = "Prop�sito de verificaci�n no v�lido." });
+            return BadRequest(new { success = false, message = "Prop?sito de verificaci?n no v?lido." });
 
         var me = await _userManager.GetUserAsync(User);
         if (me is null)
-            return Unauthorized(new { success = false, message = "Sesi�n no v�lida." });
+            return Unauthorized(new { success = false, message = "Sesi?n no v?lida." });
 
         if (string.IsNullOrWhiteSpace(me.PhoneNumber))
         {
             return BadRequest(new
             {
                 success = false,
-                message = "Tu usuario no tiene un n�mero de WhatsApp registrado. Config�ralo para recibir el c�digo de verificaci�n.",
+                message = "Tu usuario no tiene un n?mero de WhatsApp registrado. Config?ralo para recibir el c?digo de verificaci?n.",
                 code = "NO_PHONE"
             });
         }
@@ -587,7 +587,7 @@ public class AuthController : ControllerBase
         var sendResult = await _whatsApp.SendOtpWithResultAsync(me.PhoneNumber, code);
         var delivered = sendResult.Success;
 
-        // Registrar el mensaje para dar seguimiento a su estatus v�a webhooks de Meta.
+        // Registrar el mensaje para dar seguimiento a su estatus v?a webhooks de Meta.
         try
         {
             _bazaresDb.WhatsAppMessages.Add(new Domain.Bazares.Entities.BzaWhatsAppMessage
@@ -607,7 +607,7 @@ public class AuthController : ControllerBase
             _logger.LogWarning(logEx, "No se pudo registrar el mensaje de WhatsApp para seguimiento.");
         }
 
-        // En desarrollo, registrar el c�digo para poder probar aunque el env�o no llegue.
+        // En desarrollo, registrar el c?digo para poder probar aunque el env?o no llegue.
         _logger.LogInformation(
             "OTP {Purpose} para {UserId} (tel {Phone}): {Code} | entregado={Delivered}",
             request.Purpose, me.Id, MaskPhone(me.PhoneNumber), code, delivered);
@@ -620,14 +620,14 @@ public class AuthController : ControllerBase
             sentTo = MaskPhone(me.PhoneNumber),
             delivered,
             message = delivered
-                ? "Te enviamos un c�digo de verificaci�n por WhatsApp."
-                : "No se pudo entregar el WhatsApp (revisa la configuraci�n/lista de destinatarios). El c�digo qued� registrado en el servidor."
+                ? "Te enviamos un c?digo de verificaci?n por WhatsApp."
+                : "No se pudo entregar el WhatsApp (revisa la configuraci?n/lista de destinatarios). El c?digo qued? registrado en el servidor."
         });
     }
 
     /// <summary>
-    /// Crear un usuario del bazar con permisos por m�dulo y contrase�a temporal.
-    /// El usuario deber� cambiar la contrase�a en su primer inicio de sesi�n.
+    /// Crear un usuario del bazar con permisos por m?dulo y contrase?a temporal.
+    /// El usuario deber? cambiar la contrase?a en su primer inicio de sesi?n.
     /// Solo SuperAdmin.
     /// </summary>
     [Authorize(Policy = "SuperAdmin")]
@@ -646,11 +646,11 @@ public class AuthController : ControllerBase
             return BadRequest(new { success = false, message = "El email es obligatorio." });
 
         if (string.IsNullOrWhiteSpace(request.TemporaryPassword) || request.TemporaryPassword.Length < 6)
-            return BadRequest(new { success = false, message = "La contrase�a temporal debe tener al menos 6 caracteres." });
+            return BadRequest(new { success = false, message = "La contrase?a temporal debe tener al menos 6 caracteres." });
 
         var emailExists = await _userManager.FindByEmailAsync(request.Email);
         if (emailExists is not null)
-            return BadRequest(new { success = false, message = "El email ya est� registrado." });
+            return BadRequest(new { success = false, message = "El email ya est? registrado." });
 
         var user = new ApplicationUser
         {
@@ -760,8 +760,8 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Asignar una nueva contrase�a temporal a un usuario (reset por parte del SuperAdmin).
-    /// El usuario deber� cambiarla en su pr�ximo inicio de sesi�n.
+    /// Asignar una nueva contrase?a temporal a un usuario (reset por parte del SuperAdmin).
+    /// El usuario deber? cambiarla en su pr?ximo inicio de sesi?n.
     /// Solo SuperAdmin.
     /// </summary>
     [Authorize(Policy = "SuperAdmin")]
@@ -771,7 +771,7 @@ public class AuthController : ControllerBase
         var tenantId = _currentUser.TenantId;
 
         if (string.IsNullOrWhiteSpace(request.TemporaryPassword) || request.TemporaryPassword.Length < 6)
-            return BadRequest(new { success = false, message = "La contrase�a temporal debe tener al menos 6 caracteres." });
+            return BadRequest(new { success = false, message = "La contrase?a temporal debe tener al menos 6 caracteres." });
 
         var challenge = await ValidateChallengeAsync("user.reset-password", request.ChallengeId, request.VerificationCode, request.AdminPin);
         if (challenge is not null)
@@ -783,7 +783,7 @@ public class AuthController : ControllerBase
         if (user is null)
             return NotFound(new { success = false, message = "Usuario no encontrado." });
 
-        // Reemplazar la contrase�a sin requerir token providers.
+        // Reemplazar la contrase?a sin requerir token providers.
         await _userManager.RemovePasswordAsync(user);
         var result = await _userManager.AddPasswordAsync(user, request.TemporaryPassword);
 
@@ -793,7 +793,7 @@ public class AuthController : ControllerBase
         user.MustChangePassword = true;
         await _userManager.UpdateAsync(user);
 
-        return Ok(new { success = true, message = "Contrase�a temporal asignada. El usuario deber� cambiarla al iniciar sesi�n." });
+        return Ok(new { success = true, message = "Contrase?a temporal asignada. El usuario deber? cambiarla al iniciar sesi?n." });
     }
 
     /// <summary>
@@ -864,8 +864,8 @@ public class AuthController : ControllerBase
         });
     }
     /// <summary>
-    /// Cambiar la propia contrase�a (contrase�a actual + nueva).
-    /// Sirve tanto para el cambio forzado de la contrase�a temporal como para el
+    /// Cambiar la propia contrase?a (contrase?a actual + nueva).
+    /// Sirve tanto para el cambio forzado de la contrase?a temporal como para el
     /// cambio voluntario del usuario. Cualquier usuario autenticado.
     /// </summary>
     [Authorize]
@@ -873,25 +873,25 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
-            return BadRequest(new { success = false, message = "La nueva contrase�a debe tener al menos 6 caracteres." });
+            return BadRequest(new { success = false, message = "La nueva contrase?a debe tener al menos 6 caracteres." });
 
         if (request.CurrentPassword == request.NewPassword)
-            return BadRequest(new { success = false, message = "La nueva contrase�a debe ser distinta a la actual." });
+            return BadRequest(new { success = false, message = "La nueva contrase?a debe ser distinta a la actual." });
 
         var user = await _userManager.GetUserAsync(User);
         if (user is null)
-            return Unauthorized(new { success = false, message = "Sesi�n no v�lida." });
+            return Unauthorized(new { success = false, message = "Sesi?n no v?lida." });
 
         var result = await _userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
         if (!result.Succeeded)
         {
             var message = result.Errors.Any(e => e.Code == "PasswordMismatch")
-                ? "La contrase�a actual es incorrecta."
+                ? "La contrase?a actual es incorrecta."
                 : string.Join(" ", result.Errors.Select(e => e.Description));
             return BadRequest(new { success = false, message });
         }
 
-        // Registrar que ya cambi� la contrase�a temporal.
+        // Registrar que ya cambi? la contrase?a temporal.
         user.MustChangePassword = false;
         user.PasswordChangedAt = DateTime.UtcNow;
         await _userManager.UpdateAsync(user);
@@ -902,18 +902,18 @@ public class AuthController : ControllerBase
         return Ok(new
         {
             success = true,
-            message = "Contrase�a actualizada correctamente.",
+            message = "Contrase?a actualizada correctamente.",
             token,
             mustChangePassword = false
         });
     }
 
     // ============================================================
-    // GESTI�N DE M�DULOS DEL TENANT
+    // GESTI?N DE M?DULOS DEL TENANT
     // ============================================================
 
     /// <summary>
-    /// Obtener los m�dulos habilitados de mi empresa.
+    /// Obtener los m?dulos habilitados de mi empresa.
     /// </summary>
     [Authorize(Policy = "SuperAdmin")]
     [HttpGet("modules")]
@@ -941,7 +941,7 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Activar o desactivar un m�dulo para mi empresa.
+    /// Activar o desactivar un m?dulo para mi empresa.
     /// Solo SuperAdmin.
     /// </summary>
     [Authorize(Policy = "SuperAdmin")]
@@ -949,7 +949,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ToggleModule(string moduleName, [FromBody] ToggleModuleRequest request)
     {
         if (!SystemModules.All.Contains(moduleName))
-            return BadRequest(new { success = false, message = $"M�dulo '{moduleName}' no es v�lido. Opciones: {string.Join(", ", SystemModules.All)}" });
+            return BadRequest(new { success = false, message = $"M?dulo '{moduleName}' no es v?lido. Opciones: {string.Join(", ", SystemModules.All)}" });
 
         var tenantId = _currentUser.TenantId;
 
@@ -988,8 +988,8 @@ public class AuthController : ControllerBase
         {
             success = true,
             message = request.IsActive
-                ? $"M�dulo '{moduleName}' activado. Los usuarios deben re-iniciar sesi�n."
-                : $"M�dulo '{moduleName}' desactivado. Los usuarios deben re-iniciar sesi�n.",
+                ? $"M?dulo '{moduleName}' activado. Los usuarios deben re-iniciar sesi?n."
+                : $"M?dulo '{moduleName}' desactivado. Los usuarios deben re-iniciar sesi?n.",
             module = moduleName,
             isActive = request.IsActive
         });
@@ -1000,15 +1000,15 @@ public class AuthController : ControllerBase
     // ============================================================
 
     /// <summary>
-    /// Valida PIN o c�digo OTP seg�n lo que se proporcione.
-    /// Si se env�a adminPin, verifica hash. Si se env�a challengeId+code, verifica OTP.
-    /// Devuelve null si es v�lido, o un IActionResult de error.
+    /// Valida PIN o c?digo OTP seg?n lo que se proporcione.
+    /// Si se env?a adminPin, verifica hash. Si se env?a challengeId+code, verifica OTP.
+    /// Devuelve null si es v?lido, o un IActionResult de error.
     /// </summary>
     private async Task<IActionResult?> ValidateChallengeAsync(string purpose, string? challengeId, string? code, string? adminPin = null)
     {
         var me = await _userManager.GetUserAsync(User);
         if (me is null)
-            return Unauthorized(new { success = false, message = "Sesi�n no v�lida." });
+            return Unauthorized(new { success = false, message = "Sesi?n no v?lida." });
 
         if (!string.IsNullOrWhiteSpace(adminPin))
         {
@@ -1023,7 +1023,7 @@ public class AuthController : ControllerBase
             return StatusCode(403, new
             {
                 success = false,
-                message = "Esta operaci�n requiere verificaci�n (PIN o c�digo WhatsApp).",
+                message = "Esta operaci?n requiere verificaci?n (PIN o c?digo WhatsApp).",
                 code = "VERIFICATION_REQUIRED"
             });
         }
@@ -1033,7 +1033,7 @@ public class AuthController : ControllerBase
             return StatusCode(403, new
             {
                 success = false,
-                message = "El c�digo de verificaci�n es inv�lido o expir�.",
+                message = "El c?digo de verificaci?n es inv?lido o expir?.",
                 code = "VERIFICATION_INVALID"
             });
         }
@@ -1048,9 +1048,9 @@ public class AuthController : ControllerBase
 
         var digits = new string(phone.Where(char.IsDigit).ToArray());
         if (digits.Length <= 4)
-            return new string('�', digits.Length);
+            return new string('?', digits.Length);
 
-        return new string('�', digits.Length - 4) + digits[^4..];
+        return new string('?', digits.Length - 4) + digits[^4..];
     }
 
     private static string? JoinModules(string[]? modules)
@@ -1089,7 +1089,7 @@ public class AuthController : ControllerBase
         user.PasswordChangedAt,
         user.CanViewTotals,
         user.LastActivityAt,
-        // "En línea": actividad en los últimos 5 minutos.
+        // "En l?nea": actividad en los ?ltimos 5 minutos.
         IsOnline = user.LastActivityAt.HasValue
             && DateTime.UtcNow - user.LastActivityAt.Value <= TimeSpan.FromMinutes(5),
         AllowedModules = SplitModules(user.AllowedModules)

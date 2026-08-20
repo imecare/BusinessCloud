@@ -17,7 +17,6 @@ public class GetDeliveryLogisticsEventsHandler(IBazaresDbContext context)
             .AsNoTracking()
             .Where(c =>
                 c.Status != BzaClosureEventStatus.Cancelled
-                && !c.InDeliveryProcess
                 && !c.Delivered
                 && c.CustomerTotals.Any(t => t.Status == BzaClosureCustomerTotalStatus.Validated)
                 && context.Sales.Any(s => s.BzaClosureEventId == c.Id))
@@ -30,6 +29,7 @@ public class GetDeliveryLogisticsEventsHandler(IBazaresDbContext context)
                 c.Status,
                 c.InDeliveryProcess,
                 c.Delivered,
+                c.DeliveryBatchId,
                 c.CreatedAt,
                 c.CustomerTotals.Count,
                 c.CustomerTotals.Count(t => t.Status == BzaClosureCustomerTotalStatus.ProofReceived),

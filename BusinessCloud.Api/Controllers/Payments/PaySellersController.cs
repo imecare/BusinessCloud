@@ -66,7 +66,7 @@ public class PaySellersController : ControllerBase
     }
 
     /// <summary>
-    /// Activar/desactivar vendedor (borrado l�gico).
+    /// Activar/desactivar vendedor (borrado l?gico).
     /// </summary>
     [HttpPatch("{id:int}/status")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateSellerStatusRequest request, CancellationToken cancellationToken)

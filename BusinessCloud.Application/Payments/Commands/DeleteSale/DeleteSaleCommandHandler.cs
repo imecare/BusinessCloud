@@ -31,7 +31,7 @@ public class DeleteSaleCommandHandler : IRequestHandler<DeleteSaleCommand, bool>
         if (hasPayments)
             throw new InvalidOperationException("No se puede eliminar una venta que tiene abonos registrados. Elimine los abonos primero.");
 
-        // 1. Mover a tabla de auditoría de ventas eliminadas
+        // 1. Mover a tabla de auditor?a de ventas eliminadas
         var deletedSale = new DeletedSale
         {
             OriginalSaleId = sale.Id,

@@ -255,11 +255,11 @@ public class AdminCompaniesController : ControllerBase
             .FirstOrDefaultAsync(u => u.TenantId == tenantId && u.Role == SystemRoles.SuperAdmin);
 
         if (companyAdmin is null)
-            return NotFound(new ApiResponse<object> { Success = false, Message = "No se encontrÛ el administrador de la empresa." });
+            return NotFound(new ApiResponse<object> { Success = false, Message = "No se encontr√≥ el administrador de la empresa." });
 
         var existing = await _userManager.FindByEmailAsync(email);
         if (existing is not null && existing.Id != companyAdmin.Id)
-            return Conflict(new ApiResponse<object> { Success = false, Message = "El correo ya est· registrado en otra cuenta." });
+            return Conflict(new ApiResponse<object> { Success = false, Message = "El correo ya est√° registrado en otra cuenta." });
 
         var setUserNameResult = await _userManager.SetUserNameAsync(companyAdmin, email);
         if (!setUserNameResult.Succeeded)

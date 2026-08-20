@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 
 namespace BusinessCloud.Application.Bazares.Commands.UpdateBzaCustomer;
 
@@ -13,8 +13,8 @@ public record UpdateBzaCustomerCommand : IRequest
     public bool HasNoCollector { get; init; }
 
     /// <summary>
-    /// Cuando es true, el cliente no tiene nÃºmero de WhatsApp: se ignora <see cref="Phone"/>
-    /// y se conserva/asigna un nÃºmero placeholder. Al desmarcarlo y capturar el telÃ©fono
+    /// Cuando es true, el cliente no tiene número de WhatsApp: se ignora <see cref="Phone"/>
+    /// y se conserva/asigna un número placeholder. Al desmarcarlo y capturar el teléfono
     /// real, este reemplaza al placeholder y se limpia la marca.
     /// </summary>
     public bool HasNoWhatsApp { get; init; }

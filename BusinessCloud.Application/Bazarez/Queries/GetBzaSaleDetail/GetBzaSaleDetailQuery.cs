@@ -5,7 +5,7 @@ namespace BusinessCloud.Application.Bazares.Queries.GetBzaSaleDetail;
 public record GetBzaSaleDetailQuery(int Id) : IRequest<BzaSaleDetailDto>;
 
 /// <summary>
-/// DTO con m�tricas consolidadas del Evento de Venta.
+/// DTO con métricas consolidadas del Evento de Venta.
 /// </summary>
 public class BzaSaleMetricsDto
 {
@@ -55,7 +55,7 @@ public class BzaSaleDetailDto
     public int ProductsCount { get; set; }
 
     /// <summary>
-    /// Cantidad de clientes �nicos con compras en este evento.
+    /// Cantidad de clientes únicos con compras en este evento.
     /// </summary>
     public int UniqueCustomersCount { get; set; }
 
@@ -70,7 +70,7 @@ public class BzaSaleDetailDto
     public decimal PendingAmount { get; set; }
 
     /// <summary>
-    /// Historial de auditor�a del evento (desde MongoDB).
+    /// Historial de auditoría del evento (desde MongoDB).
     /// </summary>
     public List<BzaSaleAuditDto> AuditHistory { get; set; } = [];
 }

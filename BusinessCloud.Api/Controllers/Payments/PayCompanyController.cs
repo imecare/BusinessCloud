@@ -18,12 +18,12 @@ public class PayCompanyController : ControllerBase
     /// <summary>
     /// Obtiene el contexto de la empresa del usuario autenticado.
     /// Incluye el CompanyCode que debe compartir con sus clientes
-    /// para que puedan consultar su historial en el endpoint público.
+    /// para que puedan consultar su historial en el endpoint p?blico.
     /// </summary>
     [HttpGet("context")]
     public async Task<ActionResult<CompanyContextDto>> GetContext(CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new GetCompanyContextQuery(), cancellationToken);
-        return result is null ? NotFound("No se encontró empresa para el usuario autenticado.") : Ok(result);
+        return result is null ? NotFound("No se encontr? empresa para el usuario autenticado.") : Ok(result);
     }
 }

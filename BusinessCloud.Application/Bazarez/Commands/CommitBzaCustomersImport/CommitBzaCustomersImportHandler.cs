@@ -1,4 +1,4 @@
-﻿using BusinessCloud.Application.Bazares.Common;
+using BusinessCloud.Application.Bazares.Common;
 using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Domain.Bazares.Entities;
 using MediatR;
@@ -32,7 +32,7 @@ public class CommitBzaCustomersImportHandler(
                 var key = CollectorCatalogNameNormalizer.ToComparisonKey(name);
                 if (key.Length == 0 || key == "SIN ASIGNAR")
                 {
-                    result.Errors.Add($"Recolector nuevo '{requestedCollector.Name}' IGNORADO: el nombre no es vÃ¡lido.");
+                    result.Errors.Add($"Recolector nuevo '{requestedCollector.Name}' IGNORADO: el nombre no es válido.");
                     continue;
                 }
 
@@ -43,7 +43,7 @@ public class CommitBzaCustomersImportHandler(
                     .AnyAsync(group => group.Id == requestedCollector.GroupId, transactionCt);
                 if (!groupExists)
                 {
-                    result.Errors.Add($"Grupo invÃ¡lido para el recolector nuevo '{name}'.");
+                    result.Errors.Add($"Grupo inválido para el recolector nuevo '{name}'.");
                     continue;
                 }
 
@@ -77,7 +77,7 @@ public class CommitBzaCustomersImportHandler(
                 var nameKey = NormalizeCustomerKey(name);
                 if (name.Length == 0)
                 {
-                    result.Errors.Add("Cliente sin nombre. Se omitió.");
+                    result.Errors.Add("Cliente sin nombre. Se omiti�.");
                     result.IgnoredRecords++;
                     continue;
                 }
@@ -85,15 +85,15 @@ public class CommitBzaCustomersImportHandler(
                 // Verificar si el cliente ya existe por nombre
                 if (existingNameMap.TryGetValue(nameKey, out var existingCustomer))
                 {
-                    // Cliente ya existe: actualizar teléfono/facebook si cambiaron
+                    // Cliente ya existe: actualizar tel�fono/facebook si cambiaron
                     var newPhone = PhoneNumberNormalizer.Normalize(dto.Phone);
                     var newFacebookName = FacebookMessengerProfile.Normalize(dto.FacebookName);
                     
-                    // Validar nuevo teléfono contra otros clientes (si es diferente al actual)
+                    // Validar nuevo tel�fono contra otros clientes (si es diferente al actual)
                     if (newPhone.Length > 0 && newPhone != existingCustomer.Phone && phoneOwners.TryGetValue(newPhone, out var phoneOwner))
                     {
                         result.Errors.Add(
-                            $"Cliente '{name}': no se cambió el teléfono a '{newPhone}' porque ya está registrado para '{phoneOwner}'. Se conservó su teléfono actual.");
+                            $"Cliente '{name}': no se cambi� el tel�fono a '{newPhone}' porque ya está registrado para '{phoneOwner}'. Se conserv� su tel�fono actual.");
                         result.IgnoredRecords++;
                         continue;
                     }
@@ -109,7 +109,7 @@ public class CommitBzaCustomersImportHandler(
                         {
                             if (phoneChanged)
                             {
-                                // Remover teléfono viejo del track de propietarios
+                                // Remover tel�fono viejo del track de propietarios
                                 if (!string.IsNullOrWhiteSpace(customerEntity.Phone))
                                     phoneOwners.Remove(customerEntity.Phone.Trim());
                                 
@@ -124,7 +124,7 @@ public class CommitBzaCustomersImportHandler(
                             if (facebookChanged)
                                 customerEntity.FacebookName = newFacebookName;
                             
-                            // Actualizar IsPendingInfo si cambió la información
+                            // Actualizar IsPendingInfo si cambi� la información
                             customerEntity.IsPendingInfo = string.IsNullOrWhiteSpace(customerEntity.Phone) && newFacebookName is null;
                         }
                         result.CustomersUpdated++;
@@ -142,7 +142,7 @@ public class CommitBzaCustomersImportHandler(
                     var collectorKey = CollectorCatalogNameNormalizer.ToComparisonKey(dto.CollectorName);
                     if (collectorKey.Length == 0 || collectorKey == "SIN ASIGNAR")
                     {
-                        result.Errors.Add($"Cliente '{name}' IGNORADO: debe tener un recolector real o marcarse como 'Aún sin recolector'.");
+                        result.Errors.Add($"Cliente '{name}' IGNORADO: debe tener un recolector real o marcarse como 'A�n sin recolector'.");
                         result.IgnoredRecords++;
                         continue;
                     }
@@ -168,7 +168,7 @@ public class CommitBzaCustomersImportHandler(
                 if (phone.Length > 0 && phoneOwners.TryGetValue(phone, out var owner))
                 {
                     result.Errors.Add(
-                        $"Cliente '{name}' IGNORADO: el teléfono '{phone}' ya está registrado para '{owner}'.");
+                        $"Cliente '{name}' IGNORADO: el tel�fono '{phone}' ya está registrado para '{owner}'.");
                     result.IgnoredRecords++;
                     continue;
                 }

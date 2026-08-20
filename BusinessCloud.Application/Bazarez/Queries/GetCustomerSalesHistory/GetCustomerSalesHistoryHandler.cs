@@ -116,7 +116,7 @@ public class GetCustomerSalesHistoryHandler(IBazaresDbContext context)
                     }
                     else
                     {
-                        eventStatus = 1; // Abierto (a�n no entra a entrega)
+                        eventStatus = 1; // Abierto (a?n no entra a entrega)
                     }
 
                     if (closureTotalsByEvent.TryGetValue(s.BzaClosureEventId.Value, out var closureTotal))

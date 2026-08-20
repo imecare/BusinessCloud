@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Application.Bazares.Common;
@@ -44,8 +44,8 @@ public class UpdateBzaCustomerHandler : IRequestHandler<UpdateBzaCustomerCommand
 
         if (request.HasNoWhatsApp)
         {
-            // Cliente sin nÃºmero de WhatsApp: conserva su placeholder si ya lo tenÃ­a;
-            // si venÃ­a con telÃ©fono real (o sin placeholder), se le asigna uno nuevo.
+            // Cliente sin número de WhatsApp: conserva su placeholder si ya lo tenía;
+            // si venía con teléfono real (o sin placeholder), se le asigna uno nuevo.
             if (!entity.HasNoWhatsApp || !NoWhatsAppNumber.IsPlaceholder(entity.Phone))
             {
                 var tenantId = _currentUser.TenantId ?? string.Empty;
@@ -55,7 +55,7 @@ public class UpdateBzaCustomerHandler : IRequestHandler<UpdateBzaCustomerCommand
         }
         else
         {
-            // TelÃ©fono real: es la llave para el envÃ­o de totales, Ãºnico entre clientes.
+            // Teléfono real: es la llave para el envío de totales, único entre clientes.
             var phone = PhoneNumberNormalizer.Normalize(request.Phone);
 
             var duplicate = await _context.Customers
@@ -64,7 +64,7 @@ public class UpdateBzaCustomerHandler : IRequestHandler<UpdateBzaCustomerCommand
             if (duplicate)
             {
                 throw new InvalidOperationException(
-                    $"Ya existe otro cliente registrado con el telÃ©fono {phone}. El telÃ©fono debe ser Ãºnico.");
+                    $"Ya existe otro cliente registrado con el teléfono {phone}. El teléfono debe ser único.");
             }
 
             entity.Phone = phone;
@@ -77,7 +77,7 @@ public class UpdateBzaCustomerHandler : IRequestHandler<UpdateBzaCustomerCommand
         entity.BzaCollectorId = collector.Id;
         entity.Collector = collector;
         // Al editar/completar el cliente ya se cuenta con recolector real:
-        // deja de estar "pendiente de completar informaciÃ³n" (alta rÃ¡pida).
+        // deja de estar "pendiente de completar información" (alta rápida).
         entity.IsPendingInfo = false;
 
         await _context.SaveChangesAsync(cancellationToken);

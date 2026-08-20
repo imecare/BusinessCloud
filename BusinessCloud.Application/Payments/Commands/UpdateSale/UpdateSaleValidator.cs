@@ -23,10 +23,10 @@ public class UpdateSaleValidator : AbstractValidator<UpdateSaleCommand>
             .WithMessage("El costo no puede ser mayor al monto total de la venta.");
 
         RuleFor(x => x.CommissionAmount)
-            .GreaterThanOrEqualTo(0).WithMessage("La comisión no puede ser negativa.");
+            .GreaterThanOrEqualTo(0).WithMessage("La comisi?n no puede ser negativa.");
 
         RuleFor(x => x.ProductDescription)
-            .NotEmpty().WithMessage("La descripción del producto es obligatoria.")
-            .MaximumLength(500).WithMessage("La descripción no puede superar 500 caracteres.");
+            .NotEmpty().WithMessage("La descripci?n del producto es obligatoria.")
+            .MaximumLength(500).WithMessage("La descripci?n no puede superar 500 caracteres.");
     }
 }

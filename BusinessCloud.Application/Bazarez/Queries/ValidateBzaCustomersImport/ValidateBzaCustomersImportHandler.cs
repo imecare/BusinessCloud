@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text;
 using BusinessCloud.Application.Bazares.Common;
 using BusinessCloud.Application.Common.Interfaces;
@@ -24,7 +24,7 @@ public class ValidateBzaCustomersImportHandler(IBazaresDbContext context)
 
         if (worksheet is null)
         {
-            result.Errors.Add("No se encontrÃ³ ninguna hoja en el archivo Excel.");
+            result.Errors.Add("No se encontró ninguna hoja en el archivo Excel.");
             return result;
         }
 
@@ -89,7 +89,7 @@ public class ValidateBzaCustomersImportHandler(IBazaresDbContext context)
                 dto.CollectorConflictNames = collectorNames.OrderBy(name => name).ToList();
                 result.CollectorConflictCount++;
                 result.Errors.Add(
-                    $"Cliente '{first.Name}' omitido de la resoluciÃ³n automÃ¡tica: aparece con recolectores distintos " +
+                    $"Cliente '{first.Name}' omitido de la resolución automática: aparece con recolectores distintos " +
                     $"({string.Join(" / ", dto.CollectorConflictNames)}). Selecciona el correcto antes de importar.");
             }
 
@@ -100,7 +100,7 @@ public class ValidateBzaCustomersImportHandler(IBazaresDbContext context)
         {
             result.Errors.Insert(0,
                 $"Se deduplicaron {result.ExactDuplicateRows} fila(s) por coincidencia exacta de nombre, " +
-                "ignorando mayÃºsculas/minÃºsculas y espacios repetidos.");
+                "ignorando mayúsculas/minúsculas y espacios repetidos.");
         }
 
         var collectors = await context.Collectors

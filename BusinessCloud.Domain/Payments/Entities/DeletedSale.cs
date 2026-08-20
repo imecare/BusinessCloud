@@ -16,12 +16,12 @@ public class DeletedSale
     public bool IsPaid { get; set; }
     public DateTime Date { get; set; }
 
-    // Auditoría original
+    // Auditor?a original
     public string? TenantId { get; set; }
     public DateTime? OriginalCreatedAt { get; set; }
     public string? OriginalCreatedBy { get; set; }
 
-    // Auditoría de eliminación
+    // Auditor?a de eliminaci?n
     public DateTime DeletedAt { get; set; }
     public string? DeletedBy { get; set; }
     public string? DeletedReason { get; set; }
