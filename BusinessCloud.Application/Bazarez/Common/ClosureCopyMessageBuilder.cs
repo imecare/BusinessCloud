@@ -24,7 +24,7 @@ public static class ClosureCopyMessageBuilder
         string? paymentCutoffTime,
         string? closureDescription,
         int productCount,
-        System.Collections.Generic.IReadOnlyList<string> productNames,
+        string? collectorName,
         string uploadToken)
         => ClosureTotalsWhatsAppTemplate.Build(
             bazarName,
@@ -35,6 +35,6 @@ public static class ClosureCopyMessageBuilder
             paymentCutoffTime,
             closureDescription,
             productCount,
-            productNames,
-            uploadToken).Preview;
+            collectorName,
+            uploadToken).ManualPreview;
 }

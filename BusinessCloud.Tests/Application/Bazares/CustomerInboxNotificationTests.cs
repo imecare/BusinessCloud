@@ -154,7 +154,7 @@ public class CustomerInboxNotificationTests
 
         Assert.Equal(ClosureTotalsWhatsAppTemplate.Name, capturedTemplate);
         Assert.NotNull(capturedBody);
-        Assert.Equal(7, capturedBody!.Count);
+        Assert.Equal(6, capturedBody!.Count);
         Assert.Equal("upload-token", capturedButton);
         Assert.Null(capturedHeader);
         var deadlineParam = capturedBody[3];
@@ -257,24 +257,24 @@ public class CustomerInboxNotificationTests
 
         Assert.Equal(ClosureTotalsWhatsAppTemplate.Name, capturedTemplate);
         Assert.NotNull(capturedBody);
-        Assert.Equal(7, capturedBody!.Count);
-        Assert.Equal("Cliente Uno — Te saluda Bazar Test", capturedBody[0]); // {{1}} saludo temporal completo
+        Assert.Equal(6, capturedBody!.Count);
+        Assert.Equal("Cliente Uno", capturedBody[0]);          // {{1}} nombre del cliente
         Assert.Equal("$450.00", capturedBody[1]);              // {{2}} total con signo $
         Assert.Equal("Cierre semanal", capturedBody[4]);       // {{5}} descripcion del cierre
         Assert.Equal("3", capturedBody[5]);                    // {{6}} numero de productos del cliente
-        Assert.Equal("A, B, C", capturedBody[6]);              // {{7}} nombres de productos del cliente
-        Assert.Null(capturedHeader);                            // V4 usa encabezado fijo, sin parametros
+        Assert.Null(capturedHeader);                            // La plantilla usa encabezado fijo, sin parametros
         Assert.Equal("upload-token", capturedButton);          // boton de URL con SOLO el token
 
         var notification = Assert.Single(context.CustomerInboxNotifications);
-        Assert.Contains("*Total de producto(s) · 3* - (A, B, C)", notification.Message);
-        var chatOptionIndex = notification.Message.IndexOf("ENVÍA TU COMPROBANTE DE COMPRA POR ESTE CHAT", StringComparison.Ordinal);
+        Assert.Contains("Total de producto(s): 3", notification.Message);
+        Assert.Contains("Se entregará al recolector: Por asignar", notification.Message);
+        var recolectorIndex = notification.Message.IndexOf("Se entregará al recolector:", StringComparison.Ordinal);
         var buttonPromptIndex = notification.Message.IndexOf("👇 Sube tu comprobante", StringComparison.Ordinal);
-        Assert.True(chatOptionIndex >= 0 && chatOptionIndex < buttonPromptIndex);
-        Assert.Contains($"{Environment.NewLine}O{Environment.NewLine}", notification.Message);
-        // El texto de copia/envío manual del bazar permite ambas opciones y omite advertencias automáticas.
-        Assert.DoesNotContain("Sistema automático", notification.Message);
-        Assert.DoesNotContain("es automático y el bazar NO lo recibe", notification.Message);
+        Assert.True(recolectorIndex >= 0 && recolectorIndex < buttonPromptIndex);
+        // El texto persistido para copia/envío manual usa el aviso manual.
+        Assert.Contains("Este número no pertenece al Bazar. Es un sistema automático", notification.Message);
+        Assert.Contains("ENVÍA TU COMPROBANTE DE COMPRA POR ESTE CHAT", notification.Message);
+        Assert.DoesNotContain("ya que es automático y el bazar NO lo recibe", notification.Message);
     }
 
     [Fact]
@@ -352,7 +352,7 @@ public class CustomerInboxNotificationTests
 
         Assert.Equal(ClosureTotalsWhatsAppTemplate.Name, capturedTemplate);
         Assert.NotNull(capturedBody);
-        Assert.Equal(7, capturedBody!.Count);
+        Assert.Equal(6, capturedBody!.Count);
         Assert.Equal("upload-token", capturedButton);
     }
 

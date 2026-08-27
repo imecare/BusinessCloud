@@ -202,7 +202,7 @@ public class SendTotalsHandler(
                 bazarSettings?.PaymentCutoffTime,
                 description,
                 products.Count,
-                products.Select(product => product.Description).ToList(),
+                customer?.Collector?.Name,
                 uploadToken);
             messages.Add(new CustomerTotalMessageDto
             {

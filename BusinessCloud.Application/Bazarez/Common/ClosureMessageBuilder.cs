@@ -1,7 +1,3 @@
-using System.Globalization;
-using System.Text;
-using BusinessCloud.Domain.Bazares.Entities;
-
 namespace BusinessCloud.Application.Bazares.Common;
 
 /// <summary>Producto incluido en un mensaje de totales.</summary>
@@ -19,14 +15,10 @@ public sealed record ClosureMessageSale(string EventDescription, decimal Amount,
 /// </summary>
 public static class ClosureMessageBuilder
 {
-    private static readonly CultureInfo Culture = new("es-MX");
-
     public const string UploadLinkPlaceholder = "__UPLOAD_LINK__";
 
     /// <summary>
-    /// Construye el mensaje corto de cobro (compatible con plantilla de utilidad):
-    /// nombre del bazar, saludo con el nombre del cliente, total, fecha límite y un
-    /// enlace donde el cliente consulta tarjetas, sube su comprobante y ve el detalle.
+    /// Construye el mensaje con el mismo formato que la plantilla de WhatsApp.
     /// </summary>
     public static string Build(
         string? bazarName,
@@ -36,28 +28,17 @@ public static class ClosureMessageBuilder
         DateTime paymentDeadline,
         string? salesWhatsApp)
     {
-        var sb = new StringBuilder();
-
-        if (!string.IsNullOrWhiteSpace(bazarName))
-        {
-            sb.Append('*').Append(bazarName.Trim()).AppendLine("*");
-        }
-
-        sb.Append("Hola ").Append(customerName).AppendLine(" 👋");
-        sb.AppendLine();
-        sb.Append("💰 Total a pagar: ").Append(Money(total)).AppendLine();
-
-        if (deliveryDate.HasValue)
-        {
-            sb.Append("🚚 Fecha de entrega: ").AppendLine(FormatLongDate(deliveryDate.Value));
-        }
-
-        sb.Append("📅 Fecha límite de pago: ").AppendLine(FormatLongDate(paymentDeadline));
-        sb.AppendLine();
-        sb.AppendLine("Para consultar las tarjetas de pago, subir tu comprobante y ver el detalle de tu pedido, entra aquí:");
-        sb.AppendLine(UploadLinkPlaceholder);
-
-        return sb.ToString().TrimEnd();
+        return ClosureTotalsWhatsAppTemplate.Build(
+            bazarName,
+            customerName,
+            total,
+            deliveryDate ?? paymentDeadline,
+            paymentDeadline,
+            null,
+            null,
+            0,
+            null,
+            UploadLinkPlaceholder).ManualPreview;
     }
 
     public static string? BuildWhatsAppLink(string? phone)
@@ -76,11 +57,4 @@ public static class ClosureMessageBuilder
         return $"https://wa.me/{digits}";
     }
 
-    private static string FormatLongDate(DateTime date)
-    {
-        var text = date.ToString("dddd dd 'de' MMMM", Culture);
-        return text.Length > 0 ? char.ToUpper(text[0], Culture) + text[1..] : text;
-    }
-
-    private static string Money(decimal amount) => amount.ToString("C", Culture);
 }

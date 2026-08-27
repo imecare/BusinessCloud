@@ -68,7 +68,7 @@ public class SearchClosureCustomerTotalsHandler(IBazaresDbContext context)
         // Prefiltro traducible a SQL: cierres con al menos un total cuyo cliente coincide
         // por nombre (siempre) o por teléfono (mejor esfuerzo sobre el valor almacenado).
         var closures = await _context.ClosureEvents
-            .Include(c => c.CustomerTotals).ThenInclude(t => t.Customer)
+            .Include(c => c.CustomerTotals).ThenInclude(t => t.Customer).ThenInclude(cu => cu.Collector)
             .Include(c => c.CustomerTotals).ThenInclude(t => t.Proofs)
             .Include(c => c.CustomerTotals).ThenInclude(t => t.PackedOrderPhotos)
             .Include(c => c.GroupDeliveries)
@@ -85,8 +85,8 @@ public class SearchClosureCustomerTotalsHandler(IBazaresDbContext context)
         var paymentCutoffTime = bazarSettings?.PaymentCutoffTime;
 
         // El mensaje que se copia a memoria SIEMPRE usa el formato de la última plantilla (con
-        // enlace en lugar de botón); no depende del setting de plantilla de Meta. Se cargan los
-        // productos de todos los cierres coincidentes, indexados por (cierre, cliente).
+        // enlace en lugar de botón); no depende del setting de plantilla de Meta. Se carga el
+        // conteo de productos de todos los cierres coincidentes, indexado por (cierre, cliente).
         var closureIds = closures.Select(c => c.Id).ToList();
         var closureProducts = await _context.SoldProducts
             .Where(p => p.Sale.BzaClosureEventId != null
@@ -94,9 +94,9 @@ public class SearchClosureCustomerTotalsHandler(IBazaresDbContext context)
             .OrderBy(p => p.Id)
             .Select(p => new { ClosureId = p.Sale.BzaClosureEventId!.Value, p.Sale.BzaCustomerId, p.Description })
             .ToListAsync(cancellationToken);
-        var productsByClosureCustomer = closureProducts
+        var productCountByClosureCustomer = closureProducts
             .GroupBy(p => (p.ClosureId, p.BzaCustomerId))
-            .ToDictionary(g => g.Key, g => g.Select(p => p.Description).ToList());
+            .ToDictionary(g => g.Key, g => g.Count());
 
         // Nombres de grupo de todos los totales que coinciden en los cierres encontrados.
         var groupIds = closures
@@ -130,9 +130,7 @@ public class SearchClosureCustomerTotalsHandler(IBazaresDbContext context)
                         ? d
                         : closure.OfficialDeliveryDate;
 
-                var productNames = productsByClosureCustomer.TryGetValue((closure.Id, t.BzaCustomerId), out var names)
-                    ? names
-                    : new List<string>();
+                var productCount = productCountByClosureCustomer.GetValueOrDefault((closure.Id, t.BzaCustomerId));
 
                 return ClosureCopyMessageBuilder.BuildLatest(
                     bazarName,
@@ -142,8 +140,8 @@ public class SearchClosureCustomerTotalsHandler(IBazaresDbContext context)
                     closure.PaymentDeadline,
                     paymentCutoffTime,
                     closure.Description,
-                    productNames.Count,
-                    productNames,
+                    productCount,
+                    t.Customer?.Collector?.Name,
                     t.UploadToken);
             }
 

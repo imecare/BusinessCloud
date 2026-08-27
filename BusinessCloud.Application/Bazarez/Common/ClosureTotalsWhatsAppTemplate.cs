@@ -11,8 +11,11 @@ public static class ClosureTotalsWhatsAppTemplate
 {
     private static readonly CultureInfo Culture = new("es-MX");
 
-    public const string Name = "totales_cobro_v4";
+    public const string Name = "totales_cobro_v5";
     public const string UploadLinkPlaceholder = "__UPLOAD_LINK__";
+
+    /// <summary>Nombre del recolector cuando el cliente todavía no tiene uno asignado.</summary>
+    private const string NoCollectorLabel = "Por asignar";
 
     public static ClosureTotalsWhatsAppTemplatePayload Build(
         string? bazarName,
@@ -23,75 +26,83 @@ public static class ClosureTotalsWhatsAppTemplate
         string? paymentCutoffTime,
         string? closureDescription,
         int productCount,
-        IReadOnlyList<string> productNames,
+        string? collectorName,
         string buttonUrlParameter)
     {
         var header = string.IsNullOrWhiteSpace(bazarName) ? "Bazar" : bazarName.Trim();
         var customer = string.IsNullOrWhiteSpace(customerName) ? "Cliente" : customerName.Trim();
-        var bodyParameters = new[]
+        var manualBodyParameters = new[]
         {
-            $"{customer} — Te saluda {header}",
+            $"{customer}",
             "$" + totalAmount.ToString("N2", Culture),
             FormatLongDate(deliveryDate),
             FormatDeadlineWithTime(paymentDeadline, paymentCutoffTime),
             string.IsNullOrWhiteSpace(closureDescription) ? "Cierre" : closureDescription.Trim(),
             productCount.ToString(Culture),
-            FormatProductNames(productNames),
+            string.IsNullOrWhiteSpace(collectorName) ? NoCollectorLabel : collectorName.Trim(),
         };
+
+        // La plantilla actualmente publicada en Meta todavía no contiene el recolector.
+        var templateBodyParameters = manualBodyParameters[..6];
 
         return new ClosureTotalsWhatsAppTemplatePayload(
             Name,
             header,
-            bodyParameters,
+                templateBodyParameters,
             buttonUrlParameter,
-            BuildPreview(header, bodyParameters));
+                BuildAutomaticPreview(header, templateBodyParameters),
+                BuildManualPreview(header, manualBodyParameters));
     }
 
-    private static string BuildPreview(string header, IReadOnlyList<string> bodyParameters)
+    private static string BuildAutomaticPreview(string header, IReadOnlyList<string> bodyParameters)
     {
-        // Reconstrucción del mensaje para copiar a memoria / envío manual (WhatsApp o Messenger
-        // del propio bazar): encabezado, cuerpo con los 7 parámetros y negritas. A diferencia de
-        // la plantilla de Meta, este texto omite las advertencias de "sistema automático" porque
-        // no se envía desde el WhatsApp de la empresa sino desde el chat del bazar.
+        // Reconstrucción fiel del mensaje que Meta entrega al cliente (v6): encabezado, cuerpo
+        // con los 7 parámetros, el recolector asignado y el aviso de "sistema automático". Se usa
+        // tanto para la vista previa/copia manual como para la plantilla enviada por WhatsApp.
         var preview = new StringBuilder()
-            .Append("Aviso de pago de ").Append(header).AppendLine(" (mensaje automático)")
+            .Append("*!Total de sus apartados! - ").Append(header).AppendLine("*")
             .AppendLine()
             .Append("Hola ").Append(bodyParameters[0]).AppendLine(" 👋")
             .AppendLine()
-            .Append("💰 Total a pagar: *").Append(bodyParameters[1]).AppendLine("*")
+            .Append("💰 *Total a pagar: ").Append(bodyParameters[1]).AppendLine("*")
             .Append("🚚 Entrega: *").Append(bodyParameters[2]).AppendLine("*")
-            .Append("📅 Límite de pago: *").Append(bodyParameters[3]).AppendLine("*")
-            .Append("📦 ").Append(bodyParameters[4]).Append(": *Total de producto(s) · ")
-                .Append(bodyParameters[5]).Append("* - (").Append(bodyParameters[6]).AppendLine(")")
+            .Append("📅 *Límite de pago: ").Append(bodyParameters[3]).AppendLine("*")
+            .Append("📦 ").Append(bodyParameters[4]).Append(": Total de producto(s): ").AppendLine(bodyParameters[5])
+            .AppendLine("Consulta tu listado de productos en el link:")
+            .AppendLine(UploadLinkPlaceholder)
             .AppendLine()
-            .AppendLine("ENVÍA TU COMPROBANTE DE COMPRA POR ESTE CHAT")
-            .AppendLine("O")
+            .AppendLine("⚠️ NO ENVÍES TU COMPROBANTE DE COMPRA POR ESTE CHAT,")
+            .AppendLine("ya que es automático y el bazar NO lo recibe.")
+            .AppendLine("Solo cuenta si lo subes en el enlace.")
             .AppendLine("👇 Sube tu comprobante y consulta las tarjetas de pago en tu enlace personal (botón de abajo).")
-            .Append(UploadLinkPlaceholder);
+            .AppendLine()
+            .Append("Este número no pertenece al Bazar. Es un sistema automático");
 
         return preview.ToString();
     }
 
-    private static string FormatProductNames(IReadOnlyList<string> productNames)
+    private static string BuildManualPreview(string header, IReadOnlyList<string> bodyParameters)
     {
-        const int maxNames = 8;
-        var normalizedNames = productNames
-            .Where(name => !string.IsNullOrWhiteSpace(name))
-            .Select(name => name.Trim())
-            .ToList();
+        var preview = new StringBuilder()
+            .Append("*!Total de sus apartados! - ").Append(header).AppendLine("*")
+            .AppendLine()
+            .Append("Hola ").Append(bodyParameters[0]).AppendLine(" 👋")
+            .AppendLine()
+            .Append("💰 *Total a pagar: ").Append(bodyParameters[1]).AppendLine("*")
+            .Append("🚚 Entrega: *").Append(bodyParameters[2]).AppendLine("*")
+            .Append("📅 *Límite de pago: ").Append(bodyParameters[3]).AppendLine("*")
+            .Append("📦 ").Append(bodyParameters[4]).Append(": Total de producto(s): ").AppendLine(bodyParameters[5])
+            .AppendLine("Consulta tu listado de productos en el link:")
+            .AppendLine(UploadLinkPlaceholder)
+            .AppendLine()
+            .Append("Se entregará al recolector: ").AppendLine(bodyParameters[6])
+            .AppendLine()
+            .AppendLine("ENVÍA TU COMPROBANTE DE COMPRA POR ESTE CHAT")
+            .AppendLine("👇 Sube tu comprobante y consulta las tarjetas de pago en tu enlace personal (botón de abajo).")
+            .AppendLine()
+            .Append("Este número no pertenece al Bazar. Es un sistema automático");
 
-        if (normalizedNames.Count == 0)
-        {
-            return "—";
-        }
-
-        var displayedNames = normalizedNames.Take(maxNames).ToList();
-        if (normalizedNames.Count > maxNames)
-        {
-            displayedNames.Add($"… y {normalizedNames.Count - maxNames} más");
-        }
-
-        return string.Join(", ", displayedNames);
+        return preview.ToString();
     }
 
     private static string FormatLongDate(DateTime date)
@@ -133,4 +144,5 @@ public sealed record ClosureTotalsWhatsAppTemplatePayload(
     string HeaderParameter,
     IReadOnlyList<string> BodyParameters,
     string ButtonUrlParameter,
-    string Preview);
+    string Preview,
+    string ManualPreview);

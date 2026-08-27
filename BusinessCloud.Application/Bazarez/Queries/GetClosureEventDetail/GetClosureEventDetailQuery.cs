@@ -66,6 +66,7 @@ public class GetClosureEventDetailHandler(IBazaresDbContext context)
             .Include(c => c.GroupDeliveries)
             .Include(c => c.CustomerTotals)
                 .ThenInclude(t => t.Customer)
+                    .ThenInclude(cu => cu.Collector)
             .Include(c => c.CustomerTotals)
                 .ThenInclude(t => t.Proofs)
             .Include(c => c.CustomerTotals)
@@ -95,9 +96,9 @@ public class GetClosureEventDetailHandler(IBazaresDbContext context)
             .OrderBy(p => p.Id)
             .Select(p => new { p.Sale.BzaCustomerId, p.Description })
             .ToListAsync(cancellationToken);
-        var productsByCustomer = closureProducts
+        var productCountByCustomer = closureProducts
             .GroupBy(p => p.BzaCustomerId)
-            .ToDictionary(g => g.Key, g => g.Select(p => p.Description).ToList());
+            .ToDictionary(g => g.Key, g => g.Count());
 
         var deliveryByGroup = closure.GroupDeliveries
             .GroupBy(g => g.BzaCollectorGroupId)
@@ -112,9 +113,7 @@ public class GetClosureEventDetailHandler(IBazaresDbContext context)
                     ? d
                     : closure.OfficialDeliveryDate;
 
-            var productNames = productsByCustomer.TryGetValue(t.BzaCustomerId, out var names)
-                ? names
-                : new List<string>();
+            var productCount = productCountByCustomer.GetValueOrDefault(t.BzaCustomerId);
 
             return ClosureCopyMessageBuilder.BuildLatest(
                 bazarName,
@@ -124,8 +123,8 @@ public class GetClosureEventDetailHandler(IBazaresDbContext context)
                 closure.PaymentDeadline,
                 paymentCutoffTime,
                 closure.Description,
-                productNames.Count,
-                productNames,
+                productCount,
+                t.Customer?.Collector?.Name,
                 t.UploadToken);
         }
 

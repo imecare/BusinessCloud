@@ -93,11 +93,13 @@ public class SearchClosureCustomerTotalsHandlerTests
     }
 
     [Fact]
-    public async Task Handle_UsaSiempreFormatoV4ConProductos()
+    public async Task Handle_UsaSiempreFormatoV6ConProductos()
     {
         using var ctx = BazaresContextFactory.Create();
         ctx.BazarSettings.Add(new BzaBazarSettings { Id = 1, TenantId = Tenant, BazarName = "Bazar Test" });
-        var ana = new BzaCustomer { Id = 1, TenantId = Tenant, Name = "Ana Lopez", Phone = "5511112222" };
+        var collector = new BzaCollector { Id = 1, TenantId = Tenant, Name = "Any Lopez" };
+        var ana = new BzaCustomer { Id = 1, TenantId = Tenant, Name = "Ana Lopez", Phone = "5511112222", Collector = collector };
+        ctx.Collectors.Add(collector);
         ctx.Customers.Add(ana);
         ctx.ClosureEvents.Add(new BzaClosureEvent
         {
@@ -126,16 +128,18 @@ public class SearchClosureCustomerTotalsHandlerTests
         var result = await handler.Handle(new SearchClosureCustomerTotalsQuery("ana"), default);
 
         var message = Assert.Single(Assert.Single(result).Customers).Message;
-        // El mensaje que se copia a memoria SIEMPRE usa el formato v4 (enlace en lugar de botón),
+        // El mensaje que se copia a memoria SIEMPRE usa el formato v6 (enlace en lugar de botón),
         // sin depender del setting de plantilla.
-        Assert.Contains("Aviso de pago de Bazar Test (mensaje automático)", message);
-        Assert.Contains("*Total de producto(s) · 2* - (Blusa, Bolsa)", message);
+        Assert.Contains("*!Total de sus apartados! - Bazar Test*", message);
+        Assert.Contains("Total de producto(s): 2", message);
+        Assert.Contains("Se entregará al recolector: Any Lopez", message);
         Assert.Contains("__UPLOAD_LINK__", message);
+        Assert.DoesNotContain("Blusa, Bolsa", message);
         Assert.DoesNotContain("Para consultar las tarjetas de pago, subir tu comprobante", message);
     }
 
     [Fact]
-    public async Task Handle_SinProductos_UsaFormatoV4ConGuion()
+    public async Task Handle_SinRecolector_UsaEtiquetaPorAsignar()
     {
         using var ctx = BazaresContextFactory.Create();
         ctx.BazarSettings.Add(new BzaBazarSettings { Id = 1, TenantId = Tenant, BazarName = "Bazar Test" });
@@ -155,9 +159,10 @@ public class SearchClosureCustomerTotalsHandlerTests
         var result = await handler.Handle(new SearchClosureCustomerTotalsQuery("ana"), default);
 
         var message = Assert.Single(Assert.Single(result).Customers).Message;
-        // Aun sin config ni productos, el copy-to-memory es v4 (fallback "—" para productos).
-        Assert.Contains("Aviso de pago de Bazar Test (mensaje automático)", message);
-        Assert.Contains("*Total de producto(s) · 0* - (—)", message);
+        // Aun sin config ni recolector asignado, el copy-to-memory es v6 (fallback "Por asignar").
+        Assert.Contains("*!Total de sus apartados! - Bazar Test*", message);
+        Assert.Contains("Total de producto(s): 0", message);
+        Assert.Contains("Se entregará al recolector: Por asignar", message);
         Assert.DoesNotContain("Para consultar las tarjetas de pago, subir tu comprobante", message);
     }
 }

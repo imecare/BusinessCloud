@@ -17,50 +17,48 @@ public class ClosureTotalsWhatsAppTemplateTests
             "19:30",
             "Cierre semanal",
             3,
-            [" Blusa ", "Bolsa", "Zapatos"],
+            "Any Lopez",
             "token-22");
 
-        Assert.Equal("totales_cobro_v4", payload.TemplateName);
+        Assert.Equal("totales_cobro_v5", payload.TemplateName);
         Assert.Equal("Bazar Test", payload.HeaderParameter);
         Assert.Equal(
-            ["Ana — Te saluda Bazar Test", "$500.00", "Sábado 08 de agosto", "Miércoles 05 de agosto a las 07:30 p.\u00A0m.", "Cierre semanal", "3", "Blusa, Bolsa, Zapatos"],
+            ["Ana", "$500.00", "Sábado 08 de agosto", "Miércoles 05 de agosto a las 07:30 p.\u00A0m.", "Cierre semanal", "3"],
             payload.BodyParameters);
         Assert.Equal("token-22", payload.ButtonUrlParameter);
+        Assert.DoesNotContain("Any Lopez", payload.Preview);
+        Assert.Contains("Se entregará al recolector: Any Lopez", payload.ManualPreview);
+        Assert.Contains("ENVÍA TU COMPROBANTE DE COMPRA POR ESTE CHAT", payload.ManualPreview);
 
         var expectedPreview = string.Join(Environment.NewLine,
         [
-            "Aviso de pago de Bazar Test (mensaje automático)",
+            "*!Total de sus apartados! - Bazar Test*",
             "",
-            "Hola Ana — Te saluda Bazar Test 👋",
+            "Hola Ana 👋",
             "",
-            "💰 Total a pagar: *$500.00*",
+            "💰 *Total a pagar: $500.00*",
             "🚚 Entrega: *Sábado 08 de agosto*",
-            "📅 Límite de pago: *Miércoles 05 de agosto a las 07:30 p.\u00A0m.*",
-            "📦 Cierre semanal: *Total de producto(s) · 3* - (Blusa, Bolsa, Zapatos)",
-            "",
-            "ENVÍA TU COMPROBANTE DE COMPRA POR ESTE CHAT",
-            "O",
-            "👇 Sube tu comprobante y consulta las tarjetas de pago en tu enlace personal (botón de abajo).",
+            "📅 *Límite de pago: Miércoles 05 de agosto a las 07:30 p.\u00A0m.*",
+            "📦 Cierre semanal: Total de producto(s): 3",
+            "Consulta tu listado de productos en el link:",
             "__UPLOAD_LINK__",
+            "",
+            // "Se entregará al recolector: Any Lopez",
+            // "",
+            "⚠️ NO ENVÍES TU COMPROBANTE DE COMPRA POR ESTE CHAT,",
+            "ya que es automático y el bazar NO lo recibe.",
+            "Solo cuenta si lo subes en el enlace.",
+            "👇 Sube tu comprobante y consulta las tarjetas de pago en tu enlace personal (botón de abajo).",
+            "",
+            "Este número no pertenece al Bazar. Es un sistema automático",
         ]);
         Assert.Equal(expectedPreview, payload.Preview);
     }
 
     [Fact]
-    public void Build_FormatsProductNamesWithCapAndEmptyFallback()
+    public void Build_FallsBackToPendingCollectorLabelWhenMissing()
     {
-        var cappedPayload = ClosureTotalsWhatsAppTemplate.Build(
-            null,
-            "Cliente",
-            1m,
-            new DateTime(2026, 8, 8),
-            new DateTime(2026, 8, 5),
-            null,
-            null,
-            11,
-            [" Uno ", "Dos", "", "Tres", "Cuatro", "Cinco", "Seis", "Siete", "Ocho", "Nueve", "   "],
-            "token");
-        var emptyPayload = ClosureTotalsWhatsAppTemplate.Build(
+        var payload = ClosureTotalsWhatsAppTemplate.Build(
             null,
             "Cliente",
             1m,
@@ -69,10 +67,10 @@ public class ClosureTotalsWhatsAppTemplateTests
             null,
             null,
             0,
-            ["", "   "],
+            "   ",
             "token");
 
-        Assert.Equal("Uno, Dos, Tres, Cuatro, Cinco, Seis, Siete, Ocho, … y 1 más", cappedPayload.BodyParameters[6]);
-        Assert.Equal("—", emptyPayload.BodyParameters[6]);
+        Assert.Equal(6, payload.BodyParameters.Count);
+        Assert.Contains("Se entregará al recolector: Por asignar", payload.ManualPreview);
     }
 }

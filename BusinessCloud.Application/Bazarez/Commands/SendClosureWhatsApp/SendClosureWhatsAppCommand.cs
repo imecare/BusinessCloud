@@ -68,6 +68,7 @@ public class SendClosureWhatsAppHandler(
         var closure = await context.ClosureEvents
             .Include(c => c.CustomerTotals)
                 .ThenInclude(t => t.Customer)
+                    .ThenInclude(cu => cu.Collector)
             .Include(c => c.GroupDeliveries)
             .FirstOrDefaultAsync(c => c.Id == request.ClosureEventId, ct)
             ?? throw new KeyNotFoundException("El evento de cierre no existe.");
@@ -85,8 +86,8 @@ public class SendClosureWhatsAppHandler(
 
         _ = configuration;
 
-        // Los productos por cliente se usan tanto para la plantilla nueva de Meta como para el
-        // texto de copia/manual (que SIEMPRE es v4), por lo que se cargan siempre.
+        // El conteo de productos por cliente se usa tanto para la plantilla de Meta como para el
+        // texto de copia/manual (que SIEMPRE es la última versión), por lo que se carga siempre.
         var closureProducts = await context.SoldProducts
             .Where(p => p.Sale.BzaClosureEventId == closure.Id)
             .OrderBy(p => p.Id)
@@ -95,9 +96,6 @@ public class SendClosureWhatsAppHandler(
         var productCountByCustomer = closureProducts
             .GroupBy(p => p.CustomerId)
             .ToDictionary(g => g.Key, g => g.Count());
-        var productNamesByCustomer = closureProducts
-            .GroupBy(p => p.CustomerId)
-            .ToDictionary(g => g.Key, g => g.Select(p => p.Description).ToList());
 
         var targets = request.CustomerIds is { Count: > 0 } customerIds
             ? closure.CustomerTotals.Where(t => customerIds.Contains(t.BzaCustomerId)).ToList()
@@ -152,7 +150,7 @@ public class SendClosureWhatsAppHandler(
             var uploadUrl = $"{baseUrl}/comprobante/{total.UploadToken}";
             var effectiveDeliveryDate = deliveryDate ?? closure.PaymentDeadline;
 
-            // El payload v4 se arma SIEMPRE: su Preview es el texto que se copia a memoria / se
+            // El payload se arma SIEMPRE: su Preview es el texto que se copia a memoria / se
             // manda manual (inbox, Messenger). El envío automático a Meta sí depende del setting.
             var cobroPayload = ClosureTotalsWhatsAppTemplate.Build(
                 bazarName,
@@ -163,9 +161,9 @@ public class SendClosureWhatsAppHandler(
                 settings?.PaymentCutoffTime,
                 closure.Description,
                 productCountByCustomer.GetValueOrDefault(total.BzaCustomerId),
-                productNamesByCustomer.GetValueOrDefault(total.BzaCustomerId) ?? [],
+                customer?.Collector?.Name,
                 total.UploadToken);
-            var notificationMessage = cobroPayload.Preview.Replace(
+            var notificationMessage = cobroPayload.ManualPreview.Replace(
                 ClosureTotalsWhatsAppTemplate.UploadLinkPlaceholder,
                 uploadUrl,
                 StringComparison.Ordinal);

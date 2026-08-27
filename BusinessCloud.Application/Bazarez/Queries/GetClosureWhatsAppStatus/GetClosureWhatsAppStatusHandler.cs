@@ -21,6 +21,7 @@ public class GetClosureWhatsAppStatusHandler(IBazaresDbContext context)
                 t.Id,
                 t.BzaCustomerId,
                 CustomerName = t.Customer.Name,
+                CustomerPhone = t.Customer.Phone,
                 t.Customer.FacebookName,
             })
             .ToListAsync(cancellationToken);
@@ -67,6 +68,7 @@ public class GetClosureWhatsAppStatusHandler(IBazaresDbContext context)
                 total.Id,
                 total.BzaCustomerId,
                 total.CustomerName,
+                new string((total.CustomerPhone ?? string.Empty).Where(char.IsDigit).ToArray()),
                 total.FacebookName,
                 notification?.Message,
                 status,

@@ -24,6 +24,7 @@ public record ClosureWhatsAppStatusItemDto(
     int ClosureCustomerTotalId,
     int CustomerId,
     string CustomerName,
+    string CustomerPhone,
     string? FacebookName,
     string? ManualMessage,
     string DeliveryStatus,
