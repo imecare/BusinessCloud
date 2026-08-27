@@ -42,8 +42,18 @@ public static class ClosureTotalsWhatsAppTemplate
             string.IsNullOrWhiteSpace(collectorName) ? NoCollectorLabel : collectorName.Trim(),
         };
 
-        // La plantilla actualmente publicada en Meta todavía no contiene el recolector.
-        var templateBodyParameters = manualBodyParameters[..6];
+        // La plantilla v5 usa el bazar en el encabezado y la URL del comprobante como
+        // séptimo parámetro del cuerpo. El recolector solo pertenece al mensaje manual.
+        var templateBodyParameters = new[]
+        {
+            manualBodyParameters[0],
+            manualBodyParameters[1],
+            manualBodyParameters[2],
+            manualBodyParameters[3],
+            manualBodyParameters[4],
+            manualBodyParameters[5],
+            UploadLinkPlaceholder,
+        };
 
         return new ClosureTotalsWhatsAppTemplatePayload(
             Name,

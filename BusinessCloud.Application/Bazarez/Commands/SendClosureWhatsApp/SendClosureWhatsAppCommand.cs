@@ -187,10 +187,17 @@ public class SendClosureWhatsAppHandler(
             }
             else
             {
+                var templateBodyParameters = cobroPayload.BodyParameters
+                    .Select(parameter => parameter.Replace(
+                        ClosureTotalsWhatsAppTemplate.UploadLinkPlaceholder,
+                        uploadUrl,
+                        StringComparison.Ordinal))
+                    .ToArray();
                 send = await SendLatestClosureTemplateAsync(
                     whatsApp,
                     phone,
                     cobroPayload,
+                    templateBodyParameters,
                     ct);
             }
 
@@ -286,15 +293,17 @@ public class SendClosureWhatsAppHandler(
         IWhatsAppSender whatsApp,
         string phone,
         ClosureTotalsWhatsAppTemplatePayload cobroPayload,
+        IReadOnlyList<string> templateBodyParameters,
         CancellationToken ct)
     {
         var result = await whatsApp.SendTemplateWithResultAsync(
             phone,
             ClosureTotalsWhatsAppTemplate.Name,
             ClosureTemplateLanguage,
-            cobroPayload.BodyParameters,
+            templateBodyParameters,
             ct,
-            buttonUrlParameter: cobroPayload.ButtonUrlParameter);
+            buttonUrlParameter: cobroPayload.ButtonUrlParameter,
+            headerParameter: cobroPayload.HeaderParameter);
         if (result.Success)
         {
             return result;
