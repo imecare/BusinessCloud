@@ -23,7 +23,7 @@ public class ClosureTotalsWhatsAppTemplateTests
         Assert.Equal("totales_cobro_v5", payload.TemplateName);
         Assert.Equal("Bazar Test", payload.HeaderParameter);
         Assert.Equal(
-            ["Ana", "$500.00", "Sábado 08 de agosto", "Miércoles 05 de agosto a las 07:30 p.\u00A0m.", "Cierre semanal", "3"],
+            ["Ana", "$500.00", "Sábado 08 de agosto", "Miércoles 05 de agosto a las 07:30 p.\u00A0m.", "Cierre semanal", "3", "__UPLOAD_LINK__"],
             payload.BodyParameters);
         Assert.Equal("token-22", payload.ButtonUrlParameter);
         Assert.DoesNotContain("Any Lopez", payload.Preview);
