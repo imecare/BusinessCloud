@@ -23,6 +23,74 @@ public class GetBzaDashboardHandler(
         var totalCustomers = await _context.Customers.CountAsync(ct);
         var totalCollectors = await _context.Collectors.CountAsync(ct);
 
+        var salesInPeriod = await _context.Sales
+            .AsNoTracking()
+            .Where(s => s.CreatedAt >= periodStart && s.CreatedAt < periodEndExclusive)
+            .Select(s => new
+            {
+                s.BzaCustomerId,
+                CustomerName = s.Customer.Name,
+                GroupId = s.Customer.Collector.BzaCollectorGroupId,
+                GroupDescription = s.Customer.Collector.CollectorGroup != null
+                    ? s.Customer.Collector.CollectorGroup.Description
+                    : null,
+                Amount = s.Products.Sum(p => (decimal?)p.Price) ?? 0m
+            })
+            .ToListAsync(ct);
+
+        var topCustomers = salesInPeriod
+            .GroupBy(s => new { s.BzaCustomerId, s.CustomerName, s.GroupDescription })
+            .Select(group => new TopCustomerDto
+            {
+                CustomerId = group.Key.BzaCustomerId,
+                CustomerName = group.Key.CustomerName,
+                GroupDescription = string.IsNullOrWhiteSpace(group.Key.GroupDescription)
+                    ? "Sin grupo"
+                    : group.Key.GroupDescription,
+                PurchaseCount = group.Count(),
+                TotalPurchased = group.Sum(s => s.Amount)
+            })
+            .OrderByDescending(customer => customer.TotalPurchased)
+            .ThenBy(customer => customer.CustomerName)
+            .Take(10)
+            .ToList();
+
+        var configuredGroups = await _context.CollectorGroups
+            .AsNoTracking()
+            .Select(group => new { group.Id, group.Description })
+            .ToListAsync(ct);
+
+        var salesByCollectionGroup = configuredGroups
+            .Select(group =>
+            {
+                var groupSales = salesInPeriod.Where(sale => sale.GroupId == group.Id).ToList();
+                return new CollectionGroupSalesDto
+                {
+                    GroupId = group.Id,
+                    GroupDescription = group.Description,
+                    SaleCount = groupSales.Count,
+                    TotalSales = groupSales.Sum(sale => sale.Amount)
+                };
+            })
+            .ToList();
+
+        var unassignedSales = salesInPeriod.Where(sale => !sale.GroupId.HasValue).ToList();
+        if (unassignedSales.Count > 0)
+        {
+            salesByCollectionGroup.Add(new CollectionGroupSalesDto
+            {
+                GroupId = null,
+                GroupDescription = "Sin grupo",
+                SaleCount = unassignedSales.Count,
+                TotalSales = unassignedSales.Sum(sale => sale.Amount)
+            });
+        }
+
+        salesByCollectionGroup = salesByCollectionGroup
+            .OrderByDescending(group => group.TotalSales)
+            .ThenBy(group => group.GroupDescription)
+            .ToList();
+
         var closureEvents = await _context.ClosureEvents
             .AsNoTracking()
             .ToListAsync(ct);
@@ -144,7 +212,9 @@ public class GetBzaDashboardHandler(
             FinalizedClosures = finalizedClosures,
             RecoveryRate = recoveryRate,
             CollectorVolumes = collectorVolume,
-            Delinquents = delinquents
+            Delinquents = delinquents,
+            TopCustomers = topCustomers,
+            SalesByCollectionGroup = salesByCollectionGroup
         };
     }
 

@@ -30,8 +30,8 @@ public class BzaClosureEvent : BaseAuditableEntity
     public int Id { get; set; }
 
     /// <summary>
-    /// Descripción armada automáticamente a partir de los nombres de las ventas
-    /// que abarca y la fecha de entrega oficial asignada.
+    /// Descripción armada automáticamente a partir de los nombres de los eventos
+    /// de venta que abarca.
     /// </summary>
     public string Description { get; set; } = string.Empty;
 

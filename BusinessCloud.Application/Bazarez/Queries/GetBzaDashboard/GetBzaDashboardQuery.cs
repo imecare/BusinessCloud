@@ -26,6 +26,25 @@ public class BzaDashboardDto
     public decimal RecoveryRate { get; set; }
     public List<CollectorVolumeDto> CollectorVolumes { get; set; } = new();
     public List<DelinquentCustomerDto> Delinquents { get; set; } = new();
+    public List<TopCustomerDto> TopCustomers { get; set; } = new();
+    public List<CollectionGroupSalesDto> SalesByCollectionGroup { get; set; } = new();
+}
+
+public class TopCustomerDto
+{
+    public int CustomerId { get; set; }
+    public string CustomerName { get; set; } = string.Empty;
+    public string GroupDescription { get; set; } = string.Empty;
+    public int PurchaseCount { get; set; }
+    public decimal TotalPurchased { get; set; }
+}
+
+public class CollectionGroupSalesDto
+{
+    public int? GroupId { get; set; }
+    public string GroupDescription { get; set; } = string.Empty;
+    public int SaleCount { get; set; }
+    public decimal TotalSales { get; set; }
 }
 
 public class CollectorVolumeDto

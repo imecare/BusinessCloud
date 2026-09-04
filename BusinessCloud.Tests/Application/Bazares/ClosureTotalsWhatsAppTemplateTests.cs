@@ -70,7 +70,7 @@ public class ClosureTotalsWhatsAppTemplateTests
             "   ",
             "token");
 
-        Assert.Equal(6, payload.BodyParameters.Count);
+        Assert.Equal(7, payload.BodyParameters.Count);
         Assert.Contains("Se entregará al recolector: Por asignar", payload.ManualPreview);
     }
 }

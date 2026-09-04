@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Text;
 using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Application.Bazares.Common;
 using BusinessCloud.Domain.Bazares.Entities;
@@ -17,8 +15,6 @@ public class SendTotalsHandler(
     private readonly IBazaresDbContext _context = context;
     private readonly IIdentityDbContext _identityContext = identityContext;
     private readonly ICurrentUserService _currentUser = currentUser;
-    private static readonly CultureInfo Culture = new("es-MX");
-
     public async Task<SendTotalsResultDto> Handle(SendTotalsCommand request, CancellationToken cancellationToken)
     {
         var eventIds = request.EventIds.Distinct().ToList();
@@ -70,7 +66,7 @@ public class SendTotalsHandler(
             .ToDictionary(g => g.Key, g => g.First().DeliveryDate);
 
         // Descripción automática del cierre.
-        var description = BuildClosureDescription(events, request.OfficialDeliveryDate);
+        var description = BuildClosureDescription(events);
 
         // Actualizar la fecha límite de pago de cada evento incluido.
         // La venta NO se cierra aquí: se cierra cuando el cliente sube su comprobante.
@@ -241,20 +237,10 @@ public class SendTotalsHandler(
         };
     }
 
-    private static string BuildClosureDescription(List<BzaEvent> events, DateTime? officialDate)
+    private static string BuildClosureDescription(List<BzaEvent> events)
     {
-        var names = string.Join(", ", events.OrderBy(e => e.Id).Select(e => e.Description));
-        var sb = new StringBuilder("Cierre: ").Append(names);
-        if (officialDate.HasValue)
-        {
-            sb.Append(" — Entrega ").Append(FormatLongDate(officialDate.Value));
-        }
-        return sb.ToString();
-    }
-
-    private static string FormatLongDate(DateTime date)
-    {
-        var text = date.ToString("dddd dd 'de' MMMM", Culture);
-        return text.Length > 0 ? char.ToUpper(text[0], Culture) + text[1..] : text;
+        return string.Join(", ", events
+            .OrderBy(e => e.Id)
+            .Select(e => e.Description.Trim()));
     }
 }

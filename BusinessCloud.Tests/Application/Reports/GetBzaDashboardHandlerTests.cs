@@ -76,6 +76,75 @@ public class GetBzaDashboardHandlerTests
         await ctx.SaveChangesAsync(default);
     }
 
+    private static async Task SeedSalesRankingsAsync(BazaresDbContext ctx)
+    {
+        ctx.CollectorGroups.AddRange(
+            new BzaCollectorGroup { Id = 1, TenantId = Tenant, Description = "Grupo A", IsActive = true },
+            new BzaCollectorGroup { Id = 2, TenantId = Tenant, Description = "Grupo B", IsActive = true },
+            new BzaCollectorGroup { Id = 3, TenantId = Tenant, Description = "Grupo sin ventas", IsActive = true });
+        ctx.Collectors.AddRange(
+            new BzaCollector { Id = 1, TenantId = Tenant, Name = "Recolector A", IsActive = true, BzaCollectorGroupId = 1 },
+            new BzaCollector { Id = 2, TenantId = Tenant, Name = "Recolector B", IsActive = true, BzaCollectorGroupId = 2 });
+
+        var customers = Enumerable.Range(1, 11)
+            .Select(index => new BzaCustomer
+            {
+                Id = index,
+                TenantId = Tenant,
+                Name = $"Cliente {index:00}",
+                Phone = $"551000{index:0000}",
+                BzaCollectorId = index % 2 == 0 ? 2 : 1
+            })
+            .ToList();
+        ctx.Customers.AddRange(customers);
+        ctx.Events.AddRange(
+            new BzaEvent { Id = 1, TenantId = Tenant, Description = "Evento actual" },
+            new BzaEvent { Id = 2, TenantId = Tenant, Description = "Evento anterior" });
+        await ctx.SaveChangesAsync(default);
+
+        var currentSales = customers.Select(customer => new BzaSale
+        {
+            Id = customer.Id,
+            TenantId = Tenant,
+            BzaEventId = 1,
+            BzaCustomerId = customer.Id,
+            Products =
+            [
+                new BzaSoldProduct
+                {
+                    Id = customer.Id,
+                    TenantId = Tenant,
+                    Description = $"Producto {customer.Id}",
+                    Price = customer.Id * 10m
+                }
+            ]
+        }).ToList();
+        var previousPeriodSale = new BzaSale
+        {
+            Id = 12,
+            TenantId = Tenant,
+            BzaEventId = 2,
+            BzaCustomerId = 1,
+            Products =
+            [
+                new BzaSoldProduct
+                {
+                    Id = 12,
+                    TenantId = Tenant,
+                    Description = "Producto anterior",
+                    Price = 999m
+                }
+            ]
+        };
+
+        ctx.Sales.AddRange(currentSales);
+        ctx.Sales.Add(previousPeriodSale);
+        await ctx.SaveChangesAsync(default);
+
+        previousPeriodSale.CreatedAt = DateTime.UtcNow.Date.AddMonths(-2);
+        await ctx.SaveChangesAsync(default);
+    }
+
     [Fact]
     public async Task Handle_CalculaConteosYKpisSemanales()
     {
@@ -120,5 +189,43 @@ public class GetBzaDashboardHandlerTests
         Assert.Equal(200m, dto.Delinquents[0].Balance);
         Assert.Equal("Ana", dto.Delinquents[1].CustomerName);
         Assert.Equal(50m, dto.Delinquents[1].Balance);
+    }
+
+    [Fact]
+    public async Task Handle_RankingsRespetanPeriodoLimiteYOrdenDescendente()
+    {
+        using var ctx = BazaresContextFactory.Create();
+        await SeedSalesRankingsAsync(ctx);
+
+        var dto = await CreateHandler(ctx).Handle(new GetBzaDashboardQuery("month"), default);
+
+        Assert.Equal(10, dto.TopCustomers.Count);
+        Assert.Equal("Cliente 11", dto.TopCustomers[0].CustomerName);
+        Assert.Equal(110m, dto.TopCustomers[0].TotalPurchased);
+        Assert.DoesNotContain(dto.TopCustomers, customer => customer.CustomerName == "Cliente 01");
+        Assert.Equal(
+            dto.TopCustomers.OrderByDescending(customer => customer.TotalPurchased).Select(customer => customer.CustomerId),
+            dto.TopCustomers.Select(customer => customer.CustomerId));
+
+        Assert.Collection(
+            dto.SalesByCollectionGroup,
+            group =>
+            {
+                Assert.Equal("Grupo A", group.GroupDescription);
+                Assert.Equal(6, group.SaleCount);
+                Assert.Equal(360m, group.TotalSales);
+            },
+            group =>
+            {
+                Assert.Equal("Grupo B", group.GroupDescription);
+                Assert.Equal(5, group.SaleCount);
+                Assert.Equal(300m, group.TotalSales);
+            },
+            group =>
+            {
+                Assert.Equal("Grupo sin ventas", group.GroupDescription);
+                Assert.Equal(0, group.SaleCount);
+                Assert.Equal(0m, group.TotalSales);
+            });
     }
 }
