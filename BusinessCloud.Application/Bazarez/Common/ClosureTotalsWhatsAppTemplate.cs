@@ -11,7 +11,7 @@ public static class ClosureTotalsWhatsAppTemplate
 {
     private static readonly CultureInfo Culture = new("es-MX");
 
-    public const string Name = "totales_cobro_v5";
+    public const string Name = "totales_cobro_v6";
     public const string UploadLinkPlaceholder = "__UPLOAD_LINK__";
 
     /// <summary>Nombre del recolector cuando el cliente todavía no tiene uno asignado.</summary>
@@ -42,8 +42,8 @@ public static class ClosureTotalsWhatsAppTemplate
             string.IsNullOrWhiteSpace(collectorName) ? NoCollectorLabel : collectorName.Trim(),
         };
 
-        // La plantilla v5 usa el bazar en el encabezado y la URL del comprobante como
-        // séptimo parámetro del cuerpo. El recolector solo pertenece al mensaje manual.
+        // La plantilla v6 usa la URL del comprobante como séptimo parámetro del cuerpo
+        // y el nombre del recolector como octavo parámetro.
         var templateBodyParameters = new[]
         {
             manualBodyParameters[0],
@@ -53,6 +53,7 @@ public static class ClosureTotalsWhatsAppTemplate
             manualBodyParameters[4],
             manualBodyParameters[5],
             UploadLinkPlaceholder,
+            manualBodyParameters[6],
         };
 
         return new ClosureTotalsWhatsAppTemplatePayload(
@@ -80,6 +81,8 @@ public static class ClosureTotalsWhatsAppTemplate
             .Append("📦 ").Append(bodyParameters[4]).Append(": Total de producto(s): ").AppendLine(bodyParameters[5])
             .AppendLine("Consulta tu listado de productos en el link:")
             .AppendLine(UploadLinkPlaceholder)
+            .AppendLine()
+            .Append("Se entregará al recolector: ").AppendLine(bodyParameters[7])
             .AppendLine()
             .AppendLine("⚠️ NO ENVÍES TU COMPROBANTE DE COMPRA POR ESTE CHAT,")
             .AppendLine("ya que es automático y el bazar NO lo recibe.")

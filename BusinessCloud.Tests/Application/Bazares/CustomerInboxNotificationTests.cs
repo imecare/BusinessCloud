@@ -154,7 +154,7 @@ public class CustomerInboxNotificationTests
 
         Assert.Equal(ClosureTotalsWhatsAppTemplate.Name, capturedTemplate);
         Assert.NotNull(capturedBody);
-        Assert.Equal(7, capturedBody!.Count);
+        Assert.Equal(8, capturedBody!.Count);
         Assert.Equal("upload-token", capturedButton);
         Assert.Equal("Bazar Test", capturedHeader);
         var deadlineParam = capturedBody[3];
@@ -257,11 +257,13 @@ public class CustomerInboxNotificationTests
 
         Assert.Equal(ClosureTotalsWhatsAppTemplate.Name, capturedTemplate);
         Assert.NotNull(capturedBody);
-        Assert.Equal(7, capturedBody!.Count);
+        Assert.Equal(8, capturedBody!.Count);
         Assert.Equal("Cliente Uno", capturedBody[0]);          // {{1}} nombre del cliente
         Assert.Equal("$450.00", capturedBody[1]);              // {{2}} total con signo $
         Assert.Equal("Cierre semanal", capturedBody[4]);       // {{5}} descripcion del cierre
         Assert.Equal("3", capturedBody[5]);                    // {{6}} numero de productos del cliente
+        Assert.Equal("https://portal.test/comprobante/upload-token", capturedBody[6]); // {{7}} enlace
+        Assert.Equal("Por asignar", capturedBody[7]);          // {{8}} recolector
         Assert.Equal("Bazar Test", capturedHeader);             // {{1}} encabezado con nombre del bazar
         Assert.Equal("upload-token", capturedButton);          // boton de URL con SOLO el token
 
@@ -352,7 +354,7 @@ public class CustomerInboxNotificationTests
 
         Assert.Equal(ClosureTotalsWhatsAppTemplate.Name, capturedTemplate);
         Assert.NotNull(capturedBody);
-        Assert.Equal(7, capturedBody!.Count);
+        Assert.Equal(8, capturedBody!.Count);
         Assert.Equal("upload-token", capturedButton);
     }
 

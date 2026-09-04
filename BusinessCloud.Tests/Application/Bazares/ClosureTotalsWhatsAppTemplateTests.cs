@@ -20,13 +20,13 @@ public class ClosureTotalsWhatsAppTemplateTests
             "Any Lopez",
             "token-22");
 
-        Assert.Equal("totales_cobro_v5", payload.TemplateName);
+        Assert.Equal("totales_cobro_v6", payload.TemplateName);
         Assert.Equal("Bazar Test", payload.HeaderParameter);
         Assert.Equal(
-            ["Ana", "$500.00", "Sábado 08 de agosto", "Miércoles 05 de agosto a las 07:30 p.\u00A0m.", "Cierre semanal", "3", "__UPLOAD_LINK__"],
+            ["Ana", "$500.00", "Sábado 08 de agosto", "Miércoles 05 de agosto a las 07:30 p.\u00A0m.", "Cierre semanal", "3", "__UPLOAD_LINK__", "Any Lopez"],
             payload.BodyParameters);
         Assert.Equal("token-22", payload.ButtonUrlParameter);
-        Assert.DoesNotContain("Any Lopez", payload.Preview);
+        Assert.Contains("Se entregará al recolector: Any Lopez", payload.Preview);
         Assert.Contains("Se entregará al recolector: Any Lopez", payload.ManualPreview);
         Assert.Contains("ENVÍA TU COMPROBANTE DE COMPRA POR ESTE CHAT", payload.ManualPreview);
 
@@ -43,8 +43,8 @@ public class ClosureTotalsWhatsAppTemplateTests
             "Consulta tu listado de productos en el link:",
             "__UPLOAD_LINK__",
             "",
-            // "Se entregará al recolector: Any Lopez",
-            // "",
+            "Se entregará al recolector: Any Lopez",
+            "",
             "⚠️ NO ENVÍES TU COMPROBANTE DE COMPRA POR ESTE CHAT,",
             "ya que es automático y el bazar NO lo recibe.",
             "Solo cuenta si lo subes en el enlace.",
@@ -70,7 +70,8 @@ public class ClosureTotalsWhatsAppTemplateTests
             "   ",
             "token");
 
-        Assert.Equal(7, payload.BodyParameters.Count);
+        Assert.Equal(8, payload.BodyParameters.Count);
+        Assert.Equal("Por asignar", payload.BodyParameters[7]);
         Assert.Contains("Se entregará al recolector: Por asignar", payload.ManualPreview);
     }
 }
