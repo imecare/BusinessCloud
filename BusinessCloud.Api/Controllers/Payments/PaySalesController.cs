@@ -4,6 +4,7 @@ using BusinessCloud.Application.Payments.Commands.UpdateSale;
 using BusinessCloud.Application.Payments.Dtos;
 using BusinessCloud.Application.Payments.Queries.GetAllSales;
 using BusinessCloud.Application.Payments.Queries.GetCustomerHistory;
+using BusinessCloud.Application.Payments.Queries.GetCustomerDebts;
 using BusinessCloud.Application.Payments.Queries.GetMySales;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -71,6 +72,17 @@ public class PaySalesController : ControllerBase
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new GetAllSalesQuery(), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Clientes con deuda agrupada y ordenados por su último abono, del más antiguo al más reciente.
+    /// </summary>
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpGet("debts")]
+    public async Task<ActionResult<List<CustomerDebtDto>>> GetDebts(CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetCustomerDebtsQuery(), cancellationToken);
         return Ok(result);
     }
 
