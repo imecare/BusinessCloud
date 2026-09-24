@@ -2,6 +2,8 @@ using BusinessCloud.Api.Authorization;
 using BusinessCloud.Application.Bazares.Queries.GetBzaEventsReport;
 using BusinessCloud.Application.Bazares.Queries.GetCancelledSalesReport;
 using BusinessCloud.Application.Bazares.Queries.GetNoWhatsAppCustomers;
+using BusinessCloud.Application.Bazares.Queries.GetWhatsAppCustomers;
+using BusinessCloud.Application.Bazares.Queries.GetWhatsAppCustomersExcel;
 using BusinessCloud.Application.Bazares.Queries.GetPendingWithdrawalsReport;
 using BusinessCloud.Application.Bazares.Queries.GetRejectedProofsReport;
 using MediatR;
@@ -54,6 +56,22 @@ public class BzaReportsController(ISender mediator) : ControllerBase
     [HttpGet("no-whatsapp-customers")]
     public async Task<ActionResult<NoWhatsAppCustomersReportDto>> NoWhatsAppCustomers()
         => await mediator.Send(new GetNoWhatsAppCustomersQuery());
+
+    /// <summary>
+    /// Reporte de clientes que tienen número de WhatsApp: nombre, número interno,
+    /// recolector, número de WhatsApp y perfil de Facebook.
+    /// </summary>
+    [HttpGet("whatsapp-customers")]
+    public async Task<ActionResult<WhatsAppCustomersReportDto>> WhatsAppCustomers()
+        => await mediator.Send(new GetWhatsAppCustomersQuery());
+
+    /// <summary>Descarga el reporte de clientes con WhatsApp en formato Excel.</summary>
+    [HttpGet("whatsapp-customers/excel")]
+    public async Task<IActionResult> DownloadWhatsAppCustomersExcel()
+    {
+        var result = await mediator.Send(new GetWhatsAppCustomersExcelQuery());
+        return File(result.FileContent, result.ContentType, result.FileName);
+    }
 
     /// <summary>
     /// Descarga un Excel con el detalle de los Eventos de Venta seleccionados: cliente,
