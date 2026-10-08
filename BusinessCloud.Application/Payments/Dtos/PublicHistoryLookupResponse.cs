@@ -8,6 +8,8 @@ public class PublicHistoryLookupResponse
     public string CustomerName { get; set; } = string.Empty;
     public string CompanyName { get; set; } = string.Empty;
     public bool HasMovements { get; set; }
+    public decimal TotalActivePurchases { get; set; }
+    public decimal TotalPaidOnActivePurchases { get; set; }
     public List<SaleHistoryDto> Sales { get; set; } = new();
 }
 

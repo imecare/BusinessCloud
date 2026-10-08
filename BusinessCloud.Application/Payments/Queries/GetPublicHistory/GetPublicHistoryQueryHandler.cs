@@ -62,6 +62,8 @@ public class GetPublicHistoryQueryHandler : IRequestHandler<GetPublicHistoryQuer
             })
             .ToListAsync(cancellationToken);
 
+        var activeSales = sales.Where(s => !s.IsPaid).ToList();
+
         return new PublicHistoryResult
         {
             CustomerFound = true,
@@ -71,6 +73,11 @@ public class GetPublicHistoryQueryHandler : IRequestHandler<GetPublicHistoryQuer
                 CustomerName = $"{customer.Name} {customer.LastName}",
                 CompanyName = tenant.Name,
                 HasMovements = sales.Count > 0,
+                TotalActivePurchases = activeSales.Sum(s => s.TotalAmount),
+                TotalPaidOnActivePurchases = activeSales
+                    .SelectMany(s => s.Payment)
+                    .Where(p => p.PaymentTypeId == 2)
+                    .Sum(p => p.Amount),
                 Sales = sales
             }
         };
