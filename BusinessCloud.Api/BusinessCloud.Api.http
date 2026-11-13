@@ -4,3 +4,24 @@ GET {{BusinessCloud.Api_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+@platformAdminToken = REPLACE_WITH_PLATFORM_ADMIN_TOKEN
+@tenantId = REPLACE_WITH_EXISTING_TENANT_ID
+
+### Actualizar aplicaciones de una empresa (PlatformAdmin)
+PUT {{BusinessCloud.Api_HostAddress}}/api/admin/companies/{{tenantId}}/modules
+Authorization: Bearer {{platformAdminToken}}
+Content-Type: application/json
+
+{
+  "modules": ["Bazares", "Catalogs"]
+}
+
+### Empresa inexistente: 404
+PUT {{BusinessCloud.Api_HostAddress}}/api/admin/companies/nonexistent-tenant/modules
+Authorization: Bearer {{platformAdminToken}}
+Content-Type: application/json
+
+{
+  "modules": ["Catalogs"]
+}

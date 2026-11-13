@@ -2,6 +2,7 @@ using BusinessCloud.Application.Admin.Commands.NotifyExpiringCompanies;
 using BusinessCloud.Application.Admin.Commands.PurchasePackage;
 using BusinessCloud.Application.Admin.Commands.RegisterCompanyPayment;
 using BusinessCloud.Application.Admin.Commands.SetCompanyStatus;
+using BusinessCloud.Application.Admin.Commands.SetCompanyModules;
 using BusinessCloud.Application.Admin.Commands.UpsertSubscription;
 using BusinessCloud.Application.Admin.Dtos;
 using BusinessCloud.Application.Admin.Queries.GetCompanies;
@@ -177,6 +178,24 @@ public class AdminCompaniesController : ControllerBase
             Success = true,
             Message = "Empresa creada con éxito.",
             Data = detail
+        });
+    }
+
+    /// <summary>Actualiza las aplicaciones habilitadas de una empresa. Requiere volver a iniciar sesión.</summary>
+    [HttpPut("{tenantId}/modules")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<string>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateModules(
+        string tenantId, [FromBody] UpdateCompanyModulesRequest request, CancellationToken cancellationToken)
+    {
+        var modules = await _mediator.Send(
+            new SetCompanyModulesCommand(tenantId, request.Modules), cancellationToken);
+        return Ok(new ApiResponse<IReadOnlyList<string>>
+        {
+            Success = true,
+            Message = "Aplicaciones actualizadas. Los usuarios deben volver a iniciar sesión.",
+            Data = modules
         });
     }
 
