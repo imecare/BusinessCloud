@@ -20,6 +20,8 @@ namespace BusinessCloud.Domain.Common.Entities
         public const string Bazares = "Bazares";
         public const string Commissions = "Commissions";
 
-        public static readonly string[] All = [Payments, Bazares, Commissions];
+        public const string Catalogs = "Catalogs";
+
+        public static readonly string[] All = [Payments, Bazares, Commissions, Catalogs];
     }
 }

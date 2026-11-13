@@ -39,3 +39,15 @@ public class BazaresDbContextFactory : IDesignTimeDbContextFactory<BazaresDbCont
         return new BazaresDbContext(optionsBuilder.Options, new DummyCurrentUserService());
     }
 }
+
+public class CatalogsDbContextFactory : IDesignTimeDbContextFactory<CatalogsDbContext>
+{
+    public CatalogsDbContext CreateDbContext(string[] args)
+    {
+        var configuration = IdentityDbContextFactory.BuildConfiguration();
+
+        var optionsBuilder = new DbContextOptionsBuilder<CatalogsDbContext>();
+        optionsBuilder.UseSqlServer(configuration.GetConnectionString("PaymentsConnection"));
+        return new CatalogsDbContext(optionsBuilder.Options, new DummyCurrentUserService());
+    }
+}

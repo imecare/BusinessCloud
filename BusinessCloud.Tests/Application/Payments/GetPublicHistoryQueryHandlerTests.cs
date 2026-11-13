@@ -1,4 +1,4 @@
-using BusinessCloud.Application.Payments.Queries.GetPublicHistory;
+ using BusinessCloud.Application.Payments.Queries.GetPublicHistory;
 using BusinessCloud.Domain.Common.Entities;
 using BusinessCloud.Domain.Payments.Entities;
 using BusinessCloud.Tests.TestSupport;

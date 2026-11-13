@@ -105,6 +105,12 @@ try
     builder.Services.AddScoped<IBazaresDbContext>(provider =>
         provider.GetRequiredService<BazaresDbContext>());
 
+    // Registro del Contexto de Catálogos (misma base de datos)
+    builder.Services.AddDbContext<CatalogsDbContext>(options =>
+        options.UseSqlServer(builder.Configuration.GetConnectionString("PaymentsConnection"), sql => sql.EnableRetryOnFailure()));
+    builder.Services.AddScoped<ICatalogsDbContext>(provider =>
+        provider.GetRequiredService<CatalogsDbContext>());
+
     builder.Services.AddScoped<IPaymentsDbContext>(provider =>
         provider.GetRequiredService<PaymentsDbContext>());
 
@@ -220,6 +226,8 @@ try
                     "http://localhost:4200",
                     "http://localhost:4300",
                     "http://localhost:53517",
+                    "http://localhost:5175",
+                    "https://catalogos.bcloud.com.mx",
                     "https://bcloud.com.mx",
                     "https://admin.bcloud.com.mx",
                     "https://payments.bcloud.com.mx",
@@ -248,6 +256,26 @@ try
             opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
             opt.QueueLimit = 2;
         });
+
+        // Catálogo público: lectura (navegación) y escritura (pedidos / "me interesa") por IP.
+        options.AddPolicy("catalogs-public", httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 240,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                }));
+        options.AddPolicy("catalogs-orders", httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 10,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                }));
 
         // Anti fuerza bruta en autenticación: límite por IP en login/registro.
         options.AddPolicy("auth", httpContext =>
@@ -301,7 +329,9 @@ try
         .AddPolicy("Module_Bazares", policy =>
             policy.Requirements.Add(new BusinessCloud.Api.Authorization.ModuleRequirement("Bazares")))
         .AddPolicy("Module_Commissions", policy =>
-            policy.Requirements.Add(new BusinessCloud.Api.Authorization.ModuleRequirement("Commissions")));
+            policy.Requirements.Add(new BusinessCloud.Api.Authorization.ModuleRequirement("Commissions")))
+        .AddPolicy("Module_Catalogs", policy =>
+            policy.Requirements.Add(new BusinessCloud.Api.Authorization.ModuleRequirement("Catalogs")));
 
     builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
         BusinessCloud.Api.Authorization.ModuleRequirementHandler>();
@@ -329,6 +359,10 @@ try
         var identityDb = migrationScope.ServiceProvider.GetRequiredService<IdentityDbContext>();
         await identityDb.Database.MigrateAsync();
         Log.Information("Migraciones de Identity aplicadas correctamente.");
+
+        var catalogsDb = migrationScope.ServiceProvider.GetRequiredService<CatalogsDbContext>();
+        await catalogsDb.Database.MigrateAsync();
+        Log.Information("Migraciones de Catálogos aplicadas correctamente.");
     }
 
     // --- 2. Middleware ---
