@@ -97,6 +97,95 @@ public class CatalogAdminAndSearchTests
             new UpdateStoreSettingsCommand(new StoreSettingsInput { Slug = "Mi Tienda!", PublicName = "X" }), default));
     }
 
+    [Theory]
+    [InlineData("Default")]
+    [InlineData("PlayfairDisplay")]
+    [InlineData("DancingScript")]
+    [InlineData("Montserrat")]
+    public async Task Tipografia_se_guarda_y_se_expone_en_el_catalogo_publico(string font)
+    {
+        using var identity = await SeedIdentityAsync((Tenant, "Mi Tienda"));
+        using var db = CatalogsContextFactory.Create();
+        var settings = await CatalogSettingsProvider.GetOrCreateAsync(db, identity, Tenant, default);
+        settings.TitleFont = CatTitleFont.DancingScript;
+        await db.SaveChangesAsync(default);
+        var handler = new UpdateStoreSettingsHandler(db, identity, CatalogsContextFactory.CurrentUser());
+
+        var updated = await handler.Handle(new UpdateStoreSettingsCommand(new StoreSettingsInput
+        {
+            Slug = settings.Slug, PublicName = settings.PublicName, TitleFont = font
+        }), default);
+        Assert.Equal(font, updated.TitleFont);
+
+        db.ChangeTracker.Clear();
+        var store = await new GetPublicStoreHandler(db, identity)
+            .Handle(new GetPublicStoreQuery(updated.Slug), default);
+        Assert.Equal(font, store.TitleFont);
+    }
+
+    [Fact]
+    public async Task Cliente_anterior_que_omite_tipografia_conserva_la_seleccion()
+    {
+        using var identity = await SeedIdentityAsync((Tenant, "Mi Tienda"));
+        using var db = CatalogsContextFactory.Create();
+        var handler = new UpdateStoreSettingsHandler(db, identity, CatalogsContextFactory.CurrentUser());
+        await handler.Handle(new UpdateStoreSettingsCommand(new StoreSettingsInput
+        {
+            Slug = "mi-tienda", PublicName = "Mi Tienda", TitleFont = "Montserrat"
+        }), default);
+
+        var updated = await handler.Handle(new UpdateStoreSettingsCommand(new StoreSettingsInput
+        {
+            Slug = "mi-tienda", PublicName = "Nuevo nombre"
+        }), default);
+
+        db.ChangeTracker.Clear();
+        Assert.Equal("Montserrat", updated.TitleFont);
+        Assert.Equal(CatTitleFont.Montserrat, (await db.StoreSettings.SingleAsync()).TitleFont);
+    }
+
+    [Theory]
+    [InlineData("1")]
+    [InlineData("playfairdisplay")]
+    [InlineData("Arial; color: red")]
+    public async Task Tipografia_invalida_se_rechaza_sin_modificar_la_configuracion(string font)
+    {
+        using var identity = await SeedIdentityAsync((Tenant, "Mi Tienda"));
+        using var db = CatalogsContextFactory.Create();
+        var settings = await CatalogSettingsProvider.GetOrCreateAsync(db, identity, Tenant, default);
+        var handler = new UpdateStoreSettingsHandler(db, identity, CatalogsContextFactory.CurrentUser());
+
+        await Assert.ThrowsAsync<ArgumentException>(() => handler.Handle(
+            new UpdateStoreSettingsCommand(new StoreSettingsInput
+            {
+                Slug = settings.Slug, PublicName = "No guardar", TitleFont = font
+            }), default));
+
+        db.ChangeTracker.Clear();
+        var persisted = await db.StoreSettings.SingleAsync();
+        Assert.Equal(CatTitleFont.Default, persisted.TitleFont);
+        Assert.Equal("Mi Tienda", persisted.PublicName);
+    }
+
+    [Fact]
+    public async Task Tipografia_de_una_empresa_no_cambia_la_de_otra()
+    {
+        var dbName = $"catalogs-{Guid.NewGuid():N}";
+        using var identity = await SeedIdentityAsync(("t1", "Uno"), ("t2", "Dos"));
+        using var db1 = CatalogsContextFactory.Create("t1", dbName);
+        using var db2 = CatalogsContextFactory.Create("t2", dbName);
+        await CatalogSettingsProvider.GetOrCreateAsync(db2, identity, "t2", default);
+        await new UpdateStoreSettingsHandler(db1, identity, CatalogsContextFactory.CurrentUser("t1"))
+            .Handle(new UpdateStoreSettingsCommand(new StoreSettingsInput
+            {
+                Slug = "uno", PublicName = "Uno", TitleFont = "PlayfairDisplay"
+            }), default);
+
+        var publicHandler = new GetPublicStoreHandler(db1, identity);
+        Assert.Equal("PlayfairDisplay", (await publicHandler.Handle(new GetPublicStoreQuery("uno"), default)).TitleFont);
+        Assert.Equal("Default", (await publicHandler.Handle(new GetPublicStoreQuery("dos"), default)).TitleFont);
+    }
+
     // ---------- Aislamiento por tenant ----------
 
     [Fact]

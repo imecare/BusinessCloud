@@ -36,6 +36,7 @@ public static class CatalogMappers
         PublicName = s.PublicName,
         LogoUrl = s.LogoUrl,
         PrimaryColor = s.PrimaryColor,
+        TitleFont = s.TitleFont.ToString(),
         Phone = s.Phone,
         Whatsapp = s.Whatsapp,
         OrderEmail = s.OrderEmail,

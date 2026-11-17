@@ -38,6 +38,8 @@ public class CatalogsDbContext : DbContext, ICatalogsDbContext
             e.Property(x => x.LogoUrl).HasMaxLength(500);
             e.Property(x => x.LogoBlobName).HasMaxLength(300);
             e.Property(x => x.PrimaryColor).IsRequired().HasMaxLength(7);
+            e.Property(x => x.TitleFont).HasConversion<string>().HasMaxLength(32)
+                .HasDefaultValue(CatTitleFont.Default);
             e.Property(x => x.Phone).HasMaxLength(30);
             e.Property(x => x.Whatsapp).HasMaxLength(30);
             e.Property(x => x.OrderEmail).HasMaxLength(200);

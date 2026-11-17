@@ -2,6 +2,14 @@ using BusinessCloud.Domain.Common;
 
 namespace BusinessCloud.Domain.Catalogs.Entities;
 
+public enum CatTitleFont
+{
+    Default,
+    PlayfairDisplay,
+    DancingScript,
+    Montserrat
+}
+
 /// <summary>
 /// Configuración pública del catálogo de una empresa (1:1 con el tenant).
 /// El <see cref="Slug"/> arma el link público /c/{slug} y es único globalmente.
@@ -14,6 +22,7 @@ public class CatStoreSettings : BaseAuditableEntity
     public string? LogoUrl { get; set; }
     public string? LogoBlobName { get; set; }
     public string PrimaryColor { get; set; } = "#0d6efd";
+    public CatTitleFont TitleFont { get; set; } = CatTitleFont.Default;
     public string? Phone { get; set; }
     public string? Whatsapp { get; set; }
     public string? OrderEmail { get; set; }

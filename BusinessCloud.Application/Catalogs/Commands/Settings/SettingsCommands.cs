@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using BusinessCloud.Application.Catalogs.Common;
 using BusinessCloud.Application.Catalogs.Dtos;
 using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Domain.Catalogs.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -36,6 +37,9 @@ public partial class UpdateStoreSettingsHandler(
         if (!ColorRegex().IsMatch(color))
             throw new ArgumentException("El color principal debe tener formato #RRGGBB.");
 
+        if (input.TitleFont is not null && !Enum.GetNames<CatTitleFont>().Contains(input.TitleFont))
+            throw new ArgumentException("Selecciona una tipografía válida para el nombre de la tienda.");
+
         var currency = string.IsNullOrWhiteSpace(input.Currency) ? settings.Currency : input.Currency.Trim().ToUpperInvariant();
         if (currency.Length != 3 || !currency.All(char.IsLetter))
             throw new ArgumentException("La moneda debe ser un código de 3 letras (p. ej. MXN).");
@@ -63,6 +67,8 @@ public partial class UpdateStoreSettingsHandler(
         settings.Slug = slug;
         settings.PublicName = name;
         settings.PrimaryColor = color;
+        if (input.TitleFont is not null)
+            settings.TitleFont = Enum.Parse<CatTitleFont>(input.TitleFont);
         settings.Currency = currency;
         settings.OrderEmail = email;
         settings.Phone = string.IsNullOrWhiteSpace(input.Phone) ? null : CatalogText.NormalizePhone(input.Phone);

@@ -10,6 +10,7 @@ public class StoreSettingsDto
     public string PublicName { get; set; } = string.Empty;
     public string? LogoUrl { get; set; }
     public string PrimaryColor { get; set; } = string.Empty;
+    public string TitleFont { get; set; } = "Default";
     public string? Phone { get; set; }
     public string? Whatsapp { get; set; }
     public string? OrderEmail { get; set; }
@@ -25,6 +26,7 @@ public class StoreSettingsInput
     public string Slug { get; set; } = string.Empty;
     public string PublicName { get; set; } = string.Empty;
     public string? PrimaryColor { get; set; }
+    public string? TitleFont { get; set; }
     public string? Phone { get; set; }
     public string? Whatsapp { get; set; }
     public string? OrderEmail { get; set; }
@@ -124,7 +126,8 @@ public record PublicPromoPanelDto(bool Enabled, IReadOnlyList<PublicPromoCategor
 
 public record PublicStoreDto(
     string PublicName, string Slug, string? LogoUrl, string PrimaryColor, string? Phone, string? Whatsapp,
-    string Currency, string OrderDisclaimer, IReadOnlyList<PublicBannerDto> Banners, PublicPromoPanelDto PromoPanel);
+    string Currency, string OrderDisclaimer, IReadOnlyList<PublicBannerDto> Banners, PublicPromoPanelDto PromoPanel,
+    string TitleFont = "Default");
 
 public record PublicChildCategoryDto(int Id, string Name, string? ImageUrl);
 public record PublicCategoryDto(int Id, string Name, string? ImageUrl, IReadOnlyList<PublicChildCategoryDto> Children);
