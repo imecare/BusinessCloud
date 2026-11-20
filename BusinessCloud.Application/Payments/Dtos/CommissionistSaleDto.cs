@@ -11,6 +11,7 @@ public class CommissionistSaleDto
     public string ProductDescription { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
     public bool IsPaid { get; set; }
+    public bool IsCashSale { get; set; }
     public decimal CommissionAmount { get; set; }
     public bool IsCommissionPaid { get; set; }
     public DateTime? CommissionPaidAt { get; set; }

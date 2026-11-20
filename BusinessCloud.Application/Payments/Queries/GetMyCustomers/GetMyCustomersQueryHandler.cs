@@ -33,7 +33,7 @@ public class GetMyCustomersQueryHandler : IRequestHandler<GetMyCustomersQuery, L
                 RFC = c.RFC,
                 Phone = c.Phone,
                 SellerId = c.SellerId,
-                SellerName = $"{c.Seller.Name} {c.Seller.LastName}"
+                SellerName = c.Seller != null ? $"{c.Seller.Name} {c.Seller.LastName}" : string.Empty
             })
             .ToListAsync(cancellationToken);
     }

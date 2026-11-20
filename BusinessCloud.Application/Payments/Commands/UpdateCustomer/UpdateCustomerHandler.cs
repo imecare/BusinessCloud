@@ -16,6 +16,8 @@ public class UpdateCustomerHandler : IRequestHandler<UpdateCustomerCommand, bool
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
         if (customer is null) return false;
+        if (customer.IsGeneralPublic)
+            throw new InvalidOperationException("El cliente interno Publico en general no se puede modificar.");
 
         customer.Name = request.Name;
         customer.LastName = request.LastName;

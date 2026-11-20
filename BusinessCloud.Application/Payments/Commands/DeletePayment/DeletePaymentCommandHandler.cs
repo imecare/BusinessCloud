@@ -24,6 +24,9 @@ public class DeletePaymentCommandHandler : IRequestHandler<DeletePaymentCommand,
         if (payment is null)
             return false;
 
+        if (await _db.Sales.AnyAsync(s => s.Id == payment.SaleId && s.IsCashSale, cancellationToken))
+            throw new InvalidOperationException("No se pueden eliminar movimientos de una venta de contado.");
+
         // 1. Mover a tabla de auditor?a de abonos eliminados
         var deletedPayment = new DeletedPayment
         {

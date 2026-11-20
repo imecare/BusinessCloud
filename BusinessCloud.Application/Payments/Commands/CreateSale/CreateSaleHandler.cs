@@ -1,115 +1,126 @@
-﻿using BusinessCloud.Application.Common.Interfaces;
+using BusinessCloud.Application.Common.Interfaces;
 using BusinessCloud.Domain.Payments.Entities;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using System.Diagnostics;
-
 
 namespace BusinessCloud.Application.Payments.Commands.CreateSale;
 
-public class CreateSaleHandler : IRequestHandler<CreateSaleCommand, int>
+public class CreateSaleHandler(
+    IPaymentsDbContext db,
+    IMongoContext mongo,
+    ILogger<CreateSaleHandler> logger) : IRequestHandler<CreateSaleCommand, int>
 {
-    private readonly IPaymentsDbContext _sqlContext;
-    private readonly IMongoContext _mongoContext;
-    private readonly ICacheService _cache;
-    private readonly ILogger<CreateSaleHandler> _logger;
-    private const string IdempotencyPrefix = "sale_idempotency_";
-
-    public CreateSaleHandler(
-        IPaymentsDbContext sqlContext,
-        IMongoContext mongoContext,
-        ICacheService cache,
-        ILogger<CreateSaleHandler> logger)
-    {
-        _sqlContext = sqlContext;
-        _mongoContext = mongoContext;
-        _cache = cache;
-        _logger = logger;
-    }
-
     public async Task<int> Handle(CreateSaleCommand request, CancellationToken cancellationToken)
     {
-        var sw = Stopwatch.StartNew();
-        _logger.LogInformation("[TIMING] CreateSale - Inicio del handler");
-
-        // Verificar idempotencia: si ya existe la clave, retornar el resultado previo
-        if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
+        var key = string.IsNullOrWhiteSpace(request.IdempotencyKey) ? null : request.IdempotencyKey.Trim();
+        var result = await db.ExecuteSaleTransactionAsync(async ct =>
         {
-            var cacheKey = $"{IdempotencyPrefix}{request.IdempotencyKey}";
-            var cachedResult = await _cache.GetAsync<int?>(cacheKey);
-            _logger.LogInformation("[TIMING] CreateSale - Cache check: {Elapsed}ms", sw.ElapsedMilliseconds);
-            if (cachedResult.HasValue)
+            if (key is not null)
             {
-                _logger.LogInformation("Solicitud duplicada detectada. IdempotencyKey: {Key}, SaleId: {SaleId}",
-                    request.IdempotencyKey, cachedResult.Value);
-                return cachedResult.Value;
-            }
-        }
-
-        var sale = new Sale
-        {
-            CustomerId = request.CustomerId,
-            SellerId = request.SellerId,
-            TotalAmount = request.TotalAmount,
-            CostPrice = request.CostPrice,
-            CommissionAmount = request.CommissionAmount,
-            ProductDescription = request.ProductDescription,
-            IsCommissionPaid = false,
-            Date = request.Date
-        };
-
-        var initialMovement = new Payment
-        {
-            Amount = request.TotalAmount,
-            PaymentDate = request.Date,
-            Date = DateTime.UtcNow,
-            PaymentTypeId = 1,
-            Reference = "Registro inicial de venta"
-        };
-
-        sale.Payment = new List<Payment> { initialMovement };
-        _logger.LogInformation("[TIMING] CreateSale - Entidades creadas: {Elapsed}ms", sw.ElapsedMilliseconds);
-
-        _sqlContext.Sales.Add(sale);
-        _logger.LogInformation("[TIMING] CreateSale - Add al contexto: {Elapsed}ms", sw.ElapsedMilliseconds);
-
-        await _sqlContext.SaveChangesAsync(cancellationToken);
-        _logger.LogInformation("[TIMING] CreateSale - SaveChangesAsync completado: {Elapsed}ms, SaleId: {SaleId}", sw.ElapsedMilliseconds, sale.Id);
-
-        // Guardar en cache para idempotencia (5 minutos)
-        if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
-        {
-            var cacheKey = $"{IdempotencyPrefix}{request.IdempotencyKey}";
-            await _cache.SetAsync(cacheKey, sale.Id, TimeSpan.FromMinutes(5));
-            _logger.LogInformation("[TIMING] CreateSale - Cache set: {Elapsed}ms", sw.ElapsedMilliseconds);
-        }
-
-        // Fire-and-forget para MongoDB: no bloquea la respuesta al cliente
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await _mongoContext.InsertAuditLogAsync(new
+                var previous = await db.Sales.Include(s => s.Customer).Include(s => s.Payment)
+                    .FirstOrDefaultAsync(s => s.IdempotencyKey == key, ct);
+                if (previous is not null)
                 {
-                    Event = "SaleAndInitialMovementCreated",
-                    SaleId = sale.Id,
-                    TenantId = sale.TenantId,
-                    Details = new
-                    {
-                        request.TotalAmount,
-                        request.ProductDescription,
-                        InitialPayment = initialMovement.Amount
-                    },
-                    CreatedAt = DateTime.UtcNow
-                }, CancellationToken.None);
+                    if (!Matches(previous, request))
+                        throw new InvalidOperationException("La clave de registro ya corresponde a otra venta. Actualice la lista antes de continuar.");
+                    return (Id: previous.Id, Created: false, TenantId: previous.TenantId);
+                }
             }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Error al insertar audit log en MongoDB para SaleId: {SaleId}. El log se puede recuperar de SQL.", sale.Id);
-            }
-        });
 
-        _logger.LogInformation("[TIMING] CreateSale - Handler completado: {Elapsed}ms", sw.ElapsedMilliseconds);
-        return sale.Id;
+            if (request.SellerId.HasValue &&
+                !await db.Sellers.AnyAsync(s => s.Id == request.SellerId &&
+                    (!request.IsCashSale || s.StatusId == 1), ct))
+                throw new ArgumentException("El vendedor no existe en esta empresa o no esta activo.");
+
+            Customer customer;
+            if (request.IsCashSale && request.CustomerId == 0)
+            {
+                customer = await db.Customers.FirstOrDefaultAsync(c => c.IsGeneralPublic, ct)
+                    ?? new Customer { Name = "P\u00fablico en general", IsGeneralPublic = true };
+            }
+            else
+            {
+                customer = await db.Customers.FirstOrDefaultAsync(c => c.Id == request.CustomerId, ct)
+                    ?? throw new ArgumentException("El cliente no existe en esta empresa.");
+                if (customer.IsGeneralPublic && !request.IsCashSale)
+                    throw new ArgumentException("Publico en general solo admite ventas de contado.");
+            }
+
+            var sale = new Sale
+            {
+                Customer = customer,
+                SellerId = request.SellerId,
+                TotalAmount = request.TotalAmount,
+                CostPrice = request.CostPrice,
+                CommissionAmount = request.CommissionAmount,
+                ProductDescription = request.ProductDescription,
+                IsCommissionPaid = false,
+                IsCashSale = request.IsCashSale,
+                IsPaid = request.IsCashSale,
+                IdempotencyKey = key,
+                Date = request.Date,
+                Payment = new List<Payment>
+                {
+                    new()
+                    {
+                        Amount = request.TotalAmount,
+                        PaymentDate = request.Date,
+                        Date = DateTime.UtcNow,
+                        PaymentTypeId = 1,
+                        Reference = "Registro inicial de venta"
+                    }
+                }
+            };
+            if (request.IsCashSale)
+            {
+                sale.Payment.Add(new Payment
+                {
+                    Amount = request.TotalAmount,
+                    PaymentDate = request.Date,
+                    Date = DateTime.UtcNow,
+                    PaymentTypeId = 2,
+                    PaymentMethod = request.PaymentMethod!,
+                    Reference = "Cobro de venta de contado"
+                });
+            }
+
+            db.Sales.Add(sale);
+            await db.SaveChangesAsync(ct);
+            return (Id: sale.Id, Created: true, TenantId: sale.TenantId);
+        }, cancellationToken);
+
+        if (result.Created)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await mongo.InsertAuditLogAsync(new
+                    {
+                        Event = request.IsCashSale ? "CashSaleAndPaymentCreated" : "SaleAndInitialMovementCreated",
+                        SaleId = result.Id,
+                        result.TenantId,
+                        request.TotalAmount,
+                        request.IsCashSale,
+                        CreatedAt = DateTime.UtcNow
+                    }, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Error de auditoria MongoDB para SaleId {SaleId}; venta guardada en SQL.", result.Id);
+                }
+            });
+        }
+
+        return result.Id;
     }
+
+    private static bool Matches(Sale sale, CreateSaleCommand request) =>
+        sale.IsCashSale == request.IsCashSale &&
+        (sale.CustomerId == request.CustomerId || request.CustomerId == 0 && sale.Customer.IsGeneralPublic) &&
+        sale.SellerId == request.SellerId && sale.TotalAmount == request.TotalAmount &&
+        sale.CostPrice == request.CostPrice && sale.CommissionAmount == request.CommissionAmount &&
+        sale.ProductDescription == request.ProductDescription && sale.Date == request.Date &&
+        (!request.IsCashSale || sale.Payment.Any(p => p.PaymentTypeId == 2 && p.PaymentMethod == request.PaymentMethod));
 }

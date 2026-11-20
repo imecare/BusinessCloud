@@ -12,6 +12,7 @@ public class AdminSaleDto
     public decimal TotalAmount { get; set; }
     public decimal CostPrice { get; set; }
     public bool IsPaid { get; set; }
+    public bool IsCashSale { get; set; }
     public decimal CommissionAmount { get; set; }
     public bool IsCommissionPaid { get; set; }
     public DateTime? CommissionPaidAt { get; set; }

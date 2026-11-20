@@ -2,8 +2,8 @@
 
 namespace BusinessCloud.Application.Payments.Commands.CreateSale;
 
-// Define los datos necesarios para la venta según la tabla de Sales [cite: 23]
-public record CreateSaleCommand(
+/// <summary>Registra una venta a credito o una venta de contado con su cobro completo.</summary>
+public sealed record CreateSaleCommand(
     int CustomerId,
     int? SellerId,
     decimal TotalAmount,
@@ -11,5 +11,7 @@ public record CreateSaleCommand(
     decimal CommissionAmount,
     string ProductDescription,
     DateTime Date, // Fecha de la venta enviada desde el front
-    string? IdempotencyKey = null // Clave única para evitar duplicados en reintentos
+    string? IdempotencyKey = null,
+    bool IsCashSale = false,
+    string? PaymentMethod = null
 ) : IRequest<int>;

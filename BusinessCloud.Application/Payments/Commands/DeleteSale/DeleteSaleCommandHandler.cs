@@ -23,6 +23,8 @@ public class DeleteSaleCommandHandler : IRequestHandler<DeleteSaleCommand, bool>
 
         if (sale is null)
             return false;
+        if (sale.IsCashSale)
+            throw new InvalidOperationException("No se puede eliminar una venta de contado cobrada.");
 
         // Solo permitir eliminar si no tiene abonos (PaymentTypeId == 2)
         var hasPayments = await _db.Payments

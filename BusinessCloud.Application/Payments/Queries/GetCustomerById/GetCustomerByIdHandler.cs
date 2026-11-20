@@ -28,7 +28,7 @@ public class GetCustomerByIdQueryHandler : IRequestHandler<GetCustomerByIdQuery,
                                  RFC = s.RFC,
                                  Phone = s.Phone,
                                  SellerId = s.SellerId,
-                                 SellerName = s.Seller.Name + ' ' + s.Seller.LastName
+                                 SellerName = s.Seller != null ? s.Seller.Name + ' ' + s.Seller.LastName : string.Empty
                              })
                              .FirstOrDefaultAsync(cancellationToken);
 

@@ -72,6 +72,43 @@ public class PaymentsDbContext : DbContext, IPaymentsDbContext
         modelBuilder.Entity<Customer>(entity =>
         {
             entity.HasIndex(e => new { e.RFC, e.Phone });
+            entity.HasOne(e => e.Seller).WithMany(s => s.Customers)
+                .HasForeignKey(e => e.SellerId).OnDelete(DeleteBehavior.Cascade);
+            entity.Property(e => e.TenantId).HasMaxLength(450);
+            entity.HasIndex(e => e.TenantId).IsUnique()
+                .HasFilter("[IsGeneralPublic] = 1");
+        });
+        modelBuilder.Entity<Sale>().Property(s => s.TenantId).HasMaxLength(450);
+        modelBuilder.Entity<Sale>().Property(s => s.IdempotencyKey).HasMaxLength(100);
+        modelBuilder.Entity<Sale>().HasIndex(s => new { s.TenantId, s.IdempotencyKey })
+            .IsUnique().HasFilter("[IdempotencyKey] IS NOT NULL");
+    }
+
+    public async Task<T> ExecuteSaleTransactionAsync<T>(
+        Func<CancellationToken, Task<T>> operation, CancellationToken cancellationToken)
+    {
+        var tenantId = _userService.GetRequiredTenantId();
+        if (!Database.IsRelational())
+            return await operation(cancellationToken);
+
+        var attempt = 0;
+        return await Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+        {
+            if (attempt++ > 0)
+                ChangeTracker.Clear();
+
+            await using var transaction = await Database.BeginTransactionAsync(cancellationToken);
+            // Serialize creation per tenant, including retries after an uncertain commit.
+            var resource = $"payments-create-sale:{tenantId}";
+            await Database.ExecuteSqlInterpolatedAsync($@"
+                DECLARE @result int;
+                EXEC @result = sys.sp_getapplock @Resource={resource},
+                    @LockMode='Exclusive', @LockOwner='Transaction', @LockTimeout=15000;
+                IF @result < 0 THROW 51000, 'No se pudo bloquear el registro de la venta. Reintente.', 1;",
+                cancellationToken);
+            var result = await operation(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return result;
         });
     }
 

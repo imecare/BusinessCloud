@@ -25,3 +25,44 @@ Content-Type: application/json
 {
   "modules": ["Catalogs"]
 }
+
+### Venta de contado (SuperAdmin). Reutilizar la misma clave solo para reintentar la misma venta.
+@paymentsToken = REPLACE_WITH_SUPERADMIN_TOKEN
+POST {{BusinessCloud.Api_HostAddress}}/payment/PaySales
+Authorization: Bearer {{paymentsToken}}
+Content-Type: application/json
+
+{
+  "customerId": 0,
+  "sellerId": 1,
+  "totalAmount": 1200,
+  "costPrice": 800,
+  "commissionAmount": 100,
+  "productDescription": "Venta de contado al publico",
+  "date": "2026-11-20",
+  "isCashSale": true,
+  "paymentMethod": "Cash",
+  "idempotencyKey": "cash-manual-test-001"
+}
+
+### Venta de contado sin comisionista: 400
+POST {{BusinessCloud.Api_HostAddress}}/payment/PaySales
+Authorization: Bearer {{paymentsToken}}
+Content-Type: application/json
+
+{
+  "customerId": 0,
+  "totalAmount": 1200,
+  "costPrice": 800,
+  "commissionAmount": 100,
+  "productDescription": "Prueba de validacion",
+  "date": "2026-11-20",
+  "isCashSale": true,
+  "paymentMethod": "Cash",
+  "idempotencyKey": "cash-invalid-test-001"
+}
+
+### Excel de todas las deudas activas (SuperAdmin)
+GET {{BusinessCloud.Api_HostAddress}}/payment/PaySales/debts/excel
+Authorization: Bearer {{paymentsToken}}
+Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet

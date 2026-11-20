@@ -3,7 +3,7 @@ namespace BusinessCloud.Application.Payments.Queries.GetCustomerDebts;
 public sealed record CustomerDebtDto(
     int CustomerId,
     string CustomerName,
-    int SellerId,
+    int? SellerId,
     string SellerName,
     decimal TotalAmount,
     decimal PaidAmount,

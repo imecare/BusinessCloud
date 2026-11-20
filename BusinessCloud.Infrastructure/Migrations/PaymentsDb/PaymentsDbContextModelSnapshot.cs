@@ -94,6 +94,9 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
                     b.Property<string>("CreatedBy")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("IsGeneralPublic")
+                        .HasColumnType("bit");
+
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -110,12 +113,13 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<int>("SellerId")
+                    b.Property<int?>("SellerId")
                         .HasColumnType("int");
 
                     b.Property<string>("TenantId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -126,6 +130,10 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
                     b.HasKey("Id");
 
                     b.HasIndex("SellerId");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasFilter("[IsGeneralPublic] = 1");
 
                     b.HasIndex("RFC", "Phone");
 
@@ -400,6 +408,13 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
                     b.Property<DateTime>("Date")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("IdempotencyKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsCashSale")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsCommissionPaid")
                         .HasColumnType("bit");
 
@@ -415,7 +430,8 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
 
                     b.Property<string>("TenantId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(18, 2)
@@ -432,6 +448,10 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
                     b.HasIndex("CustomerId");
 
                     b.HasIndex("SellerId");
+
+                    b.HasIndex("TenantId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasFilter("[IdempotencyKey] IS NOT NULL");
 
                     b.ToTable("Sales");
                 });
@@ -558,8 +578,7 @@ namespace BusinessCloud.Infrastructure.Migrations.PaymentsDb
                     b.HasOne("BusinessCloud.Domain.Payments.Entities.Seller", "Seller")
                         .WithMany("Customers")
                         .HasForeignKey("SellerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Seller");
                 });

@@ -39,6 +39,7 @@ public class GetMySalesQueryHandler : IRequestHandler<GetMySalesQuery, List<Comm
                 ProductDescription = s.ProductDescription,
                 TotalAmount = s.TotalAmount,
                 IsPaid = s.IsPaid,
+                IsCashSale = s.IsCashSale,
                 CommissionAmount = s.CommissionAmount,
                 IsCommissionPaid = s.IsCommissionPaid,
                 CommissionPaidAt = s.CommissionPaidAt,

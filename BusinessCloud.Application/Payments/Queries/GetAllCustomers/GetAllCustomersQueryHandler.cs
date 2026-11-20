@@ -19,6 +19,7 @@ namespace BusinessCloud.Application.Payments.Queries.GetAllCustomers
             {
                 var customerDtos = await _db.Customers
                                  .AsNoTracking()
+                                 .Where(s => !s.IsGeneralPublic)
                                  .Include(s => s.Seller)
                                  .Select(s => new CustomerDto
                                  {
@@ -28,7 +29,7 @@ namespace BusinessCloud.Application.Payments.Queries.GetAllCustomers
                                      RFC = s.RFC,
                                      Phone = s.Phone,
                                      SellerId = s.SellerId,
-                                     SellerName = s.Seller.Name + " " + s.Seller.LastName // Usar comillas dobles para strings
+                                     SellerName = s.Seller != null ? s.Seller.Name + " " + s.Seller.LastName : string.Empty
                                  }
                                  ).ToListAsync(cancellationToken);
 

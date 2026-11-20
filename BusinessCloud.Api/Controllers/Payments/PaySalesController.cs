@@ -5,6 +5,7 @@ using BusinessCloud.Application.Payments.Dtos;
 using BusinessCloud.Application.Payments.Queries.GetAllSales;
 using BusinessCloud.Application.Payments.Queries.GetCustomerHistory;
 using BusinessCloud.Application.Payments.Queries.GetCustomerDebts;
+using BusinessCloud.Application.Payments.Queries.GetCustomerDebtsExcel;
 using BusinessCloud.Application.Payments.Queries.GetMySales;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -84,6 +85,16 @@ public class PaySalesController : ControllerBase
     {
         var result = await _mediator.Send(new GetCustomerDebtsQuery(), cancellationToken);
         return Ok(result);
+    }
+
+    /// <summary>Descarga todas las deudas activas, compras pendientes y sus abonos en Excel.</summary>
+    [Authorize(Policy = "SuperAdmin")]
+    [HttpGet("debts/excel")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDebtsExcel(CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetCustomerDebtsExcelQuery(), cancellationToken);
+        return File(result.Content, result.ContentType, result.FileName);
     }
 
     /// <summary>

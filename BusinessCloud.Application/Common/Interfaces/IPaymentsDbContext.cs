@@ -16,4 +16,6 @@ public interface IPaymentsDbContext
     DbSet<DeletedSale> DeletedSales { get; }
     DbSet<Tenant> Tenants { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
+    Task<T> ExecuteSaleTransactionAsync<T>(
+        Func<CancellationToken, Task<T>> operation, CancellationToken cancellationToken);
 }

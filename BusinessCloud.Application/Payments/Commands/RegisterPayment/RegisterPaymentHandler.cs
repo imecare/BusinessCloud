@@ -54,6 +54,8 @@ public class RegisterPaymentHandler : IRequestHandler<RegisterPaymentCommand, Pa
         _logger.LogInformation("[TIMING] RegisterPayment - Query Sale: {Elapsed}ms", sw.ElapsedMilliseconds);
 
         if (sale == null) throw new Exception("Venta no encontrada.");
+        if (sale.IsCashSale)
+            throw new InvalidOperationException("La venta de contado ya incluye su cobro completo.");
 
         var payment = new Payment
         {

@@ -26,6 +26,7 @@ public class GetPublicHistoryQueryHandler : IRequestHandler<GetPublicHistoryQuer
             .AsNoTracking()
             .FirstOrDefaultAsync(c =>
                 c.TenantId == tenant.Id &&
+                !c.IsGeneralPublic &&
                 c.Phone == request.Phone &&
                 c.RFC == request.Rfc,
                 cancellationToken);

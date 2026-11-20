@@ -17,6 +17,9 @@ public class UpdatePaymentHandler : IRequestHandler<UpdatePaymentCommand, bool>
 
         if (payment is null) return false;
 
+        if (await _db.Sales.AnyAsync(s => s.Id == payment.SaleId && s.IsCashSale, cancellationToken))
+            throw new InvalidOperationException("No se pueden modificar movimientos de una venta de contado.");
+
         payment.Amount = request.Amount;
         payment.PaymentMethod = request.PaymentMethod;
         payment.Reference = request.Reference ?? payment.Reference;

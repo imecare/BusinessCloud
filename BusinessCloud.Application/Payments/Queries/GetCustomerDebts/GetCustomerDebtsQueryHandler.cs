@@ -11,15 +11,14 @@ public sealed class GetCustomerDebtsQueryHandler(IPaymentsDbContext db)
         GetCustomerDebtsQuery request,
         CancellationToken cancellationToken)
     {
-        var pendingSales = await db.Sales
-            .AsNoTracking()
-            .Where(sale => !sale.IsPaid)
+        var pendingSales = await ActiveDebtSales.Query(db)
             .Select(sale => new
             {
                 sale.CustomerId,
                 CustomerName = sale.Customer.Name + " " + sale.Customer.LastName,
                 SellerId = sale.Customer.SellerId,
-                SellerName = sale.Customer.Seller.Name + " " + sale.Customer.Seller.LastName,
+                SellerName = sale.Customer.Seller != null
+                    ? sale.Customer.Seller.Name + " " + sale.Customer.Seller.LastName : string.Empty,
                 sale.TotalAmount,
                 PaidAmount = sale.Payment
                     .Where(payment => payment.PaymentTypeId == 2)

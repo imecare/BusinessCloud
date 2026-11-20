@@ -16,6 +16,8 @@ namespace BusinessCloud.Domain.Payments.Entities
 
         public bool IsCommissionPaid { get; set; }
         public bool IsPaid { get; set; }
+        public bool IsCashSale { get; set; }
+        public string? IdempotencyKey { get; set; }
 
         // Auditoría de pago de comisión
         public DateTime? CommissionPaidAt { get; set; }
