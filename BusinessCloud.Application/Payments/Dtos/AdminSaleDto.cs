@@ -16,6 +16,7 @@ public class AdminSaleDto
     public decimal CommissionAmount { get; set; }
     public bool IsCommissionPaid { get; set; }
     public DateTime? CommissionPaidAt { get; set; }
+    public string? CommissionPaymentNote { get; set; }
 
     /// <summary>Suma de pagos con PaymentTypeId == 2 (abonos reales)</summary>
     public decimal PaidAmount { get; set; }

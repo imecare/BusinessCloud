@@ -51,18 +51,20 @@ public class CategoryInput
 
 public record OrderItemSortDto(int Id, int SortOrder);
 
-public record ProductListDto(
+/// <summary>Producto del listado administrativo con precio promocional opcional.</summary>
+public sealed record ProductListDto(
     int Id, string Name, int? CategoryId, string? CategoryName, decimal Price, string Status,
-    bool IsFeatured, string? MainImageUrl, int TotalStock, bool IsSoldOut);
+    bool IsFeatured, string? MainImageUrl, int TotalStock, bool IsSoldOut, decimal? DiscountPrice = null);
 
 public record ProductImageDto(int Id, string Url, int SortOrder);
 
 public record ProductVariantDto(int Id, string? Size, string? Color, string? Sku, int Stock);
 
-public record ProductDto(
+/// <summary>Detalle administrativo de un producto y sus precios.</summary>
+public sealed record ProductDto(
     int Id, string Name, string? Description, int? CategoryId, decimal Price, string Status,
     bool IsFeatured, IReadOnlyList<ProductImageDto> Images, IReadOnlyList<ProductVariantDto> Variants,
-    bool IsSoldOut);
+    bool IsSoldOut, decimal? DiscountPrice = null);
 
 public class VariantInput
 {
@@ -73,12 +75,14 @@ public class VariantInput
     public int Stock { get; set; }
 }
 
+/// <summary>Datos para crear o editar un producto; null elimina su precio promocional.</summary>
 public class ProductInput
 {
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public int? CategoryId { get; set; }
     public decimal Price { get; set; }
+    public decimal? DiscountPrice { get; set; }
     public string Status { get; set; } = "Active";
     public bool IsFeatured { get; set; }
     public List<VariantInput> Variants { get; set; } = [];
@@ -132,15 +136,19 @@ public record PublicStoreDto(
 public record PublicChildCategoryDto(int Id, string Name, string? ImageUrl);
 public record PublicCategoryDto(int Id, string Name, string? ImageUrl, IReadOnlyList<PublicChildCategoryDto> Children);
 
-public record PublicProductListDto(
-    int Id, string Name, decimal Price, string? MainImageUrl, bool IsSoldOut, bool IsFeatured, string? CategoryName);
+/// <summary>Producto público con precio normal y precio promocional opcional.</summary>
+public sealed record PublicProductListDto(
+    int Id, string Name, decimal Price, string? MainImageUrl, bool IsSoldOut, bool IsFeatured, string? CategoryName,
+    decimal? DiscountPrice = null);
 
 public record PublicImageDto(int Id, string Url);
 public record PublicVariantDto(int Id, string? Size, string? Color, int Stock, bool InStock);
 
-public record PublicProductDto(
+/// <summary>Detalle público de un producto, sus precios y variantes disponibles.</summary>
+public sealed record PublicProductDto(
     int Id, string Name, string? Description, decimal Price, int? CategoryId, string? CategoryName,
-    bool IsSoldOut, IReadOnlyList<PublicImageDto> Images, IReadOnlyList<PublicVariantDto> Variants);
+    bool IsSoldOut, IReadOnlyList<PublicImageDto> Images, IReadOnlyList<PublicVariantDto> Variants,
+    decimal? DiscountPrice = null);
 
 public class PublicOrderItemInput
 {

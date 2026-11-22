@@ -32,17 +32,95 @@ public class CatalogAdminAndSearchTests
         return identity;
     }
 
-    private static ProductInput Product(string name, int? categoryId = null, string status = "Active", int stock = 3) => new()
+    private static ProductInput Product(string name, int? categoryId = null, string status = "Active", int stock = 3,
+        decimal? discountPrice = null) => new()
     {
         Name = name,
         Description = $"Descripción de {name}",
         CategoryId = categoryId,
         Price = 50,
+        DiscountPrice = discountPrice,
         Status = status,
         Variants = [new VariantInput { Size = "M", Stock = stock }],
     };
 
     // ---------- Slug ----------
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(0d)]
+    [InlineData(39.99)]
+    public async Task Precios_se_guardan_y_se_exponen_en_admin_listado_destacados_y_detalle_publico(double? value)
+    {
+        var discount = value is { } number ? (decimal?)Convert.ToDecimal(number) : null;
+        using var db = CatalogsContextFactory.Create();
+        using var identity = await SeedIdentityAsync((Tenant, "Mi Tienda"));
+        var settings = await CatalogSettingsProvider.GetOrCreateAsync(db, identity, Tenant, default);
+        var input = Product("Blusa", discountPrice: discount);
+        input.IsFeatured = true;
+
+        var created = await new CreateProductHandler(db, CatalogsContextFactory.CurrentUser())
+            .Handle(new CreateProductCommand(input), default);
+        Assert.Equal(discount, created.DiscountPrice);
+        db.ChangeTracker.Clear();
+        var persisted = await db.Products.SingleAsync();
+        Assert.Equal(50m, persisted.Price);
+        Assert.Equal(discount, persisted.DiscountPrice);
+
+        var admin = CatalogMappers.ToListDto(persisted, null);
+        Assert.Equal(discount, admin.DiscountPrice);
+        var list = await new GetPublicProductsHandler(db, identity)
+            .Handle(new GetPublicProductsQuery(settings.Slug, null, null, null, 1, 24), default);
+        Assert.Equal(discount, Assert.Single(list.Items).DiscountPrice);
+        var featured = await new GetPublicFeaturedHandler(db, identity)
+            .Handle(new GetPublicFeaturedQuery(settings.Slug), default);
+        Assert.Equal(discount, Assert.Single(featured).DiscountPrice);
+        var detail = await new GetPublicProductHandler(db, identity)
+            .Handle(new GetPublicProductQuery(settings.Slug, created.Id), default);
+        Assert.Equal(50m, detail.Price);
+        Assert.Equal(discount, detail.DiscountPrice);
+    }
+
+    [Fact]
+    public async Task Editar_permite_cambiar_y_eliminar_el_precio_promocional()
+    {
+        using var db = CatalogsContextFactory.Create();
+        var user = CatalogsContextFactory.CurrentUser();
+        var created = await new CreateProductHandler(db, user)
+            .Handle(new CreateProductCommand(Product("Blusa", discountPrice: 40m)), default);
+        var handler = new UpdateProductHandler(db, user);
+        var changed = await handler.Handle(new UpdateProductCommand(created.Id,
+            Product("Blusa", discountPrice: 35m)), default);
+        Assert.Equal(35m, changed.DiscountPrice);
+
+        var removed = await handler.Handle(new UpdateProductCommand(created.Id, Product("Blusa")), default);
+        Assert.Null(removed.DiscountPrice);
+        db.ChangeTracker.Clear();
+        var persisted = await db.Products.SingleAsync();
+        Assert.Equal(50m, persisted.Price);
+        Assert.Null(persisted.DiscountPrice);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(50)]
+    [InlineData(60)]
+    [InlineData(49.999)]
+    public async Task Promocion_invalida_se_rechaza_al_crear_y_editar(double value)
+    {
+        using var db = CatalogsContextFactory.Create();
+        var user = CatalogsContextFactory.CurrentUser();
+        var create = new CreateProductHandler(db, user);
+        var invalid = Product("Blusa", discountPrice: Convert.ToDecimal(value));
+        await Assert.ThrowsAsync<ArgumentException>(() => create.Handle(new CreateProductCommand(invalid), default));
+        Assert.Empty(await db.Products.ToListAsync());
+
+        var created = await create.Handle(new CreateProductCommand(Product("Blusa", discountPrice: 40m)), default);
+        await Assert.ThrowsAsync<ArgumentException>(() => new UpdateProductHandler(db, user)
+            .Handle(new UpdateProductCommand(created.Id, invalid), default));
+        db.ChangeTracker.Clear();
+        Assert.Equal(40m, (await db.Products.SingleAsync()).DiscountPrice);
+    }
 
     [Theory]
     [InlineData("Mi Tienda Bonita", "mi-tienda-bonita")]

@@ -8,7 +8,7 @@ public static class CatalogMappers
     public static ProductListDto ToListDto(CatProduct p, string? categoryName) => new(
         p.Id, p.Name, p.CategoryId, categoryName, p.Price, p.Status.ToString(), p.IsFeatured,
         p.Images.OrderBy(i => i.SortOrder).ThenBy(i => i.Id).Select(i => i.Url).FirstOrDefault(),
-        p.TotalStock, p.IsSoldOut);
+        p.TotalStock, p.IsSoldOut, p.DiscountPrice);
 
     public static ProductDto ToDto(CatProduct p) => new(
         p.Id, p.Name, p.Description, p.CategoryId, p.Price, p.Status.ToString(), p.IsFeatured,
@@ -16,7 +16,7 @@ public static class CatalogMappers
             .Select(i => new ProductImageDto(i.Id, i.Url, i.SortOrder)).ToList(),
         p.Variants.Where(v => v.IsActive).OrderBy(v => v.Id)
             .Select(v => new ProductVariantDto(v.Id, v.Size, v.Color, v.Sku, v.Stock)).ToList(),
-        p.IsSoldOut);
+        p.IsSoldOut, p.DiscountPrice);
 
     public static OrderListDto ToListDto(CatOrder o) => new(
         o.Id, o.OrderNumber, o.CustomerName, o.CustomerPhone, o.Status.ToString(),
@@ -53,5 +53,5 @@ public static class CatalogMappers
     public static PublicProductListDto ToPublicListDto(CatProduct p, string? categoryName) => new(
         p.Id, p.Name, p.Price,
         p.Images.OrderBy(i => i.SortOrder).ThenBy(i => i.Id).Select(i => i.Url).FirstOrDefault(),
-        p.IsSoldOut, p.IsFeatured, categoryName);
+        p.IsSoldOut, p.IsFeatured, categoryName, p.DiscountPrice);
 }

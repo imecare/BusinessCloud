@@ -198,6 +198,7 @@ public class GetPublicProductHandler(ICatalogsDbContext db, IIdentityDbContext i
             product.IsSoldOut,
             product.Images.OrderBy(i => i.SortOrder).ThenBy(i => i.Id).Select(i => new PublicImageDto(i.Id, i.Url)).ToList(),
             product.Variants.Where(v => v.IsActive).OrderBy(v => v.Id)
-                .Select(v => new PublicVariantDto(v.Id, v.Size, v.Color, v.Stock, v.Stock > 0 && !forcedSoldOut)).ToList());
+                .Select(v => new PublicVariantDto(v.Id, v.Size, v.Color, v.Stock, v.Stock > 0 && !forcedSoldOut)).ToList(),
+            product.DiscountPrice);
     }
 }

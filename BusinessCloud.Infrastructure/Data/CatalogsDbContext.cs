@@ -66,6 +66,7 @@ public class CatalogsDbContext : DbContext, ICatalogsDbContext
             e.Property(x => x.Name).IsRequired().HasMaxLength(200);
             e.Property(x => x.Description).HasMaxLength(4000);
             e.Property(x => x.Price).HasPrecision(18, 2);
+            e.Property(x => x.DiscountPrice).HasPrecision(18, 2);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             e.Ignore(x => x.TotalStock);
             e.Ignore(x => x.IsSoldOut);

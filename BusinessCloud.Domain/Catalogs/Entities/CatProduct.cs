@@ -21,6 +21,7 @@ public class CatProduct : BaseAuditableEntity
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public decimal Price { get; set; }
+    public decimal? DiscountPrice { get; set; }
     public CatProductStatus Status { get; set; } = CatProductStatus.Active;
     public bool IsFeatured { get; set; }
     public bool IsDeleted { get; set; }

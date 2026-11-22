@@ -74,6 +74,32 @@ public class PublicOrderTests
         Items = [new PublicOrderItemInput { ProductId = productId, VariantId = variantId, Quantity = qty }],
     });
 
+    [Theory]
+    [InlineData(null, 200)]
+    [InlineData(75d, 150)]
+    [InlineData(0d, 0)]
+    public async Task Pedido_usa_precio_promocional_y_conserva_el_importe_historico(double? value, int expectedTotal)
+    {
+        using var db = CatalogsContextFactory.Create();
+        using var identity = await SeedIdentityAsync();
+        var (productId, variantId) = await SeedProductAsync(db, stock: 5);
+        var product = await db.Products.SingleAsync();
+        product.DiscountPrice = value is { } number ? Convert.ToDecimal(number) : null;
+        await db.SaveChangesAsync();
+        var (handler, _) = Handler(db, identity);
+
+        var result = await handler.Handle(Order(productId, variantId, 2), default);
+        Assert.Equal((decimal)expectedTotal, result.EstimatedTotal);
+        var item = await db.OrderItems.SingleAsync();
+        Assert.Equal(expectedTotal / 2m, item.UnitPrice);
+
+        product.DiscountPrice = null;
+        product.Price = 120m;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        Assert.Equal(expectedTotal / 2m, (await db.OrderItems.SingleAsync()).UnitPrice);
+    }
+
     [Fact]
     public async Task Pedido_con_existencia_descuenta_stock_y_notifica()
     {

@@ -96,7 +96,7 @@ public class CreatePublicOrderHandler(
                     ProductName = product.Name,
                     VariantLabel = variant.Label,
                     ImageUrl = product.Images.OrderBy(i => i.SortOrder).ThenBy(i => i.Id).Select(i => i.Url).FirstOrDefault(),
-                    UnitPrice = product.Price,
+                    UnitPrice = product.DiscountPrice ?? product.Price,
                     RequestedQuantity = quantity,
                     QuantityDiscounted = discounted,
                     FinalQuantity = discounted,

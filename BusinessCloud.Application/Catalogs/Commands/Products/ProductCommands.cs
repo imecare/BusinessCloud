@@ -44,6 +44,10 @@ public static class ProductRules
             throw new ArgumentException("La descripción no debe exceder 4000 caracteres.");
         if (input.Price is < 0 or > 9_999_999)
             throw new ArgumentException("El precio debe ser mayor o igual a 0.");
+        if (input.DiscountPrice is { } discountPrice
+            && (discountPrice < 0 || discountPrice >= decimal.Round(input.Price, 2)
+                || discountPrice != decimal.Round(discountPrice, 2)))
+            throw new ArgumentException("El precio de promoción debe ser mayor o igual a 0, menor al precio normal y tener máximo 2 decimales.");
         ParseStatus(input.Status);
 
         if (input.Variants.Count > 100)
@@ -83,6 +87,7 @@ public class CreateProductHandler(ICatalogsDbContext db, ICurrentUserService cur
             Description = CatalogText.Clean(input.Description, 4000),
             CategoryId = input.CategoryId,
             Price = input.Price,
+            DiscountPrice = input.DiscountPrice,
             Status = ProductRules.ParseStatus(input.Status),
             IsFeatured = input.IsFeatured,
         };
@@ -125,6 +130,7 @@ public class UpdateProductHandler(ICatalogsDbContext db, ICurrentUserService cur
         product.Description = CatalogText.Clean(input.Description, 4000);
         product.CategoryId = input.CategoryId;
         product.Price = input.Price;
+        product.DiscountPrice = input.DiscountPrice;
         product.Status = ProductRules.ParseStatus(input.Status);
         product.IsFeatured = input.IsFeatured;
 
