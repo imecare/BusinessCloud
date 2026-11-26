@@ -228,6 +228,7 @@ try
                     "http://localhost:53517",
                     "http://localhost:5175",
                     "https://catalogos.bcloud.com.mx",
+                    "https://lemon-glacier-0e0f4a210.6.azurestaticapps.net",
                     "https://bcloud.com.mx",
                     "https://admin.bcloud.com.mx",
                     "https://payments.bcloud.com.mx",

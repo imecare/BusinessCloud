@@ -153,7 +153,7 @@ public class AuthController : ControllerBase
         var user = await _userManager.FindByEmailAsync(request.Email);
 
         if (user == null)
-            return Unauthorized(new { success = false, message = "Credenciales inv?lidas." });
+            return Unauthorized(new { success = false, message = "Credenciales inválidas." });
 
         if (!user.IsActive)
             return Unauthorized(new { success = false, message = "Usuario desactivado. Contacte al administrador." });
@@ -168,7 +168,7 @@ public class AuthController : ControllerBase
             return StatusCode(423, new { success = false, message = "Cuenta bloqueada temporalmente por m?ltiples intentos fallidos. Intenta de nuevo en unos minutos." });
 
         if (!result.Succeeded)
-            return Unauthorized(new { success = false, message = "Credenciales inv?lidas." });
+            return Unauthorized(new { success = false, message = "Credenciales inválidas." });
 
         // Obtener m?dulos habilitados del tenant
         var modules = await _identityContext.TenantModules
