@@ -7,7 +7,15 @@ public enum CatTitleFont
     Default,
     PlayfairDisplay,
     DancingScript,
-    Montserrat
+    Montserrat,
+    CormorantGaramond,
+    LibreBaskerville,
+    Cinzel,
+    AbrilFatface,
+    BebasNeue,
+    Oswald,
+    Pacifico,
+    Sacramento
 }
 
 /// <summary>
@@ -22,6 +30,7 @@ public class CatStoreSettings : BaseAuditableEntity
     public string? LogoUrl { get; set; }
     public string? LogoBlobName { get; set; }
     public string PrimaryColor { get; set; } = "#0d6efd";
+    public string TitleColor { get; set; } = "#0f172a";
     public CatTitleFont TitleFont { get; set; } = CatTitleFont.Default;
     public string? Phone { get; set; }
     public string? Whatsapp { get; set; }

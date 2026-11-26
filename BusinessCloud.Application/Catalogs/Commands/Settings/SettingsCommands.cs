@@ -37,6 +37,10 @@ public partial class UpdateStoreSettingsHandler(
         if (!ColorRegex().IsMatch(color))
             throw new ArgumentException("El color principal debe tener formato #RRGGBB.");
 
+        var titleColor = input.TitleColor?.Trim() ?? settings.TitleColor;
+        if (!ColorRegex().IsMatch(titleColor))
+            throw new ArgumentException("El color del nombre de la tienda debe tener formato #RRGGBB.");
+
         if (input.TitleFont is not null && !Enum.GetNames<CatTitleFont>().Contains(input.TitleFont))
             throw new ArgumentException("Selecciona una tipografía válida para el nombre de la tienda.");
 
@@ -67,6 +71,7 @@ public partial class UpdateStoreSettingsHandler(
         settings.Slug = slug;
         settings.PublicName = name;
         settings.PrimaryColor = color;
+        settings.TitleColor = titleColor;
         if (input.TitleFont is not null)
             settings.TitleFont = Enum.Parse<CatTitleFont>(input.TitleFont);
         settings.Currency = currency;

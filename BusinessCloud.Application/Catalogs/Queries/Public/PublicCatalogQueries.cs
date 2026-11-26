@@ -69,7 +69,7 @@ public class GetPublicStoreHandler(ICatalogsDbContext db, IIdentityDbContext ide
                 b.Id, b.ImageUrl, b.Title,
                 b.LinkCategoryId is { } link && visibleIds.Contains(link) ? link : null)).ToList(),
             new PublicPromoPanelDto(settings.PromoPanelEnabled && promo.Count == 2, promo),
-            settings.TitleFont.ToString());
+            settings.TitleFont.ToString(), settings.TitleColor);
     }
 }
 

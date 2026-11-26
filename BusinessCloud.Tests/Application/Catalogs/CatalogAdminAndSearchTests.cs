@@ -180,6 +180,14 @@ public class CatalogAdminAndSearchTests
     [InlineData("PlayfairDisplay")]
     [InlineData("DancingScript")]
     [InlineData("Montserrat")]
+    [InlineData("CormorantGaramond")]
+    [InlineData("LibreBaskerville")]
+    [InlineData("Cinzel")]
+    [InlineData("AbrilFatface")]
+    [InlineData("BebasNeue")]
+    [InlineData("Oswald")]
+    [InlineData("Pacifico")]
+    [InlineData("Sacramento")]
     public async Task Tipografia_se_guarda_y_se_expone_en_el_catalogo_publico(string font)
     {
         using var identity = await SeedIdentityAsync((Tenant, "Mi Tienda"));
@@ -220,6 +228,56 @@ public class CatalogAdminAndSearchTests
         db.ChangeTracker.Clear();
         Assert.Equal("Montserrat", updated.TitleFont);
         Assert.Equal(CatTitleFont.Montserrat, (await db.StoreSettings.SingleAsync()).TitleFont);
+    }
+
+    [Fact]
+    public async Task Color_del_nombre_se_guarda_y_se_expone_sin_cambiar_el_color_principal()
+    {
+        using var identity = await SeedIdentityAsync((Tenant, "Mi Tienda"));
+        using var db = CatalogsContextFactory.Create();
+        var settings = await CatalogSettingsProvider.GetOrCreateAsync(db, identity, Tenant, default);
+        var originalColor = settings.PrimaryColor;
+        var handler = new UpdateStoreSettingsHandler(db, identity, CatalogsContextFactory.CurrentUser());
+        var updated = await handler.Handle(new UpdateStoreSettingsCommand(new StoreSettingsInput
+        {
+            Slug = settings.Slug, PublicName = settings.PublicName, TitleColor = "#a52a7c"
+        }), default);
+        Assert.Equal("#a52a7c", updated.TitleColor);
+        Assert.Equal(originalColor, updated.PrimaryColor);
+
+        db.ChangeTracker.Clear();
+        var store = await new GetPublicStoreHandler(db, identity)
+            .Handle(new GetPublicStoreQuery(updated.Slug), default);
+        Assert.Equal("#a52a7c", store.TitleColor);
+        Assert.Equal(originalColor, store.PrimaryColor);
+
+        var legacyUpdate = await handler.Handle(new UpdateStoreSettingsCommand(new StoreSettingsInput
+        {
+            Slug = updated.Slug, PublicName = "Nuevo nombre"
+        }), default);
+        Assert.Equal("#a52a7c", legacyUpdate.TitleColor);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("#fff")]
+    [InlineData("red; color: blue")]
+    public async Task Color_del_nombre_invalido_se_rechaza_sin_modificar_la_configuracion(string color)
+    {
+        using var identity = await SeedIdentityAsync((Tenant, "Mi Tienda"));
+        using var db = CatalogsContextFactory.Create();
+        var settings = await CatalogSettingsProvider.GetOrCreateAsync(db, identity, Tenant, default);
+        var handler = new UpdateStoreSettingsHandler(db, identity, CatalogsContextFactory.CurrentUser());
+        await Assert.ThrowsAsync<ArgumentException>(() => handler.Handle(
+            new UpdateStoreSettingsCommand(new StoreSettingsInput
+            {
+                Slug = settings.Slug, PublicName = "No guardar", TitleColor = color
+            }), default));
+
+        db.ChangeTracker.Clear();
+        var persisted = await db.StoreSettings.SingleAsync();
+        Assert.Equal("#0f172a", persisted.TitleColor);
+        Assert.Equal("Mi Tienda", persisted.PublicName);
     }
 
     [Theory]

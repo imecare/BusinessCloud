@@ -582,6 +582,13 @@ namespace BusinessCloud.Infrastructure.Migrations.CatalogsDb
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
+                    b.Property<string>("TitleColor")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(7)
+                        .HasColumnType("nvarchar(7)")
+                        .HasDefaultValue("#0f172a");
+
                     b.Property<string>("TitleFont")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
